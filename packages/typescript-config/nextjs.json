@@ -8,5 +8,20 @@
     "allowJs": true,
     "jsx": "preserve",
     "noEmit": true
-  }
+  },
+  "include": [
+    "src",
+    "app",
+    "pages",
+    "components",
+    "lib",
+    "features",
+    "data",
+    "server",
+    "scripts",
+    "next.config.ts",
+    "next.config.js",
+    "next-env.d.ts"
+  ],
+  "exclude": ["node_modules"]
 }

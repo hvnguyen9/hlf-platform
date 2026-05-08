@@ -1,0 +1,21 @@
+{
+  "name": "@hlf/auth-db",
+  "version": "0.0.0",
+  "private": true,
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "db:migrate": "prisma migrate deploy",
+    "db:generate": "prisma generate",
+    "check-types": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@prisma/client": "^6.0.0"
+  },
+  "devDependencies": {
+    "@hlf/typescript-config": "workspace:*",
+    "prisma": "^6.0.0",
+    "typescript": "5.9.2"
+  }
+}
