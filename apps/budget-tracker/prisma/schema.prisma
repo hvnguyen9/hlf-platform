@@ -1,0 +1,304 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── NextAuth ─────────────────────────────────────────────────────────────────
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+// ─── User ─────────────────────────────────────────────────────────────────────
+
+model User {
+  id                String             @id @default(cuid())
+  firstName         String
+  lastName          String
+  email             String             @unique
+  bio               String?
+  avatarUrl         String?
+  isAdmin           Boolean            @default(false)
+  username          String             @unique
+  password          String
+  createdAt         DateTime           @default(now())
+  accounts              Account[]
+  sessions              Session[]
+  transactions          Transaction[]
+  recurringTransactions RecurringTransaction[]
+  categories            Category[]
+  monthlyBudgets    MonthlyBudget[]
+  netWorthSnapshots NetWorthSnapshot[]
+  investments       Investment[]
+  assets            BtAsset[]
+  liabilities       BtLiability[]
+  fireProfile       FIREProfile?
+  savingsGoals      SavingsGoal[]
+}
+
+// ─── Recurring Transactions ───────────────────────────────────────────────────
+
+model RecurringTransaction {
+  id          String          @id @default(cuid())
+  userId      String
+  user        User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  amount      Decimal         @db.Decimal(18, 2)
+  type        TransactionType
+  categoryId  String?
+  category    Category?       @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  description String?
+  notes       String?
+  dayOfMonth  Int             @default(1)
+  isActive    Boolean         @default(true)
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  @@index([userId, isActive])
+}
+
+// ─── Transactions ─────────────────────────────────────────────────────────────
+
+model Transaction {
+  id          String          @id @default(cuid())
+  userId      String
+  user        User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  amount      Decimal         @db.Decimal(18, 2)
+  type        TransactionType
+  categoryId  String?
+  category    Category?       @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  description String?
+  notes       String?
+  date        DateTime
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  @@index([userId, date])
+  @@index([userId, type, date])
+  @@index([userId, categoryId, date])
+}
+
+enum TransactionType {
+  income
+  expense
+
+  @@map("BtTransactionType")
+}
+
+// ─── Categories ───────────────────────────────────────────────────────────────
+
+model Category {
+  id             String        @id @default(cuid())
+  userId         String
+  user           User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name           String
+  color          String        @default("#6366f1")
+  icon           String        @default("tag")
+  type           CategoryType  @default(expense)
+  monthlyBudget  Decimal?      @db.Decimal(18, 2)
+  isSavings      Boolean       @default(false)
+  isDefault      Boolean       @default(false)
+  order          Int           @default(0)
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+  transactions          Transaction[]
+  recurringTransactions RecurringTransaction[]
+  monthlyBudgets        MonthlyBudget[]
+
+  @@unique([userId, name])
+  @@index([userId, type])
+}
+
+enum CategoryType {
+  income
+  expense
+  both
+
+  @@map("BtCategoryType")
+}
+
+// ─── Monthly Budgets ──────────────────────────────────────────────────────────
+
+model MonthlyBudget {
+  id           String   @id @default(cuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  month        Int
+  year         Int
+  categoryId   String
+  category     Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  budgetAmount Decimal  @db.Decimal(18, 2)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@unique([userId, year, month, categoryId])
+  @@index([userId, year, month])
+}
+
+// ─── FIRE: Net Worth Snapshots ────────────────────────────────────────────────
+
+model NetWorthSnapshot {
+  id               String   @id @default(cuid())
+  userId           String
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  date             DateTime
+  totalAssets      Decimal  @db.Decimal(18, 2)
+  totalLiabilities Decimal  @db.Decimal(18, 2)
+  netWorth         Decimal  @db.Decimal(18, 2)
+  notes            String?
+  createdAt        DateTime @default(now())
+
+  @@index([userId, date])
+}
+
+// ─── FIRE: Assets (non-investment) ───────────────────────────────────────────
+
+model BtAsset {
+  id        String      @id @default(cuid())
+  userId    String
+  user      User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name      String
+  type      BtAssetType
+  value     Decimal     @db.Decimal(18, 2)
+  notes     String?
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+
+  @@index([userId])
+}
+
+enum BtAssetType {
+  real_estate
+  vehicle
+  cash
+  other
+
+  @@map("BtAssetType")
+}
+
+// ─── FIRE: Liabilities ────────────────────────────────────────────────────────
+
+model BtLiability {
+  id        String          @id @default(cuid())
+  userId    String
+  user      User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name      String
+  type      BtLiabilityType
+  balance   Decimal         @db.Decimal(18, 2)
+  notes     String?
+  createdAt DateTime        @default(now())
+  updatedAt DateTime        @updatedAt
+
+  @@index([userId])
+}
+
+enum BtLiabilityType {
+  mortgage
+  car_loan
+  student_loan
+  credit_card
+  other
+
+  @@map("BtLiabilityType")
+}
+
+// ─── FIRE: Investments ────────────────────────────────────────────────────────
+
+model Investment {
+  id           String         @id @default(cuid())
+  userId       String
+  user         User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name            String
+  type            InvestmentType
+  currentValue    Decimal        @db.Decimal(18, 2)
+  isWheelAccount  Boolean        @default(false)
+  lastUpdated     DateTime       @default(now())
+  notes           String?
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+
+  @@index([userId, type])
+}
+
+enum InvestmentType {
+  brokerage
+  retirement_401k @map("401k")
+  IRA
+  roth_IRA        @map("roth")
+  crypto
+  real_estate
+  other
+
+  @@map("BtInvestmentType")
+}
+
+// ─── FIRE: Profile ────────────────────────────────────────────────────────────
+
+model FIREProfile {
+  userId                    String   @id
+  user                      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  targetAnnualExpenses      Decimal  @db.Decimal(18, 2)
+  safeWithdrawalRate        Decimal  @default(0.04) @db.Decimal(5, 4)
+  targetRetirementAge       Int?
+  currentAge                Int?
+  expectedReturn            Decimal  @default(0.07) @db.Decimal(5, 4)
+  // Wheel FIRE fields
+  wheelMonthlyRate          Decimal  @default(0.025) @db.Decimal(5, 4)
+  additionalRetirementSpend Decimal  @default(0) @db.Decimal(18, 2)
+  createdAt                 DateTime @default(now())
+  updatedAt                 DateTime @updatedAt
+}
+
+// ─── Savings Goals ────────────────────────────────────────────────────────────
+
+model SavingsGoal {
+  id            String    @id @default(cuid())
+  userId        String
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name          String
+  targetAmount  Decimal   @db.Decimal(18, 2)
+  currentAmount Decimal   @default(0) @db.Decimal(18, 2)
+  deadline      DateTime?
+  description   String?
+  isCompleted   Boolean   @default(false)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@index([userId, isCompleted])
+}
