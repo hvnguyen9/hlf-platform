@@ -10,9 +10,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { getLatestVersion } from "@/data/changelog";
-import { useTheme } from "next-themes";
-import { useEffect, useState as useStateSync } from "react";
-import { Sun, Moon } from "lucide-react";
+
+
 
 const FEATURES = [
   { icon: TrendingDown, label: "RSI + support/resistance entry signals" },
@@ -20,20 +19,6 @@ const FEATURES = [
   { icon: ShieldCheck, label: "Position exit monitoring and roll alerts" },
 ];
 
-function ThemeToggle() {
-  const { resolvedTheme, setTheme } = useTheme();
-  const [mounted, setMounted] = useStateSync(false);
-  useEffect(() => setMounted(true), []);
-  return (
-    <button
-      onClick={() => setTheme(resolvedTheme === "dark" ? "light" : "dark")}
-      className="p-2 rounded-md text-muted-foreground hover:text-foreground transition-colors"
-      aria-label="Toggle theme"
-    >
-      {mounted ? (resolvedTheme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />) : <div className="h-4 w-4" />}
-    </button>
-  );
-}
 
 export default function SignInPage() {
   const router = useRouter();

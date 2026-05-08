@@ -4,12 +4,14 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { toast } from "sonner";
-import { Bell, BarChart2, ShieldCheck, TrendingDown, Sun, Moon } from "lucide-react";
+import { Bell, BarChart2, ShieldCheck, TrendingDown } from "lucide-react";
+import { ThemeToggle } from "@/components/theme-toggle";
+import { getLatestVersion } from "@/data/changelog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useTheme } from "next-themes";
-import { useEffect, useState as useStateSync } from "react";
+
+
 
 const FEATURES = [
   { icon: TrendingDown, label: "RSI + support/resistance entry signals" },
@@ -17,20 +19,6 @@ const FEATURES = [
   { icon: ShieldCheck, label: "Position exit monitoring and roll alerts" },
 ];
 
-function ThemeToggle() {
-  const { resolvedTheme, setTheme } = useTheme();
-  const [mounted, setMounted] = useStateSync(false);
-  useEffect(() => setMounted(true), []);
-  return (
-    <button
-      onClick={() => setTheme(resolvedTheme === "dark" ? "light" : "dark")}
-      className="p-2 rounded-md text-muted-foreground hover:text-foreground transition-colors"
-      aria-label="Toggle theme"
-    >
-      {mounted ? (resolvedTheme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />) : <div className="h-4 w-4" />}
-    </button>
-  );
-}
 
 export default function SignUpPage() {
   const router = useRouter();
@@ -164,8 +152,13 @@ export default function SignUpPage() {
             <Link href="/sign-in" className="text-primary hover:underline font-medium">Sign in</Link>
           </p>
 
-          <p className="mt-8 text-center text-[11px] text-muted-foreground/40">
-            © {new Date().getFullYear()} HL Financial Strategies
+          <p className="mt-8 text-center text-[11px] text-muted-foreground/40 flex items-center justify-center gap-2">
+            <span>© {new Date().getFullYear()} HL Financial Strategies</span>
+            <span className="opacity-40">·</span>
+            <Link href="/changelog" className="hover:text-muted-foreground transition-colors flex items-center gap-1">
+              <span>{getLatestVersion()}</span>
+              <span>— What&apos;s new</span>
+            </Link>
           </p>
         </div>
       </div>
