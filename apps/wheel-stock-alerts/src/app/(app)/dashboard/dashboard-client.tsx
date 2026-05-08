@@ -4,7 +4,7 @@ import { formatDistanceToNow } from "date-fns";
 import { Bell, TrendingUp, TrendingDown, AlertTriangle, BarChart2, Activity, Radio } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { TickerAvatar } from "@/components/ui/ticker-avatar";
-import type { AlertType } from "@/generated/prisma/client";
+import type { AlertType } from "@prisma-client/client";
 
 const ALERT_META: Record<AlertType, {
   label: string;

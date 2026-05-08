@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 import { format } from "date-fns";
 import { Bell, TrendingUp, TrendingDown, AlertTriangle, BarChart2 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import type { AlertType } from "@/generated/prisma/client";
+import type { AlertType } from "@prisma-client/client";
 import type { Signals } from "@/lib/signals";
 
 const ALERT_META: Record<AlertType, {
