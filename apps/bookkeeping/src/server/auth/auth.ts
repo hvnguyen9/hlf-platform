@@ -6,7 +6,7 @@ import { getServerSession } from "next-auth";
 import prisma from "@/server/prisma";
 
 export const authOptions: NextAuthOptions = {
-  adapter: PrismaAdapter(prisma),
+  adapter: PrismaAdapter(prisma as unknown as Parameters<typeof PrismaAdapter>[0]),
   providers: [
     CredentialsProvider({
       name: "Credentials",
