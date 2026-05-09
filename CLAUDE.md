@@ -11,7 +11,7 @@ apps/
   wheel-strat-tracker/   Options wheel strategy tracker (hub — data source for suite)
   hlf-bookkeeping/       Finance & trading P&L bookkeeping
   hlf-budgettracker/     Monthly budget tracker + FIRE dashboard
-  stock-alerts/          Stock ticker alert system (own DB; cron disabled until batch refactor)
+  stock-alerts/          Stock ticker alert system (own DB; daily cron at 5pm ET Mon–Fri)
   hlf-website/           Marketing site (static)
   hungvnguyen-site/      Personal portfolio (static)
 
@@ -91,6 +91,7 @@ wheel-strat-tracker exposes `/api/internal/v1/` (bearer: `INTERNAL_API_KEY`):
 | `ALPACA_API_KEY` / `ALPACA_SECRET_KEY` | stock-alerts | Alpaca market data |
 | `ANTHROPIC_API_KEY` | stock-alerts | Claude Haiku for alert messages (optional) |
 | `RESEND_API_KEY` / `RESEND_FROM_EMAIL` | stock-alerts | Email delivery |
+| `CRON_SECRET` | stock-alerts | Bearer token Vercel cron sends to `/api/cron/daily` |
 
 ---
 
@@ -113,7 +114,7 @@ Apps moved into the monorepo:
 - [x] `wheel-strat-tracker` — in monorepo, on shared auth DB (v2.15.0)
 - [x] `hlf-bookkeeping` — in monorepo, on shared auth DB (v1.3.0)
 - [x] `hlf-budgettracker` — in monorepo, on shared auth DB (v1.1.0)
-- [x] `stock-alerts` — in monorepo, on shared auth DB (v2.0.0); cron jobs intentionally not ported pending batch refactor
+- [x] `stock-alerts` — in monorepo, on shared auth DB (v2.1.0); daily cron live (`/api/cron/daily` at 5pm ET Mon–Fri) with the three fixes (createMany batching, pre-loaded dedup Set, no pg.Pool); intraday position cron deferred to a separate free-tier service later
 - [ ] `hlf-website` — not yet moved
 - [ ] `hungvnguyen-site` — not yet moved
 - [x] `packages/auth-db` — auth DB live (`nozomi.proxy.rlwy.net:14507`); all 4 HLF apps consume it
