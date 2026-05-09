@@ -1,6 +1,6 @@
 # HLF Platform
 
-The HLF suite — three apps built for options traders and personal finance, developed by HL Financial Strategies. All three live in this monorepo and share a common UI component library and design system.
+The HLF suite — four apps built for options traders and personal finance, developed by HL Financial Strategies. All four live in this monorepo and share a common UI component library, a single sign-on across subdomains, and a unified design system.
 
 ---
 
@@ -47,9 +47,24 @@ Monthly budgeting and retirement planning in one place.
 
 ---
 
+### Stock Alerts
+`apps/stock-alerts` · [alerts.hlfinancialstrategies.com](https://alerts.hlfinancialstrategies.com)
+
+Daily wheel-strategy trade signals delivered to your inbox and Discord. Built for traders already running the Wheel who want a heads-up on what's setting up — without watching charts all day.
+
+- **Entry signals** across a curated wheel-eligible universe: RSI oversold (CSP setup) / overbought (CC setup), price near swing support/resistance, SMA 50/200 crosses, and volume surges
+- **Exit signals on your live positions** — pulls open trades from the Wheel Tracker via internal API and flags profit-target hits, assignment risk near expiry, and roll opportunities
+- **One digest per day** at 5pm ET — email and Discord. No per-signal spam
+- **Per-user thresholds** for RSI, support/resistance proximity, and volume multiplier
+- **Portfolio filter** — scope exit alerts to specific Wheel Tracker portfolios, or watch them all
+- **Add your own tickers** — anyone can submit new symbols (validated live against Alpaca); admins curate the shared universe
+
+---
+
 ## Shared packages
 
-- **`@hlf/ui`** — shadcn/ui component library used by all three apps
+- **`@hlf/ui`** — shadcn/ui component library used by all four apps
+- **`@hlf/auth-db`** — single User table across the suite; one HLF account, SSO across all four subdomains in production
 - **`@hlf/eslint-config`** — shared ESLint rules
 - **`@hlf/typescript-config`** — shared TypeScript config bases
 
@@ -61,22 +76,26 @@ Monthly budgeting and retirement planning in one place.
 # Install everything from the repo root
 pnpm install
 
-# Run all three apps at once (ports 3000, 3001, 3002)
+# Run all four apps at once (ports 3000, 3001, 3002, 3003)
 pnpm dev
 
 # Run just one app
 pnpm dev --filter=wheel-strat-tracker
 pnpm dev --filter=hlf-bookkeeping
 pnpm dev --filter=hlf-budgettracker
+pnpm dev --filter=hlf-stock-alerts
 ```
 
-Each app needs a `.env` file. Copy `.env.example` from the app folder and fill in:
+Each app needs a `.env` file. Copy `.env.example` from the app folder and fill in the core values:
 
 ```
-DATABASE_URL=       # the app's Railway connection string
-NEXTAUTH_SECRET=    # must be the same value across all three apps
+DATABASE_URL=       # the app's own Railway connection string
+AUTH_DATABASE_URL=  # shared HLF auth DB — same value across all four apps
+NEXTAUTH_SECRET=    # same value across all four apps (cross-app JWT validity)
 NEXTAUTH_URL=       # e.g. http://localhost:3000
 ```
+
+`stock-alerts` has additional vars for market data and alert delivery (`ALPACA_*`, `ANTHROPIC_API_KEY`, `RESEND_*`, `INTERNAL_API_KEY`, `WHEEL_TRACKER_URL`, `CRON_SECRET`) — see [`apps/stock-alerts/.env.example`](./apps/stock-alerts/.env.example).
 
 ---
 
