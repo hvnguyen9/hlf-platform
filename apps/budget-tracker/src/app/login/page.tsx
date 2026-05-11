@@ -18,7 +18,7 @@ const FEATURES = [
 
 export default function LoginPage() {
   const router = useRouter();
-  const [username, setUsername] = useState("");
+  const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -26,7 +26,7 @@ export default function LoginPage() {
     e.preventDefault();
     setLoading(true);
     const res = await signIn("credentials", {
-      username,
+      identifier,
       password,
       redirect: false,
       callbackUrl: "/dashboard",
@@ -120,13 +120,14 @@ export default function LoginPage() {
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-1.5">
-              <label className="text-sm font-medium text-foreground" htmlFor="username">Username</label>
+              <label className="text-sm font-medium text-foreground" htmlFor="identifier">Username or email</label>
               <Input
-                id="username"
+                id="identifier"
                 type="text"
-                placeholder="Enter your username"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
+                placeholder="username or you@example.com"
+                value={identifier}
+                onChange={(e) => setIdentifier(e.target.value)}
+                autoComplete="username"
                 className="h-11"
                 required
               />

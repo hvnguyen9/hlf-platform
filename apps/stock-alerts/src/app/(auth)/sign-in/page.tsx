@@ -45,12 +45,12 @@ export default function SignInPage() {
     e.preventDefault();
     setLoading(true);
     const form = e.currentTarget;
-    const email = (form.elements.namedItem("email") as HTMLInputElement).value;
+    const identifier = (form.elements.namedItem("identifier") as HTMLInputElement).value;
     const password = (form.elements.namedItem("password") as HTMLInputElement).value;
-    const result = await signIn("credentials", { email, password, redirect: false });
+    const result = await signIn("credentials", { identifier, password, redirect: false });
     setLoading(false);
     if (result?.error) {
-      toast.error("Invalid email or password.");
+      toast.error("Invalid username/email or password.");
     } else {
       router.push("/dashboard");
     }
@@ -153,13 +153,14 @@ export default function SignInPage() {
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-1.5">
-              <Label htmlFor="email">Email</Label>
+              <Label htmlFor="identifier">Username or email</Label>
               <Input
-                id="email"
-                name="email"
-                type="email"
+                id="identifier"
+                name="identifier"
+                type="text"
                 required
-                autoComplete="email"
+                autoComplete="username"
+                placeholder="username or you@example.com"
                 className="h-11"
               />
             </div>

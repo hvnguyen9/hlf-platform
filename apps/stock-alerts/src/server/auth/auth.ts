@@ -9,14 +9,19 @@ export const authOptions: NextAuthOptions = {
     CredentialsProvider({
       name: "Credentials",
       credentials: {
-        email: { label: "Email", type: "email" },
+        identifier: { label: "Username or email", type: "text" },
         password: { label: "Password", type: "password" },
       },
       async authorize(credentials) {
-        if (!credentials?.email || !credentials?.password) return null;
+        if (!credentials?.identifier || !credentials?.password) return null;
+
+        const identifier = credentials.identifier.trim();
+        const isEmail = identifier.includes("@");
 
         const user = await authPrisma.user.findUnique({
-          where: { email: credentials.email.toLowerCase() },
+          where: isEmail
+            ? { email: identifier.toLowerCase() }
+            : { username: identifier },
         });
 
         if (!user) return null;

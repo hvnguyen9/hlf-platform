@@ -8,6 +8,7 @@ HLF suite monorepo. Consolidates all HLF apps and shared infrastructure packages
 
 ```
 apps/
+  portal/                Signed-in landing page — cross-app KPI dashboard + profile + admin
   wheel-strat-tracker/   Options wheel strategy tracker (hub — data source for suite)
   hlf-bookkeeping/       Finance & trading P&L bookkeeping
   hlf-budgettracker/     Monthly budget tracker + FIRE dashboard
@@ -32,6 +33,7 @@ packages/
 | `hlf-bookkeeping` | 3001 | Indigo | `turntable:21201` Railway |
 | `hlf-budgettracker` | 3002 | Teal | `shuttle` Railway |
 | `stock-alerts` | 3003 | Violet | own Railway (set `DATABASE_URL`) |
+| `portal` | 3004 | HLF green | no DB — reads from `@hlf/auth-db` + cross-app internal APIs |
 
 ---
 
@@ -67,7 +69,9 @@ Apps import from here instead of duplicating components.
 
 ## Cross-app Integration
 
-wheel-strat-tracker exposes `/api/internal/v1/` (bearer: `INTERNAL_API_KEY`):
+All apps' internal APIs are guarded by the same `INTERNAL_API_KEY` bearer.
+
+**wheel-strat-tracker** exposes `/api/internal/v1/`:
 
 | Endpoint | Consumer |
 |---|---|
@@ -75,6 +79,19 @@ wheel-strat-tracker exposes `/api/internal/v1/` (bearer: `INTERNAL_API_KEY`):
 | `GET /closed-trades?userId=&from=&to=&portfolioIds=` | hlf-bookkeeping |
 | `GET /portfolios?userId=` | hlf-bookkeeping |
 | `GET /watchlist?email=` | hlf-wheel-alerts (future) |
+| `GET /portal-summary?email=` | portal |
+| `GET /trading-summary?userId=&from=&to=` | hlf-bookkeeping |
+
+**hlf-bookkeeping**, **hlf-budgettracker**, **stock-alerts** each expose
+`GET /api/internal/v1/portal-summary?email=` — consumed by the portal dashboard
+to render the KPI strip and alerts inbox.
+
+## Auth — sign-in identifier
+
+Every app's `CredentialsProvider` takes an `identifier` field that accepts
+either a username or an email. If the input contains `@` it's treated as email
+(lower-cased before lookup); otherwise it's looked up by username. Same User row
+in `@hlf/auth-db` either way.
 
 ---
 
@@ -87,7 +104,9 @@ wheel-strat-tracker exposes `/api/internal/v1/` (bearer: `INTERNAL_API_KEY`):
 | `NEXTAUTH_SECRET` | All HLF apps | **Must be identical** for cross-app JWT validity |
 | `NEXTAUTH_URL` | All HLF apps | Drives `sharedCookieConfig()` — must start with `https://` in prod for SSO cookie to be issued |
 | `INTERNAL_API_KEY` | wheel-tracker + consumers | Bearer token for internal API |
-| `WHEEL_TRACKER_URL` | bookkeeping, stock-alerts | Base URL for internal API calls |
+| `WHEEL_TRACKER_URL` | bookkeeping, stock-alerts, portal | Base URL for internal API calls |
+| `BOOKKEEPING_URL` / `BUDGET_TRACKER_URL` / `STOCK_ALERTS_URL` | portal | Server-side base URLs for `portal-summary` calls |
+| `NEXT_PUBLIC_*_URL` (same four) | portal | Client-side launcher links — must be literal `process.env.NEXT_PUBLIC_*` access |
 | `ALPACA_API_KEY` / `ALPACA_SECRET_KEY` | stock-alerts | Alpaca market data |
 | `ANTHROPIC_API_KEY` | stock-alerts | Claude Haiku for alert messages (optional) |
 | `RESEND_API_KEY` / `RESEND_FROM_EMAIL` | stock-alerts | Email delivery |
@@ -115,6 +134,7 @@ Apps moved into the monorepo:
 - [x] `hlf-bookkeeping` — in monorepo, on shared auth DB (v1.3.0)
 - [x] `hlf-budgettracker` — in monorepo, on shared auth DB (v1.1.0)
 - [x] `stock-alerts` — in monorepo, on shared auth DB (v2.1.0); daily cron live (`/api/cron/daily` at 5pm ET Mon–Fri) with the three fixes (createMany batching, pre-loaded dedup Set, no pg.Pool); intraday position cron deferred to a separate free-tier service later
+- [x] `portal` — in monorepo, deployed at `portal.hlfinancialstrategies.com`. Dashboard with launcher + KPI strip + alerts inbox; profile editor + admin user manager backed by `@hlf/auth-db`
 - [ ] `hlf-website` — not yet moved
 - [ ] `hungvnguyen-site` — not yet moved
 - [x] `packages/auth-db` — auth DB live (`nozomi.proxy.rlwy.net:14507`); all 4 HLF apps consume it
