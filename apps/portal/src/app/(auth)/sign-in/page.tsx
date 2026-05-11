@@ -6,10 +6,9 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import {
   LayoutGrid,
-  TrendingUp,
-  Wallet,
-  Target,
-  Bell,
+  Gauge,
+  Inbox,
+  KeyRound,
   Sun,
   Moon,
 } from "lucide-react";
@@ -20,10 +19,9 @@ import { getLatestVersion } from "@/data/changelog";
 import { useTheme } from "next-themes";
 
 const FEATURES = [
-  { icon: TrendingUp, label: "Wheel Tracker — options strategy P&L and lots" },
-  { icon: Wallet, label: "Bookkeeping — finance and trading P&L" },
-  { icon: Target, label: "Budget Tracker — monthly budget and FIRE dashboard" },
-  { icon: Bell, label: "Stock Alerts — daily signals and exit alerts" },
+  { icon: Gauge, label: "Cross-app metrics at a glance" },
+  { icon: Inbox, label: "Latest alerts and signals" },
+  { icon: KeyRound, label: "One sign-in for every HLF app" },
 ];
 
 function ThemeToggle() {
@@ -94,22 +92,22 @@ export default function SignInPage() {
             <LayoutGrid className="w-5 h-5 text-white" />
           </div>
           <div>
-            <p className="font-bold text-base leading-tight">HLF Portal</p>
-            <p className="text-[11px] text-white/60 leading-none mt-0.5">HL Financial Strategies</p>
+            <p className="font-bold text-base leading-tight">HL Financial Strategies</p>
+            <p className="text-[11px] text-white/60 leading-none mt-0.5">Main Portal</p>
           </div>
         </div>
 
         <div className="relative z-10 space-y-8">
           <div className="space-y-3">
             <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-white/50">
-              One account, four tools
+              Main Portal
             </p>
             <h2 className="text-3xl font-bold leading-snug tracking-tight">
-              Your money,<br />in one view.
+              Every HLF app,<br />at a glance.
             </h2>
             <p className="text-sm text-white/70 leading-relaxed max-w-xs">
-              Sign in once to jump between the wheel tracker, bookkeeping, budget,
-              and stock alerts — with a unified dashboard across all of them.
+              Your home base for the HLF suite — launch any app and see your
+              key metrics across all of them in one place.
             </p>
           </div>
 
@@ -147,9 +145,9 @@ export default function SignInPage() {
               <LayoutGrid className="w-5 h-5 text-primary-foreground" />
             </div>
             <div>
-              <p className="font-bold text-base text-foreground leading-tight">HLF Portal</p>
+              <p className="font-bold text-base text-foreground leading-tight">HL Financial Strategies</p>
               <p className="text-[11px] text-muted-foreground leading-none">
-                HL Financial Strategies
+                Main Portal
               </p>
             </div>
           </div>
