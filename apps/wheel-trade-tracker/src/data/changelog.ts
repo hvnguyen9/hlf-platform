@@ -9,20 +9,18 @@ export const changelog: ChangelogEntry[] = [
     date: "2026-05-14",
     version: "v2.17.0",
     highlights: [
-      "All market data now comes from Alpaca — watchlist quotes, sparkline charts, and the alerts engine share one provider instead of mixing Alpaca and Yahoo Finance. One fewer external dependency and more consistent realtime data during market hours.",
-      "52-week range still appears on the watchlist; computed from the last ~year of daily bars and cached for 6 hours per ticker.",
+      "Watchlist prices now stick at the previous trading day's close after the market closes, instead of constantly updating on stray after-hours ticks. Switches back to live prices automatically when the market opens — the same way Yahoo Finance handles it.",
     ],
   },
   {
     date: "2026-05-13",
     version: "v2.16.0",
     highlights: [
-      "Realtime alerts module — the standalone stock-alerts app has been retired and rebuilt inside Wheel Tracker. New /alerts page with active triggers management (toggle, delete, jump to target) plus full alert history.",
-      "Configure per-trade alerts inline on the trade detail page — Profit Target, Assignment Risk, and Roll Opportunity with custom thresholds. Each open trade can have multiple alerts.",
-      "Configure per-watchlist alerts inline via the bell icon on each row — Price Breach above or below a target.",
-      "In-app sonner toasts deliver alerts within ~15 s of firing; tab title flashes with an unread counter when the window isn't focused. No Web Push, no service worker, no permission prompts.",
-      "Driven by a GitHub Actions cron every 2 min during US market hours; Alpaca latest-quote feeds the threshold evaluator with a 30-minute per-config dedup window.",
-      "Polished number inputs across all alert forms — no browser spinner arrows, numeric keypad on mobile, scroll-safe.",
+      "New Alerts feature — set price-triggered alerts on any of your open trades or watchlist tickers and get notified the moment a threshold fires. Replaces the separate Stock Alerts app, which has been retired.",
+      "On each open trade, add Profit Target, Assignment Risk, and Roll Opportunity alerts with your own thresholds. Configure them inline right on the trade detail page.",
+      "On each watchlist row, click the bell to set a price trigger — get notified when a ticker drops to your entry zone or breaks above a level you're watching.",
+      "Alerts surface as a notification inside the app within seconds. If you're working in another tab, the browser tab title flashes with a counter so you know to come back and look.",
+      "New Alerts page in the sidebar — one place to see every active trigger, toggle them on or off, delete them, or jump straight to the related trade.",
     ],
   },
   {

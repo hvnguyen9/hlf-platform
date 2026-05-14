@@ -107,9 +107,13 @@ export async function getQuoteSnapshots(symbols: string[]): Promise<QuoteSnapsho
     const todayBar = daily?.today ?? null;
     const prevBar = daily?.previous ?? null;
 
-    // Prefer the latest minute-bar close for "now"; fall back to today's
-    // daily close (close of last completed day) if no minute data.
-    const price = latest?.c ?? todayBar?.c ?? prevBar?.c ?? null;
+    // During market hours, show the real-time minute-bar price.
+    // After close (and pre-market / weekends / holidays), show the most
+    // recent official daily close so the displayed price doesn't keep
+    // drifting on stray after-hours ticks — same UX as Yahoo Finance.
+    const price = marketOpen
+      ? latest?.c ?? todayBar?.c ?? prevBar?.c ?? null
+      : todayBar?.c ?? latest?.c ?? prevBar?.c ?? null;
     const previousClose = prevBar?.c ?? null;
     const change =
       price !== null && previousClose !== null ? price - previousClose : null;
