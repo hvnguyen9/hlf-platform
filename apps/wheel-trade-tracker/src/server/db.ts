@@ -1,15 +1,6 @@
-import { PrismaClient } from "@/generated/prisma/client";
+// Compat shim: both `db` and `prisma` are the same singleton from ./prisma.
+// Older code imported either name from `@/server/db` and we want all paths
+// to resolve to one PrismaClient — avoids opening multiple connections on
+// serverless cold starts.
 
-export const prisma = new PrismaClient();
-
-const globalForPrisma = globalThis as unknown as {
-  prisma: PrismaClient | undefined;
-};
-
-export const db =
-  globalForPrisma.prisma ??
-  new PrismaClient({
-    log: ["query"], // optional: for debugging in dev
-  });
-
-if (process.env.NODE_ENV !== "production") globalForPrisma.prisma = db;
+export { prisma as db, prisma, default } from "./prisma";
