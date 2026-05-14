@@ -226,15 +226,43 @@ function isMarketOpenNow(): boolean {
   return minuteOfDay >= 9 * 60 + 30 && minuteOfDay < 16 * 60;
 }
 
-// ─── 52-week range (cached per ticker for 6h) ────────────────────────────────
+// ─── 52-week range (LRU-cached per ticker, 6h TTL) ──────────────────────────
+//
+// JS Map preserves insertion order, so "delete then re-set" promotes an entry
+// to most-recently-used. When the cache exceeds RANGE_CACHE_MAX, evict from
+// the front (least-recently-used). Bounds memory at ~200 tickers regardless
+// of how many symbols the user has ever loaded.
 
 interface FiftyTwoWeek {
   high: number;
   low: number;
 }
 
-const _rangeCache = new Map<string, { range: FiftyTwoWeek; expiresAt: number }>();
 const RANGE_TTL_MS = 6 * 60 * 60 * 1000;
+const RANGE_CACHE_MAX = 200;
+const _rangeCache = new Map<string, { range: FiftyTwoWeek; expiresAt: number }>();
+
+function rangeCacheGet(symbol: string, now: number): FiftyTwoWeek | null {
+  const hit = _rangeCache.get(symbol);
+  if (!hit) return null;
+  if (hit.expiresAt <= now) {
+    _rangeCache.delete(symbol);
+    return null;
+  }
+  // Touch — promote to most-recently-used.
+  _rangeCache.delete(symbol);
+  _rangeCache.set(symbol, hit);
+  return hit.range;
+}
+
+function rangeCacheSet(symbol: string, range: FiftyTwoWeek, now: number) {
+  _rangeCache.set(symbol, { range, expiresAt: now + RANGE_TTL_MS });
+  while (_rangeCache.size > RANGE_CACHE_MAX) {
+    const oldest = _rangeCache.keys().next().value;
+    if (oldest === undefined) break;
+    _rangeCache.delete(oldest);
+  }
+}
 
 async function getFiftyTwoWeekRanges(symbols: string[]): Promise<Map<string, FiftyTwoWeek>> {
   const out = new Map<string, FiftyTwoWeek>();
@@ -242,12 +270,9 @@ async function getFiftyTwoWeekRanges(symbols: string[]): Promise<Map<string, Fif
   const missing: string[] = [];
 
   for (const s of symbols) {
-    const hit = _rangeCache.get(s);
-    if (hit && hit.expiresAt > now) {
-      out.set(s, hit.range);
-    } else {
-      missing.push(s);
-    }
+    const cached = rangeCacheGet(s, now);
+    if (cached) out.set(s, cached);
+    else missing.push(s);
   }
 
   if (missing.length === 0) return out;
@@ -279,7 +304,7 @@ async function getFiftyTwoWeekRanges(symbols: string[]): Promise<Map<string, Fif
       }
       if (Number.isFinite(high) && Number.isFinite(low)) {
         const range = { high, low };
-        _rangeCache.set(s, { range, expiresAt: now + RANGE_TTL_MS });
+        rangeCacheSet(s, range, now);
         out.set(s, range);
       }
     }

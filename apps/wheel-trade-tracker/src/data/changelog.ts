@@ -7,6 +7,15 @@ export interface ChangelogEntry {
 export const changelog: ChangelogEntry[] = [
   {
     date: "2026-05-14",
+    version: "v2.17.1",
+    highlights: [
+      "Speed pass across the app. The All Accounts dashboard, watchlist, and budget summary all load noticeably faster.",
+      "Watchlist is lighter and smoother to scroll, especially on mobile.",
+      "Alerts background updates are now gentler when you have multiple tabs open — less work in the background, same near-realtime feel.",
+    ],
+  },
+  {
+    date: "2026-05-14",
     version: "v2.17.0",
     highlights: [
       "Watchlist prices now stick at the previous trading day's close after the market closes, instead of constantly updating on stray after-hours ticks. Switches back to live prices automatically when the market opens — the same way Yahoo Finance handles it.",

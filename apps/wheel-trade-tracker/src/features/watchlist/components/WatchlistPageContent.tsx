@@ -4,7 +4,6 @@ import { useState, useMemo, useRef, useCallback } from "react";
 import useSWR from "swr";
 import Link from "next/link";
 import { Reorder, useDragControls } from "framer-motion";
-import { AreaChart, Area, YAxis } from "recharts";
 import { Plus, X, TrendingUp, RefreshCw, ArrowUpRight, Loader2, GripVertical, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -65,30 +64,80 @@ function RangeBar({
   );
 }
 
+// Lightweight SVG sparkline — replaces a Recharts AreaChart that pulled
+// recharts (~200kb min) into the watchlist bundle just for these tiny lines.
 function Sparkline({
-  closes, up,
+  closes,
+  up,
+  width = 130,
+  height = 40,
 }: {
-  closes: number[]; up: boolean;
+  closes: number[];
+  up: boolean;
+  width?: number;
+  height?: number;
 }) {
   if (closes.length < 3) {
-    return <div className="w-[130px] h-[40px] flex items-center justify-center"><span className="text-[10px] text-muted-foreground/50">—</span></div>;
+    return (
+      <div
+        className="flex items-center justify-center"
+        style={{ width, height }}
+      >
+        <span className="text-[10px] text-muted-foreground/50">—</span>
+      </div>
+    );
   }
+
   const color = up ? "#10b981" : "#ef4444";
-  const data = closes.map((v) => ({ v }));
+  const padTop = 3;
+  const padBottom = 3;
+  const padX = 2;
+  const usableW = width - padX * 2;
+  const usableH = height - padTop - padBottom;
+
+  let min = Infinity;
+  let max = -Infinity;
+  for (const v of closes) {
+    if (v < min) min = v;
+    if (v > max) max = v;
+  }
+  // Avoid divide-by-zero when the line is flat.
+  const range = max - min || 1;
+
+  const step = usableW / (closes.length - 1);
+  const points = closes.map((v, i) => {
+    const x = padX + i * step;
+    const y = padTop + (1 - (v - min) / range) * usableH;
+    return [x, y] as const;
+  });
+
+  const linePath = points
+    .map(([x, y], i) => `${i === 0 ? "M" : "L"}${x.toFixed(2)},${y.toFixed(2)}`)
+    .join(" ");
+
+  const [firstX] = points[0];
+  const [lastX] = points[points.length - 1];
+  const baselineY = padTop + usableH;
+  const areaPath = `${linePath} L${lastX.toFixed(2)},${baselineY} L${firstX.toFixed(2)},${baselineY} Z`;
+
   return (
-    <AreaChart width={130} height={40} data={data} margin={{ top: 3, right: 2, bottom: 3, left: 2 }}>
-      <YAxis domain={["auto", "auto"]} hide />
-      <Area
-        type="monotone"
-        dataKey="v"
+    <svg
+      width={width}
+      height={height}
+      viewBox={`0 0 ${width} ${height}`}
+      preserveAspectRatio="none"
+      aria-hidden
+    >
+      <path d={areaPath} fill={color} fillOpacity={0.08} />
+      <path
+        d={linePath}
+        fill="none"
         stroke={color}
-        fill={color}
-        fillOpacity={0.08}
         strokeWidth={1.5}
-        dot={false}
-        isAnimationActive={false}
+        strokeLinejoin="round"
+        strokeLinecap="round"
       />
-    </AreaChart>
+    </svg>
   );
 }
 
@@ -528,30 +577,18 @@ function DraggableMobileRow({
 
       {/* Sparkline */}
       <div className="w-full overflow-hidden rounded">
-        {chartsLoading
-          ? <div className="h-[44px]"><SparklineSkeleton /></div>
-          : (chartData?.closes?.length ?? 0) >= 3
-            ? (
-              <AreaChart
-                width={320}
-                height={44}
-                data={chartData.closes.map((v) => ({ v }))}
-                margin={{ top: 3, right: 2, bottom: 3, left: 2 }}
-              >
-                <YAxis domain={["auto", "auto"]} hide />
-                <Area
-                  type="monotone"
-                  dataKey="v"
-                  stroke={up ? "#10b981" : "#ef4444"}
-                  fill={up ? "#10b981" : "#ef4444"}
-                  fillOpacity={0.08}
-                  strokeWidth={1.5}
-                  dot={false}
-                  isAnimationActive={false}
-                />
-              </AreaChart>
-            )
-            : null}
+        {chartsLoading ? (
+          <div className="h-[44px]">
+            <SparklineSkeleton />
+          </div>
+        ) : (chartData?.closes?.length ?? 0) >= 3 ? (
+          <Sparkline
+            closes={chartData?.closes ?? []}
+            up={up}
+            width={320}
+            height={44}
+          />
+        ) : null}
       </div>
 
       <div className="grid grid-cols-2 gap-3">

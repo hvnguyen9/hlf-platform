@@ -90,37 +90,43 @@ export async function GET(req: NextRequest) {
   const recurringIncome = recurring.filter((r) => r.type === "income").reduce((sum, r) => sum + r.amount.toNumber(), 0);
   const recurringExpenses = recurring.filter((r) => r.type === "expense").reduce((sum, r) => sum + r.amount.toNumber(), 0);
 
-  const trendMonths = await Promise.all(
-    Array.from({ length: 12 }, (_, i) => {
-      const d = subMonths(new Date(year, month - 1, 1), 11 - i);
-      const s = startOfMonth(d);
-      const e = endOfMonth(d);
+  // One query for the entire 12-month window, then bucket by month in-memory.
+  // Previously fired 12 separate groupBy queries — each a Postgres round-trip
+  // and Vercel-function-to-Railway hop. This collapses to one.
+  const windowStart = startOfMonth(subMonths(new Date(year, month - 1, 1), 11));
+  const windowEnd = endOfMonth(new Date(year, month - 1, 1));
 
-      // Skip future months entirely
-      if (s > today) return Promise.resolve(null);
+  const windowRows = await prisma.transaction.findMany({
+    where: { userId: auth.userId, date: { gte: windowStart, lte: windowEnd } },
+    select: { type: true, amount: true, date: true },
+  });
 
-      return prisma.transaction.groupBy({
-        by: ["type"],
-        where: { userId: auth.userId, date: { gte: s, lte: e } },
-        _sum: { amount: true },
-      }).then((rows) => {
-        const oneTimeIncome = rows.find((r) => r.type === "income")?._sum.amount?.toNumber() ?? 0;
-        const oneTimeExpenses = rows.find((r) => r.type === "expense")?._sum.amount?.toNumber() ?? 0;
+  const monthlyTotals = new Map<string, { income: number; expenses: number }>();
+  for (const row of windowRows) {
+    const key = format(row.date, "yyyy-MM");
+    const bucket = monthlyTotals.get(key) ?? { income: 0, expenses: 0 };
+    if (row.type === "income") bucket.income += row.amount.toNumber();
+    else if (row.type === "expense") bucket.expenses += row.amount.toNumber();
+    monthlyTotals.set(key, bucket);
+  }
 
-        // Drop months with no data at all
-        const hasData = oneTimeIncome > 0 || oneTimeExpenses > 0 || recurringIncome > 0 || recurringExpenses > 0;
-        if (!hasData) return null;
-
-        return {
-          month: format(s, "MMM yy"),
-          income: oneTimeIncome + recurringIncome,
-          expenses: oneTimeExpenses + recurringExpenses,
-        };
-      });
-    })
-  );
-
-  const monthlyTrend = trendMonths.filter(Boolean) as { month: string; income: number; expenses: number }[];
+  const monthlyTrend = Array.from({ length: 12 }, (_, i) => {
+    const d = subMonths(new Date(year, month - 1, 1), 11 - i);
+    if (startOfMonth(d) > today) return null;
+    const key = format(d, "yyyy-MM");
+    const bucket = monthlyTotals.get(key) ?? { income: 0, expenses: 0 };
+    const hasData =
+      bucket.income > 0 ||
+      bucket.expenses > 0 ||
+      recurringIncome > 0 ||
+      recurringExpenses > 0;
+    if (!hasData) return null;
+    return {
+      month: format(d, "MMM yy"),
+      income: bucket.income + recurringIncome,
+      expenses: bucket.expenses + recurringExpenses,
+    };
+  }).filter(Boolean) as { month: string; income: number; expenses: number }[];
 
   // Budget progress (recurring counts toward actuals)
   const budgetOverrides = new Map(monthlyBudgets.map((b) => [b.categoryId, b.budgetAmount.toNumber()]));

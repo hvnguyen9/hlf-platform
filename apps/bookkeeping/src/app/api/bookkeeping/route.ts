@@ -22,6 +22,9 @@ export async function GET(req: NextRequest) {
   const from = searchParams.get("from");
   const to = searchParams.get("to");
 
+  // Hard cap protects against accidentally returning every entry the user
+  // has ever recorded (e.g. when from/to is unset and they've been at this
+  // for years). Real views are date-range scoped and far below this.
   const entries = await prisma.bookkeepingEntry.findMany({
     where: {
       userId: auth.userId,
@@ -30,6 +33,7 @@ export async function GET(req: NextRequest) {
         : {}),
     },
     orderBy: { date: "desc" },
+    take: 5000,
   });
 
   return NextResponse.json(entries.map(serialize));

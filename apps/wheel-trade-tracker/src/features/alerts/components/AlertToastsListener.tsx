@@ -52,12 +52,14 @@ export function AlertToastsListener() {
       unseenCountRef.current = 0;
       if (baseTitleRef.current) document.title = baseTitleRef.current;
     }
-    window.addEventListener("focus", onFocus);
-    document.addEventListener("visibilitychange", () => {
+    function onVisibilityChange() {
       if (document.visibilityState === "visible") onFocus();
-    });
+    }
+    window.addEventListener("focus", onFocus);
+    document.addEventListener("visibilitychange", onVisibilityChange);
     return () => {
       window.removeEventListener("focus", onFocus);
+      document.removeEventListener("visibilitychange", onVisibilityChange);
     };
   }, []);
 
@@ -68,7 +70,11 @@ export function AlertToastsListener() {
 
   useSWR<{ events: EventRow[] }>(swrKey, fetcher, {
     refreshInterval: POLL_INTERVAL_MS,
-    revalidateOnFocus: true,
+    // The fixed-interval poll already covers freshness. Skipping
+    // revalidateOnFocus avoids amplifying request volume when the user
+    // tab-switches frequently — a few tabs + active trading was easily
+    // 4× the baseline rate.
+    revalidateOnFocus: false,
     onSuccess: (data) => {
       const events = data.events ?? [];
       if (events.length === 0) return;

@@ -179,7 +179,11 @@ export async function GET() {
   // 2) Per-portfolio snapshots (parallelized)
   const perPortfolioEntries = await Promise.all(
     portfolios.map(async (p) => {
-      const [openTrades, closedAll, closedMTD, closedYTD, closed90, openStockLots, closedStockLotsAll] =
+      // Fetch the broad sets once per portfolio (open trades, all closed
+      // trades, open lots, all closed lots) and derive the date-windowed
+      // subsets in-memory. Previously this fired 7 queries per portfolio;
+      // 5 portfolios × 7 = 35 round-trips on every dashboard load.
+      const [openTrades, closedAll, openStockLots, closedStockLotsAll] =
         await Promise.all([
           prisma.trade.findMany({
             where: { portfolioId: p.id, status: "open" },
@@ -208,54 +212,6 @@ export async function GET() {
               closeReason: true,
             },
           }),
-          prisma.trade.findMany({
-            where: {
-              portfolioId: p.id,
-              status: "closed",
-              closedAt: { gte: monthStart },
-            },
-            select: {
-              ticker: true,
-              type: true,
-              contracts: true,
-              contractPrice: true,
-              closingPrice: true,
-              premiumCaptured: true,
-              closedAt: true,
-            },
-          }),
-          prisma.trade.findMany({
-            where: {
-              portfolioId: p.id,
-              status: "closed",
-              closedAt: { gte: yearStart },
-            },
-            select: {
-              ticker: true,
-              type: true,
-              contracts: true,
-              contractPrice: true,
-              closingPrice: true,
-              premiumCaptured: true,
-              closedAt: true,
-            },
-          }),
-          prisma.trade.findMany({
-            where: {
-              portfolioId: p.id,
-              status: "closed",
-              closedAt: { gte: ninetyStart },
-            },
-            select: {
-              ticker: true,
-              type: true,
-              contracts: true,
-              contractPrice: true,
-              closingPrice: true,
-              premiumCaptured: true,
-              closedAt: true,
-            },
-          }),
           prisma.stockLot.findMany({
             where: { portfolioId: p.id, status: "OPEN" },
             select: {
@@ -269,6 +225,16 @@ export async function GET() {
             select: { realizedPnl: true, closedAt: true },
           }),
         ]);
+
+      const closedMTD = closedAll.filter(
+        (t) => t.closedAt != null && new Date(t.closedAt) >= monthStart,
+      );
+      const closedYTD = closedAll.filter(
+        (t) => t.closedAt != null && new Date(t.closedAt) >= yearStart,
+      );
+      const closed90 = closedAll.filter(
+        (t) => t.closedAt != null && new Date(t.closedAt) >= ninetyStart,
+      );
 
       // Capital in use: CSP collateral + long option premium at risk (CC = 0) + open stock lots
       const cspOpen = openTrades.filter((t) => isCSP(t.type));
