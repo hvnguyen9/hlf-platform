@@ -1,20 +1,84 @@
-import { createClient } from "@alpacahq/typescript-sdk";
-
-// Shared Alpaca client for the whole app. Used by:
+// Direct fetch wrapper for the two Alpaca market-data endpoints we use.
+//
+// We previously used `@alpacahq/typescript-sdk` createClient(), but its
+// runtime build of the client object relies on `fn.name` reflection over its
+// exported endpoint functions. Vercel's prod build mangles arrow-function
+// names, so the resulting client has keys like `{ N, G, X }` instead of
+// `{ getStocksBarsLatest, getStocksBars, ... }` and every call throws
+// `getStocksBarsLatest is not a function`. `next dev` preserves names so the
+// bug only manifested in production. Two endpoints, simple GETs — easier and
+// more robust to skip the SDK.
+//
+// Used by:
 //  - the alerts engine (latest-quote scan)
 //  - the watchlist /api/quotes route (snapshot + 52-week range)
 //  - the watchlist /api/charts route (intraday bars for sparklines)
 //
 // Free-tier IEX feed; sufficient for wheel-strategy timeframes.
 
-let _client: ReturnType<typeof createClient> | null = null;
-function getClient() {
+interface AlpacaBar {
+  t: string;
+  o: number;
+  h: number;
+  l: number;
+  c: number;
+  v: number;
+  n: number;
+  vw: number;
+}
+
+interface StocksBarsLatestResponse {
+  bars?: { [symbol: string]: AlpacaBar };
+}
+
+interface StocksBarsResponse {
+  bars?: { [symbol: string]: AlpacaBar[] };
+  next_page_token?: string | null;
+}
+
+type AlpacaParams = Record<string, string | number | undefined>;
+
+async function alpacaGet<T>(path: string, params: AlpacaParams): Promise<T> {
+  const key = process.env.ALPACA_API_KEY ?? "";
+  const secret = process.env.ALPACA_SECRET_KEY ?? "";
+  if (!key || !secret) {
+    throw new Error("Missing ALPACA_API_KEY or ALPACA_SECRET_KEY");
+  }
+  const url = new URL(path, "https://data.alpaca.markets");
+  for (const [k, v] of Object.entries(params)) {
+    if (v !== undefined && v !== null && v !== "") url.searchParams.set(k, String(v));
+  }
+  const res = await fetch(url, {
+    headers: {
+      "APCA-API-KEY-ID": key,
+      "APCA-API-SECRET-KEY": secret,
+    },
+  });
+  if (!res.ok) {
+    throw new Error(`Alpaca ${path} ${res.status}: ${await res.text()}`);
+  }
+  return (await res.json()) as T;
+}
+
+interface AlpacaClient {
+  getStocksBarsLatest(p: { symbols: string; feed?: string }): Promise<StocksBarsLatestResponse>;
+  getStocksBars(p: {
+    symbols: string;
+    timeframe: string;
+    start?: string;
+    end?: string;
+    limit?: number;
+    feed?: string;
+  }): Promise<StocksBarsResponse>;
+}
+
+let _client: AlpacaClient | null = null;
+function getClient(): AlpacaClient {
   if (!_client) {
-    _client = createClient({
-      key: process.env.ALPACA_API_KEY,
-      secret: process.env.ALPACA_SECRET_KEY,
-      baseURL: "https://data.alpaca.markets",
-    });
+    _client = {
+      getStocksBarsLatest: (p) => alpacaGet<StocksBarsLatestResponse>("/v2/stocks/bars/latest", p),
+      getStocksBars: (p) => alpacaGet<StocksBarsResponse>("/v2/stocks/bars", p),
+    };
   }
   return _client;
 }

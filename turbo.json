@@ -3,6 +3,7 @@
   "ui": "tui",
   "globalEnv": [
     "NODE_ENV",
+    "NODE_OPTIONS",
     "NEXTAUTH_SECRET",
     "NEXTAUTH_URL",
     "AUTH_DATABASE_URL",
