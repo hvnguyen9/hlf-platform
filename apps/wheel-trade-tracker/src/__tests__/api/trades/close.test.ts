@@ -220,20 +220,63 @@ describe("CC assignment — full stock lot close", () => {
 // ---------------------------------------------------------------------------
 
 describe("CSP assignment", () => {
-  it("creates a stock lot with shares=contractsToClose×100 and netBasis=strike−premium", async () => {
+  it("creates a stock lot when no existing open lot for ticker (shares=contractsToClose×100, netBasis=strike−premium)", async () => {
     mockTradeFindFirst.mockResolvedValue(baseCSPTrade());
 
+    const lotFindFirst = vi.fn().mockResolvedValue(null); // no existing lot → create
     const lotCreate = vi.fn().mockResolvedValue({ id: "new-lot-1" });
     const tradeUpdate = vi.fn().mockResolvedValue({});
-    const tx = { stockLot: { create: lotCreate }, trade: { update: tradeUpdate } };
+    const tx = {
+      stockLot: { findFirst: lotFindFirst, create: lotCreate, update: vi.fn() },
+      trade: { update: tradeUpdate },
+    };
     mockPrismaTransaction.mockImplementation(async (cb: (t: typeof tx) => Promise<unknown>) => cb(tx));
 
     const res = await PATCH(makeRequest({ closingContracts: 4, assignment: true }), makeParams("trade-2"));
     expect(res.status).toBe(200);
 
+    expect(lotFindFirst).toHaveBeenCalledOnce();
     const createCall = lotCreate.mock.calls[0][0] as { data: { shares: number; avgCost: Prisma.Decimal } };
     expect(createCall.data.shares).toBe(400);               // 4 × 100
     expect(Number(createCall.data.avgCost)).toBeCloseTo(335, 2); // 337.50 - 2.50
+  });
+
+  it("merges into an existing open lot (weighted avg cost, accumulated shares)", async () => {
+    mockTradeFindFirst.mockResolvedValue(baseCSPTrade());
+
+    // Existing: 200 sh @ $400 avg → adding 400 sh @ $335 net basis
+    // weighted avg = (200*400 + 400*335) / 600 = (80000 + 134000) / 600 = 356.6666…
+    const existingLot = {
+      id: "existing-lot-1",
+      shares: 200,
+      avgCost: new Prisma.Decimal("400"),
+      notes: null,
+    };
+    const lotFindFirst = vi.fn().mockResolvedValue(existingLot);
+    const lotUpdate = vi.fn().mockResolvedValue({});
+    const lotCreate = vi.fn();
+    const tradeUpdate = vi.fn().mockResolvedValue({});
+    const tx = {
+      stockLot: { findFirst: lotFindFirst, update: lotUpdate, create: lotCreate },
+      trade: { update: tradeUpdate },
+    };
+    mockPrismaTransaction.mockImplementation(async (cb: (t: typeof tx) => Promise<unknown>) => cb(tx));
+
+    const res = await PATCH(makeRequest({ closingContracts: 4, assignment: true }), makeParams("trade-2"));
+    expect(res.status).toBe(200);
+
+    expect(lotCreate).not.toHaveBeenCalled();
+    const updateCall = lotUpdate.mock.calls[0][0] as { where: { id: string }; data: { shares: number; avgCost: Prisma.Decimal } };
+    expect(updateCall.where.id).toBe("existing-lot-1");
+    expect(updateCall.data.shares).toBe(600);
+    expect(Number(updateCall.data.avgCost)).toBeCloseTo(356.6666, 3);
+
+    const tradeCall = tradeUpdate.mock.calls[0][0] as { data: { stockLotId: string } };
+    expect(tradeCall.data.stockLotId).toBe("existing-lot-1");
+
+    const body = await res.json();
+    expect(body.mergedIntoExistingLot).toBe(true);
+    expect(body.stockLotId).toBe("existing-lot-1");
   });
 });
 

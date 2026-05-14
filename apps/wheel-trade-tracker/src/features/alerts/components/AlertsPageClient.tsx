@@ -23,6 +23,7 @@ interface ConfigRow {
   params: unknown;
   tradeId: string | null;
   watchlistTicker: string | null;
+  stockLotId: string | null;
   lastFiredAt: string | null;
   createdAt: string;
   trade: {
@@ -32,6 +33,15 @@ interface ConfigRow {
     strikePrice: number;
     expirationDate: string;
     status: string;
+    portfolioId: string;
+  } | null;
+  stockLot: {
+    id: string;
+    ticker: string;
+    shares: number;
+    avgCost: string | number;
+    status: string;
+    portfolioId: string;
   } | null;
 }
 
@@ -179,15 +189,20 @@ function ActiveTriggers({
                   new Date(c.trade.expirationDate),
                   "MMM d",
                 )}`
-              : c.watchlistTicker
-                ? `${c.watchlistTicker} (watchlist)`
-                : "—";
+              : c.stockLot
+                ? `${c.stockLot.ticker} (${c.stockLot.shares} sh @ $${Number(c.stockLot.avgCost).toFixed(2)})`
+                : c.watchlistTicker
+                  ? `${c.watchlistTicker} (watchlist)`
+                  : "—";
             const targetHref = c.trade
-              ? `/trades/${c.trade.id}`
-              : c.watchlistTicker
-                ? "/watchlist"
-                : null;
-            const orphaned = c.tradeId && !c.trade;
+              ? `/portfolios/${c.trade.portfolioId}/trades/${c.trade.id}`
+              : c.stockLot
+                ? `/portfolios/${c.stockLot.portfolioId}/stocks/${c.stockLot.id}`
+                : c.watchlistTicker
+                  ? "/watchlist"
+                  : null;
+            const orphaned =
+              (c.tradeId && !c.trade) || (c.stockLotId && !c.stockLot);
 
             return (
               <li key={c.id} className="px-4 py-3 flex items-center gap-3">
@@ -203,12 +218,17 @@ function ActiveTriggers({
                     </Badge>
                     {orphaned && (
                       <Badge variant="destructive" className="text-[10px] px-1.5 py-0">
-                        trade gone
+                        target gone
                       </Badge>
                     )}
                     {c.trade && c.trade.status !== "open" && !orphaned && (
                       <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
                         trade closed
+                      </Badge>
+                    )}
+                    {c.stockLot && c.stockLot.status !== "OPEN" && !orphaned && (
+                      <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
+                        lot closed
                       </Badge>
                     )}
                     <span className="text-sm font-medium truncate">{target}</span>

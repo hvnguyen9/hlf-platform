@@ -192,11 +192,16 @@ model AlertConfig {
   // For watchlist-bound configs (WATCHLIST_BREACH).
   watchlistTicker String?
 
+  // For lot-bound configs (LOT_PRICE_BREACH).
+  stockLotId      String?
+
   // Type-specific params, JSON:
   //   PROFIT_TARGET     { profitPct }
   //   ASSIGNMENT_RISK   { withinPctOfStrike, maxDte }
   //   ROLL_OPPORTUNITY  { maxDte, minOtmPct }
   //   WATCHLIST_BREACH  { triggerPrice, direction: "below" | "above" }
+  //   LOT_PRICE_BREACH  { mode: "absolute" | "pctBelowAvg" | "pctAboveAvg",
+  //                       triggerPrice?, pct?, direction?: "below" | "above" }
   params          Json
 
   enabled         Boolean         @default(true)
@@ -209,6 +214,7 @@ model AlertConfig {
   @@index([userId, enabled])
   @@index([tradeId])
   @@index([userId, watchlistTicker])
+  @@index([userId, stockLotId])
 }
 
 enum AlertConfigType {
@@ -216,6 +222,7 @@ enum AlertConfigType {
   ASSIGNMENT_RISK
   ROLL_OPPORTUNITY
   WATCHLIST_BREACH
+  LOT_PRICE_BREACH
 }
 
 model AlertEvent {

@@ -102,14 +102,26 @@ describe("validation", () => {
   });
 
   it("returns 400 when CC ticker does not match lot ticker", async () => {
-    mockStockLotFindFirst.mockResolvedValue({ id: "lot-1", ticker: "GOOGL", shares: 400 });
+    mockStockLotFindFirst.mockResolvedValue({ id: "lot-1", ticker: "GOOGL", shares: 400, trades: [] });
     const res = await POST(makeReq(validCCBody)); // ticker is AAPL
     expect(res.status).toBe(400);
   });
 
   it("returns 400 when not enough shares in lot for CC contracts", async () => {
     // 2 contracts require 200 shares, lot has only 100
-    mockStockLotFindFirst.mockResolvedValue({ id: "lot-1", ticker: "AAPL", shares: 100 });
+    mockStockLotFindFirst.mockResolvedValue({ id: "lot-1", ticker: "AAPL", shares: 100, trades: [] });
+    const res = await POST(makeReq(validCCBody));
+    expect(res.status).toBe(400);
+  });
+
+  it("returns 400 when existing open CCs already cover all available shares", async () => {
+    // 400 shares, but 4 CCs (400 sh) already open → no capacity for 2 more contracts
+    mockStockLotFindFirst.mockResolvedValue({
+      id: "lot-1",
+      ticker: "AAPL",
+      shares: 400,
+      trades: [{ contractsOpen: 4 }],
+    });
     const res = await POST(makeReq(validCCBody));
     expect(res.status).toBe(400);
   });
@@ -127,7 +139,7 @@ describe("success", () => {
   });
 
   it("creates a CC when lot is valid, links stockLotId", async () => {
-    mockStockLotFindFirst.mockResolvedValue({ id: "lot-1", ticker: "AAPL", shares: 400 });
+    mockStockLotFindFirst.mockResolvedValue({ id: "lot-1", ticker: "AAPL", shares: 400, trades: [] });
     const res = await POST(makeReq(validCCBody));
     expect(res.status).toBe(201);
 

@@ -36,10 +36,29 @@ export default async function AlertsPage() {
           strikePrice: true,
           expirationDate: true,
           status: true,
+          portfolioId: true,
         },
       })
     : [];
   const tradeById = new Map(trades.map((t) => [t.id, t]));
+
+  const lotIds = configs
+    .map((c) => c.stockLotId)
+    .filter((id): id is string => Boolean(id));
+  const lots = lotIds.length
+    ? await prisma.stockLot.findMany({
+        where: { id: { in: lotIds } },
+        select: {
+          id: true,
+          ticker: true,
+          shares: true,
+          avgCost: true,
+          status: true,
+          portfolioId: true,
+        },
+      })
+    : [];
+  const lotById = new Map(lots.map((l) => [l.id, l]));
 
   return (
     <AlertsPageClient
@@ -50,6 +69,7 @@ export default async function AlertsPage() {
         params: c.params,
         tradeId: c.tradeId,
         watchlistTicker: c.watchlistTicker,
+        stockLotId: c.stockLotId,
         lastFiredAt: c.lastFiredAt?.toISOString() ?? null,
         createdAt: c.createdAt.toISOString(),
         trade: c.tradeId
@@ -63,6 +83,21 @@ export default async function AlertsPage() {
                 strikePrice: t.strikePrice,
                 expirationDate: t.expirationDate.toISOString(),
                 status: t.status,
+                portfolioId: t.portfolioId,
+              };
+            })()
+          : null,
+        stockLot: c.stockLotId
+          ? (() => {
+              const l = lotById.get(c.stockLotId);
+              if (!l) return null;
+              return {
+                id: l.id,
+                ticker: l.ticker,
+                shares: l.shares,
+                avgCost: l.avgCost.toString(),
+                status: l.status,
+                portfolioId: l.portfolioId,
               };
             })()
           : null,

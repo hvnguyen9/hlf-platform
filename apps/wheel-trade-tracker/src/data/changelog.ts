@@ -7,6 +7,19 @@ export interface ChangelogEntry {
 export const changelog: ChangelogEntry[] = [
   {
     date: "2026-05-14",
+    version: "v2.18.0",
+    highlights: [
+      "Stock lot detail page got a major upgrade — five fixes and additions across covered calls, share averaging, alerts, and notes.",
+      "Add Shares to an existing lot — buy more shares into a position you already hold and the average cost is recomputed for you. Useful for averaging down on a dip without losing the lot's history.",
+      "Cash-secured puts that get assigned now merge into the open lot for that ticker instead of creating a separate fragmented position. The new shares are weighted-averaged into the existing avg cost.",
+      "New 'Effective / Share' stat shows your true cost basis after subtracting CSP premiums collected while you've been holding the lot. Sits next to your normal Avg Cost (tax basis) so you can see both — accounting basis vs. trader's running profitability.",
+      "Lot price alerts — set a trigger directly on a stock lot for when it dips a chosen % below your avg cost, rises a chosen % above, or crosses an exact price you specify. Toasts fire the same way trade and watchlist alerts do.",
+      "Notes can now be added or edited on any of your stock lots — used to be admin-only. Inline editor with auto-saving timestamps for share adds and CSP merges.",
+      "Bug fix: when selling a covered call against a stock lot, the contract picker now correctly subtracts CCs already open against that lot. Previously it always offered the full lot capacity, making it possible to over-cover.",
+    ],
+  },
+  {
+    date: "2026-05-14",
     version: "v2.17.1",
     highlights: [
       "Speed pass across the app. The All Accounts dashboard, watchlist, and budget summary all load noticeably faster.",

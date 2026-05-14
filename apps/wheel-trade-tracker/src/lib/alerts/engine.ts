@@ -3,11 +3,12 @@ import { getLatestQuotes } from "@/lib/alpaca";
 import {
   paramsByType,
   type AssignmentRiskParams,
+  type LotPriceBreachParams,
   type ProfitTargetParams,
   type RollOpportunityParams,
   type WatchlistBreachParams,
 } from "./types";
-import type { AlertConfig, Trade } from "@/generated/prisma/client";
+import type { AlertConfig, StockLot, Trade } from "@/generated/prisma/client";
 
 // Delivery is in-app toast only since 2026-05-13 (push was dropped). The
 // engine writes AlertEvent rows; the client polls /api/alerts/events to
@@ -52,11 +53,22 @@ export async function runAlertScan(): Promise<ScanSummary> {
     : [];
   const tradeById = new Map(trades.map((t) => [t.id, t]));
 
+  const lotIds = Array.from(
+    new Set(configs.map((c) => c.stockLotId).filter((id): id is string => Boolean(id))),
+  );
+  const lots = lotIds.length
+    ? await prisma.stockLot.findMany({ where: { id: { in: lotIds } } })
+    : [];
+  const lotById = new Map(lots.map((l) => [l.id, l]));
+
   const watchlistTickers = configs
     .map((c) => c.watchlistTicker)
     .filter((t): t is string => Boolean(t));
   const tradeTickers = trades.map((t) => t.ticker);
-  const symbols = Array.from(new Set([...watchlistTickers, ...tradeTickers]));
+  const lotTickers = lots.map((l) => l.ticker);
+  const symbols = Array.from(
+    new Set([...watchlistTickers, ...tradeTickers, ...lotTickers]),
+  );
 
   const quotes = symbols.length ? await getLatestQuotes(symbols) : new Map<string, number>();
 
@@ -82,7 +94,7 @@ export async function runAlertScan(): Promise<ScanSummary> {
         continue;
       }
 
-      const fire = evaluateConfig(config, tradeById, quotes);
+      const fire = evaluateConfig(config, tradeById, lotById, quotes);
       if (fire === "disabled") {
         skippedDisabled += 1;
         continue;
@@ -143,6 +155,7 @@ type EvalResult = { message: string; price: number } | null | "disabled";
 function evaluateConfig(
   config: AlertConfig,
   tradeById: Map<string, Trade>,
+  lotById: Map<string, StockLot>,
   quotes: Map<string, number>,
 ): EvalResult {
   const schema = paramsByType[config.type];
@@ -158,6 +171,16 @@ function evaluateConfig(
       price,
       parsed.data as WatchlistBreachParams,
     );
+  }
+
+  if (config.type === "LOT_PRICE_BREACH") {
+    if (!config.stockLotId) return null;
+    const lot = lotById.get(config.stockLotId);
+    if (!lot) return "disabled";
+    if (lot.status !== "OPEN") return "disabled";
+    const price = quotes.get(lot.ticker.toUpperCase());
+    if (price === undefined) return null;
+    return evalLotPriceBreach(lot, price, parsed.data as LotPriceBreachParams);
   }
 
   // Trade-bound types
@@ -313,6 +336,42 @@ function evalWatchlistBreach(
   const verb = params.direction === "below" ? "dropped to" : "rose to";
   return {
     message: `${ticker} ${verb} $${price.toFixed(2)} (your trigger was $${params.triggerPrice.toFixed(2)}). Consider an entry.`,
+    price,
+  };
+}
+
+function evalLotPriceBreach(
+  lot: StockLot,
+  price: number,
+  params: LotPriceBreachParams,
+): EvalResult {
+  const avgCost = Number(lot.avgCost);
+  if (params.mode === "absolute") {
+    if (params.direction === "below" && price > params.triggerPrice) return null;
+    if (params.direction === "above" && price < params.triggerPrice) return null;
+    const verb = params.direction === "below" ? "dropped to" : "rose to";
+    return {
+      message: `${lot.ticker} ${verb} $${price.toFixed(2)} (your lot trigger was $${params.triggerPrice.toFixed(2)}, avg cost $${avgCost.toFixed(2)}).`,
+      price,
+    };
+  }
+  if (params.mode === "pctBelowAvg") {
+    if (!Number.isFinite(avgCost) || avgCost <= 0) return null;
+    const threshold = avgCost * (1 - params.pct / 100);
+    if (price > threshold) return null;
+    const drop = ((avgCost - price) / avgCost) * 100;
+    return {
+      message: `${lot.ticker} dropped to $${price.toFixed(2)} — ${drop.toFixed(1)}% below your $${avgCost.toFixed(2)} avg cost.`,
+      price,
+    };
+  }
+  // pctAboveAvg
+  if (!Number.isFinite(avgCost) || avgCost <= 0) return null;
+  const threshold = avgCost * (1 + params.pct / 100);
+  if (price < threshold) return null;
+  const gain = ((price - avgCost) / avgCost) * 100;
+  return {
+    message: `${lot.ticker} rose to $${price.toFixed(2)} — ${gain.toFixed(1)}% above your $${avgCost.toFixed(2)} avg cost. Consider taking profit.`,
     price,
   };
 }

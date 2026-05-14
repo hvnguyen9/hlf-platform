@@ -21,6 +21,7 @@ import { AddSharesModal } from "./AddSharesModal";
 import { AddTradeModal } from "@/features/trades/components/AddTradeModal";
 import { AdminEditStockModal } from "./AdminEditStockModal";
 import { LotNotesCard } from "./LotNotesCard";
+import { LotAlertsCard } from "@/features/alerts/components/LotAlertsCard";
 import { ChevronRight, Plus, Shield } from "lucide-react";
 import { useSession } from "next-auth/react";
 
@@ -654,6 +655,10 @@ export default function StockDetailPageClient(props: {
           )}
 
         </Card>
+      ) : null}
+
+      {!isClosed ? (
+        <LotAlertsCard stockLotId={stockId} ticker={s.ticker} avgCost={avg} />
       ) : null}
 
       <LotNotesCard stockId={stockId} notes={s.notes ?? null} canEdit={!isClosed} />
