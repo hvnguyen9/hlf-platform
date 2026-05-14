@@ -44,7 +44,38 @@ export async function GET(
       return NextResponse.json({ error: "StockLot not found" }, { status: 404 });
     }
 
-    return NextResponse.json({ stockLot });
+    // Sum CSP premiums collected on the same (portfolio, ticker) during this
+    // lot's open window — but exclude assignments (their net basis is already
+    // baked into the lot's avgCost when the assignment created/merged the lot).
+    // Result is a display-only "effective basis" and never mutates avgCost.
+    const cspPremiumAgg = await prisma.trade.aggregate({
+      _sum: { premiumCaptured: true },
+      where: {
+        portfolioId: stockLot.portfolioId,
+        ticker: stockLot.ticker,
+        type: "CashSecuredPut",
+        status: "closed",
+        closeReason: { not: "assigned" },
+        closedAt: stockLot.closedAt
+          ? { gte: stockLot.openedAt, lte: stockLot.closedAt }
+          : { gte: stockLot.openedAt },
+      },
+    });
+    const cspPremiumDuringHold = Number(cspPremiumAgg._sum.premiumCaptured ?? 0);
+    const sharesNum = Number(stockLot.shares);
+    const avgCostNum = Number(stockLot.avgCost);
+    const effectiveAvgCost =
+      sharesNum > 0
+        ? Math.max(0, avgCostNum - cspPremiumDuringHold / sharesNum)
+        : avgCostNum;
+
+    return NextResponse.json({
+      stockLot,
+      effectiveBasis: {
+        cspPremiumDuringHold,
+        effectiveAvgCost,
+      },
+    });
   } catch (err) {
     console.error("GET /api/stocks/[id] failed", err);
     return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
@@ -80,6 +111,32 @@ export async function PATCH(
       closedAt?: string | null;
       realizedPnl?: number | string | null;
     };
+
+    // Owner notes-only update — any owner can edit the freeform notes on
+    // their own lot without invoking close logic or admin-only fields. Only
+    // takes effect when the body contains `notes` and no other update keys.
+    const isNotesOnly =
+      body.notes !== undefined &&
+      body.closePrice === undefined &&
+      body.sharesToClose === undefined &&
+      !body.adminEdit;
+
+    if (isNotesOnly) {
+      const lot = await prisma.stockLot.findFirst({
+        where: { id, portfolio: isAdmin ? undefined : { userId } },
+        select: { id: true },
+      });
+      if (!lot) {
+        return NextResponse.json({ error: "StockLot not found" }, { status: 404 });
+      }
+
+      const updated = await prisma.stockLot.update({
+        where: { id: lot.id },
+        data: { notes: body.notes ?? null },
+        include: { trades: { orderBy: { createdAt: "desc" } } },
+      });
+      return NextResponse.json({ stockLot: updated });
+    }
 
     // Admin direct-edit path — correct individual fields without triggering close logic
     if (isAdmin && body.adminEdit) {

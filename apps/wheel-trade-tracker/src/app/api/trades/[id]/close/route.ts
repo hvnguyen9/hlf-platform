@@ -127,21 +127,62 @@ export async function PATCH(
     const now = new Date();
 
     if (isCSP(trade.type)) {
-      // Stock put to you: create a new StockLot at net basis
-      await prisma.$transaction(async (tx) => {
-        const netBasis = Math.max(0, strike - openPrice);
+      // Stock put to you: merge into an existing OPEN lot for the same
+      // (portfolio, ticker) if one exists, otherwise create a new lot.
+      // Net basis per share for this assignment = max(0, strike - premium).
+      const netBasis = Math.max(0, strike - openPrice);
 
-        const createdLot = await tx.stockLot.create({
-          data: {
+      const result = await prisma.$transaction(async (tx) => {
+        const existingLot = await tx.stockLot.findFirst({
+          where: {
             portfolioId: trade.portfolioId,
             ticker: trade.ticker,
-            shares,
-            avgCost: new Prisma.Decimal(netBasis),
-            notes: `Assigned from CSP trade: ${trade.ticker} $${trade.strikePrice} ${formatDateOnlyUTC(trade.expirationDate)}`,
             status: "OPEN",
           },
-          select: { id: true },
+          select: { id: true, shares: true, avgCost: true, notes: true },
         });
+
+        let lotId: string;
+        let merged = false;
+
+        if (existingLot) {
+          // Weighted-average merge of the assignment into the open lot.
+          const oldShares = new Prisma.Decimal(existingLot.shares);
+          const addedShares = new Prisma.Decimal(shares);
+          const oldAvg = new Prisma.Decimal(existingLot.avgCost);
+          const addCost = new Prisma.Decimal(netBasis);
+          const totalShares = oldShares.add(addedShares);
+          const newAvgCost = oldAvg
+            .mul(oldShares)
+            .add(addCost.mul(addedShares))
+            .div(totalShares);
+          const noteLine = `Merged CSP assignment ${formatDateOnlyUTC(trade.expirationDate)} $${trade.strikePrice} (+${shares} sh @ ${netBasis.toFixed(2)})`;
+          await tx.stockLot.update({
+            where: { id: existingLot.id },
+            data: {
+              shares: totalShares.toNumber(),
+              avgCost: newAvgCost,
+              notes: existingLot.notes
+                ? `${existingLot.notes}\n${noteLine}`
+                : noteLine,
+            },
+          });
+          lotId = existingLot.id;
+          merged = true;
+        } else {
+          const createdLot = await tx.stockLot.create({
+            data: {
+              portfolioId: trade.portfolioId,
+              ticker: trade.ticker,
+              shares,
+              avgCost: new Prisma.Decimal(netBasis),
+              notes: `Assigned from CSP trade: ${trade.ticker} $${trade.strikePrice} ${formatDateOnlyUTC(trade.expirationDate)}`,
+              status: "OPEN",
+            },
+            select: { id: true },
+          });
+          lotId = createdLot.id;
+        }
 
         await tx.trade.update({
           where: { id },
@@ -153,16 +194,26 @@ export async function PATCH(
             premiumCaptured: (trade.premiumCaptured ?? 0) + realizedAssigned,
             percentPL: 100,
             closeReason: "assigned",
-            stockLotId: createdLot.id,
+            stockLotId: lotId,
             notes: trade.notes
-              ? `${trade.notes}\nAssigned → created StockLot ${createdLot.id} @ ${strike}`
-              : `Assigned → created StockLot ${createdLot.id} @ ${strike}`,
+              ? `${trade.notes}\n${merged ? "Assigned → merged into" : "Assigned → created"} StockLot ${lotId} @ ${strike}`
+              : `${merged ? "Assigned → merged into" : "Assigned → created"} StockLot ${lotId} @ ${strike}`,
           },
         });
+
+        return { lotId, merged };
       });
 
       return new Response(
-        JSON.stringify({ realizedNow: realizedAssigned, feesTotal, assigned: true, shares, purchasePrice: strike }),
+        JSON.stringify({
+          realizedNow: realizedAssigned,
+          feesTotal,
+          assigned: true,
+          shares,
+          purchasePrice: strike,
+          stockLotId: result.lotId,
+          mergedIntoExistingLot: result.merged,
+        }),
         { status: 200, headers: { "Content-Type": "application/json" } },
       );
     } else {

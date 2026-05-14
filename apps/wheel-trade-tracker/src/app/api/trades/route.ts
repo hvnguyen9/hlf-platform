@@ -59,6 +59,12 @@ export async function POST(req: Request) {
         portfolioId,
         status: "OPEN",
       },
+      include: {
+        trades: {
+          where: { type: "CoveredCall", status: "open" },
+          select: { contractsOpen: true },
+        },
+      },
     });
 
     if (!stockLot) {
@@ -75,10 +81,17 @@ export async function POST(req: Request) {
       );
     }
 
+    const coveredShares = stockLot.trades.reduce(
+      (sum, t) => sum + t.contractsOpen * 100,
+      0,
+    );
+    const availableShares = stockLot.shares - coveredShares;
     const requiredShares = Number(contracts) * 100;
-    if (stockLot.shares < requiredShares) {
+    if (availableShares < requiredShares) {
       return NextResponse.json(
-        { error: "Not enough shares in stock lot for covered call" },
+        {
+          error: `Not enough uncovered shares: ${availableShares} available (${stockLot.shares} total − ${coveredShares} already covered), ${requiredShares} requested`,
+        },
         { status: 400 },
       );
     }

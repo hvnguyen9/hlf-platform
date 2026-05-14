@@ -17,12 +17,20 @@ import {
 import type { StockLot } from "@/types";
 import type { QuoteResult } from "@/app/api/quotes/route";
 import { CloseStockLotModal } from "./CloseStockModal";
+import { AddSharesModal } from "./AddSharesModal";
 import { AddTradeModal } from "@/features/trades/components/AddTradeModal";
 import { AdminEditStockModal } from "./AdminEditStockModal";
-import { ChevronRight, Shield } from "lucide-react";
+import { LotNotesCard } from "./LotNotesCard";
+import { ChevronRight, Plus, Shield } from "lucide-react";
 import { useSession } from "next-auth/react";
 
-type StockResponse = { stockLot: StockLot };
+type StockResponse = {
+  stockLot: StockLot;
+  effectiveBasis?: {
+    cspPremiumDuringHold: number;
+    effectiveAvgCost: number;
+  };
+};
 
 type CoveredCallRow = {
   id: string;
@@ -327,6 +335,7 @@ export default function StockDetailPageClient(props: {
 
   const [closeOpen, setCloseOpen] = React.useState<boolean>(false);
   const [adminEditOpen, setAdminEditOpen] = React.useState(false);
+  const [addSharesOpen, setAddSharesOpen] = React.useState(false);
 
   const { data, error, isLoading, mutate } = useSWR<StockResponse>(
     `/api/stocks/${stockId}`,
@@ -362,6 +371,9 @@ export default function StockDetailPageClient(props: {
 
   const shares = safeNumber(stockLot?.shares ?? 0);
   const avg = toNumber(stockLot?.avgCost ?? 0);
+  const cspPremiumDuringHold = data?.effectiveBasis?.cspPremiumDuringHold ?? 0;
+  const effectiveAvgCost = data?.effectiveBasis?.effectiveAvgCost ?? avg;
+  const hasCspBoost = cspPremiumDuringHold > 0 && shares > 0;
 
   const { data: quoteData } = useSWR<Record<string, QuoteResult>>(
     stockLot?.ticker ? `/api/quotes?tickers=${stockLot.ticker}` : null,
@@ -428,6 +440,10 @@ export default function StockDetailPageClient(props: {
   const s = stockLot;
   const basis = avg * shares;
   const sharesForContracts = Math.floor(shares / 100);
+  const availableContracts = Math.max(
+    0,
+    sharesForContracts - Math.floor(openCcShares / 100),
+  );
 
   const { totalCaptured, pendingPremium, closedCount } = ccMetrics;
   const originalAvg =
@@ -464,7 +480,18 @@ export default function StockDetailPageClient(props: {
               Edit
             </Button>
           )}
-          {!isClosed && sharesForContracts >= 1 ? (
+          {!isClosed ? (
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-1.5"
+              onClick={() => setAddSharesOpen(true)}
+            >
+              <Plus className="h-3.5 w-3.5" />
+              Add Shares
+            </Button>
+          ) : null}
+          {!isClosed && availableContracts >= 1 ? (
             <AddTradeModal
               portfolioId={portfolioId}
               trigger={<Button variant="outline" size="sm">Sell Covered Call</Button>}
@@ -474,8 +501,8 @@ export default function StockDetailPageClient(props: {
                 stockLotId: s.id,
               }}
               lockPrefill
-              defaultContracts={sharesForContracts}
-              maxContracts={sharesForContracts}
+              defaultContracts={availableContracts}
+              maxContracts={availableContracts}
             />
           ) : null}
           {!isClosed ? (
@@ -493,7 +520,19 @@ export default function StockDetailPageClient(props: {
       {/* Stat cards */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         <LotStat label="Shares" value={String(shares)} />
-        <LotStat label="Avg Cost / Share" value={moneyCompact(avg)} />
+        <LotStat
+          label="Avg Cost / Share"
+          value={moneyCompact(avg)}
+          sub={hasCspBoost ? "tax basis" : undefined}
+        />
+        {hasCspBoost ? (
+          <LotStat
+            label="Effective / Share"
+            value={moneyCompact(effectiveAvgCost)}
+            sub={`incl. ${money(cspPremiumDuringHold)} in CSP premiums`}
+            tone="success"
+          />
+        ) : null}
         <LotStat label="Total Cost Basis" value={money(basis)} />
         <LotStat
           label={
@@ -542,7 +581,7 @@ export default function StockDetailPageClient(props: {
       </div>
 
       {/* CC Cost-Basis Summary */}
-      {coveredCalls.length > 0 || s.notes ? (
+      {coveredCalls.length > 0 ? (
         <Card className="p-5">
           <div className="flex items-center justify-between mb-4">
             <div>
@@ -614,14 +653,10 @@ export default function StockDetailPageClient(props: {
             </div>
           )}
 
-          {s.notes ? (
-            <div className={coveredCalls.length > 0 ? "mt-4 pt-4 border-t border-border/60" : ""}>
-              <div className="text-xs text-muted-foreground mb-1">Notes</div>
-              <p className="text-sm">{s.notes}</p>
-            </div>
-          ) : null}
         </Card>
       ) : null}
+
+      <LotNotesCard stockId={stockId} notes={s.notes ?? null} canEdit={!isClosed} />
 
       <Card className="p-4">
         <h2 className="text-lg font-semibold">Covered Calls</h2>
@@ -707,16 +742,27 @@ export default function StockDetailPageClient(props: {
       </Card>
 
       {String(s.status).toUpperCase() === "OPEN" ? (
-        <CloseStockLotModal
-          open={closeOpen}
-          onOpenChange={setCloseOpen}
-          stockId={stockId}
-          portfolioId={portfolioId}
-          ticker={s.ticker}
-          shares={shares}
-          avgCost={toNumber(s.avgCost)}
-          openCcShares={openCcShares}
-        />
+        <>
+          <CloseStockLotModal
+            open={closeOpen}
+            onOpenChange={setCloseOpen}
+            stockId={stockId}
+            portfolioId={portfolioId}
+            ticker={s.ticker}
+            shares={shares}
+            avgCost={toNumber(s.avgCost)}
+            openCcShares={openCcShares}
+          />
+          <AddSharesModal
+            open={addSharesOpen}
+            onOpenChange={setAddSharesOpen}
+            stockId={stockId}
+            portfolioId={portfolioId}
+            ticker={s.ticker}
+            shares={shares}
+            avgCost={toNumber(s.avgCost)}
+          />
+        </>
       ) : null}
 
       {isAdmin && stockLot && (
