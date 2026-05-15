@@ -6,6 +6,13 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    date: "2026-05-15",
+    version: "v2.18.1",
+    highlights: [
+      "Journal calendar now shows a weekly total at the end of every row — quick glance to see what each week made or lost without doing the math yourself. Includes the week's trade count.",
+    ],
+  },
+  {
     date: "2026-05-14",
     version: "v2.18.0",
     highlights: [

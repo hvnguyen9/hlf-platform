@@ -63,64 +63,113 @@ function CalendarGrid({
       return { date: `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`, day };
     }),
   ];
+  // Pad the final week out to 7 cells so the layout stays rectangular.
+  while (cells.length % 7 !== 0) cells.push(null);
+
+  // Chunk into weeks of 7 days for rendering alongside a weekly total column.
+  const weeks: Array<typeof cells> = [];
+  for (let i = 0; i < cells.length; i += 7) weeks.push(cells.slice(i, i + 7));
 
   return (
     <div className="select-none">
-      {/* Day-of-week header */}
-      <div className="grid grid-cols-7 mb-1">
+      {/* Day-of-week header + Week total label */}
+      <div className="grid grid-cols-8 mb-1 gap-1">
         {DAY_NAMES.map((d) => (
           <div key={d} className="text-center text-[11px] font-medium text-muted-foreground py-1">
             {d}
           </div>
         ))}
+        <div className="text-center text-[11px] font-medium text-muted-foreground py-1 border-l border-border/60">
+          Week
+        </div>
       </div>
 
-      {/* Day cells */}
-      <div className="grid grid-cols-7 gap-1">
-        {cells.map((cell, i) => {
-          if (!cell) return <div key={`pad-${i}`} />;
-          const data = days[cell.date];
-          const hasActivity = !!data;
-          const isSelected = cell.date === selectedDate;
-          const isToday = cell.date === today;
-          const pnl = data?.pnl ?? 0;
+      {/* Day cells with a weekly total column */}
+      <div className="grid grid-cols-8 gap-1">
+        {weeks.map((week, weekIdx) => {
+          const weekPnl = week.reduce((sum, c) => sum + (c ? days[c.date]?.pnl ?? 0 : 0), 0);
+          const weekTradeCount = week.reduce(
+            (sum, c) => sum + (c ? days[c.date]?.tradeCount ?? 0 : 0),
+            0,
+          );
+          const weekActiveDays = week.filter((c) => c && days[c.date]).length;
 
           return (
-            <button
-              key={cell.date}
-              onClick={() => onSelect(isSelected ? "" : cell.date)}
-              className={cn(
-                "relative flex flex-col items-center justify-start rounded-lg p-1.5 min-h-[56px] transition-all text-left",
-                hasActivity ? "cursor-pointer hover:ring-2 hover:ring-ring/40" : "cursor-default",
-                isSelected && "ring-2 ring-primary",
-                !hasActivity && "opacity-50",
-                hasActivity && pnl > 0 && !isSelected && "bg-emerald-50 dark:bg-emerald-950/40",
-                hasActivity && pnl < 0 && !isSelected && "bg-rose-50 dark:bg-rose-950/40",
-                hasActivity && pnl === 0 && !isSelected && "bg-muted/60",
-                isSelected && pnl > 0 && "bg-emerald-100 dark:bg-emerald-900/50",
-                isSelected && pnl < 0 && "bg-rose-100 dark:bg-rose-900/50",
-                isSelected && pnl === 0 && "bg-muted",
-              )}
-            >
-              <span className={cn(
-                "text-[11px] font-semibold leading-none mb-1",
-                isToday ? "text-primary" : "text-foreground",
-              )}>
-                {cell.day}
-              </span>
-              {hasActivity && (
-                <>
-                  <span className={cn("text-[10px] font-medium tabular-nums leading-none", moneyColor(pnl))}>
-                    {pnl >= 0 ? "+" : ""}{formatUSD(pnl, true)}
-                  </span>
-                  {data.tradeCount > 1 && (
-                    <span className="text-[9px] text-muted-foreground mt-0.5">
-                      {data.tradeCount} trades
+            <div key={`week-${weekIdx}`} className="contents">
+              {week.map((cell, i) => {
+                if (!cell) return <div key={`pad-${weekIdx}-${i}`} />;
+                const data = days[cell.date];
+                const hasActivity = !!data;
+                const isSelected = cell.date === selectedDate;
+                const isToday = cell.date === today;
+                const pnl = data?.pnl ?? 0;
+
+                return (
+                  <button
+                    key={cell.date}
+                    onClick={() => onSelect(isSelected ? "" : cell.date)}
+                    className={cn(
+                      "relative flex flex-col items-center justify-start rounded-lg p-1.5 min-h-[56px] transition-all text-left",
+                      hasActivity ? "cursor-pointer hover:ring-2 hover:ring-ring/40" : "cursor-default",
+                      isSelected && "ring-2 ring-primary",
+                      !hasActivity && "opacity-50",
+                      hasActivity && pnl > 0 && !isSelected && "bg-emerald-50 dark:bg-emerald-950/40",
+                      hasActivity && pnl < 0 && !isSelected && "bg-rose-50 dark:bg-rose-950/40",
+                      hasActivity && pnl === 0 && !isSelected && "bg-muted/60",
+                      isSelected && pnl > 0 && "bg-emerald-100 dark:bg-emerald-900/50",
+                      isSelected && pnl < 0 && "bg-rose-100 dark:bg-rose-900/50",
+                      isSelected && pnl === 0 && "bg-muted",
+                    )}
+                  >
+                    <span className={cn(
+                      "text-[11px] font-semibold leading-none mb-1",
+                      isToday ? "text-primary" : "text-foreground",
+                    )}>
+                      {cell.day}
                     </span>
-                  )}
-                </>
-              )}
-            </button>
+                    {hasActivity && (
+                      <>
+                        <span className={cn("text-[10px] font-medium tabular-nums leading-none", moneyColor(pnl))}>
+                          {pnl >= 0 ? "+" : ""}{formatUSD(pnl, true)}
+                        </span>
+                        {data.tradeCount > 1 && (
+                          <span className="text-[9px] text-muted-foreground mt-0.5">
+                            {data.tradeCount} trades
+                          </span>
+                        )}
+                      </>
+                    )}
+                  </button>
+                );
+              })}
+
+              {/* Weekly total cell */}
+              <div
+                className={cn(
+                  "relative flex flex-col items-center justify-center rounded-lg p-1.5 min-h-[56px] border-l border-border/60",
+                  weekActiveDays === 0 && "opacity-40",
+                  weekActiveDays > 0 && weekPnl > 0 && "bg-emerald-100/60 dark:bg-emerald-950/60",
+                  weekActiveDays > 0 && weekPnl < 0 && "bg-rose-100/60 dark:bg-rose-950/60",
+                  weekActiveDays > 0 && weekPnl === 0 && "bg-muted/60",
+                )}
+              >
+                {weekActiveDays === 0 ? (
+                  <span className="text-[10px] text-muted-foreground">—</span>
+                ) : (
+                  <>
+                    <span className={cn(
+                      "text-[11px] font-bold tabular-nums leading-none",
+                      moneyColor(weekPnl),
+                    )}>
+                      {weekPnl >= 0 ? "+" : ""}{formatUSD(weekPnl, true)}
+                    </span>
+                    <span className="text-[9px] text-muted-foreground mt-1">
+                      {weekTradeCount} trade{weekTradeCount !== 1 ? "s" : ""}
+                    </span>
+                  </>
+                )}
+              </div>
+            </div>
           );
         })}
       </div>
