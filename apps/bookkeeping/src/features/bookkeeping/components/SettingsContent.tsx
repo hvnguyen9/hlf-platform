@@ -43,21 +43,22 @@ export function SettingsContent() {
     setSelection("all");
   }
 
+  // Selecting an individual never auto-promotes to "all" — even if every
+  // portfolio ends up checked. Promotion only happens via the "All" tile.
+  // Deselecting the last individual falls back to "all" so we don't sit in
+  // an invalid empty state.
   function togglePortfolio(id: string) {
     if (selection === "all") {
-      // Switching from "All" to specific — start with ONLY this portfolio
       setSelection(new Set([id]));
+      return;
+    }
+    const next = new Set(selection);
+    if (next.has(id)) {
+      next.delete(id);
+      setSelection(next.size === 0 ? "all" : next);
     } else {
-      const next = new Set(selection);
-      if (next.has(id)) {
-        next.delete(id);
-        // If nothing left, fall back to all
-        setSelection(next.size === 0 ? "all" : next);
-      } else {
-        next.add(id);
-        // If every portfolio is now checked, normalise to "all"
-        setSelection(next.size === portfolios.length ? "all" : next);
-      }
+      next.add(id);
+      setSelection(next);
     }
   }
 
