@@ -4,32 +4,6 @@ import { useStockLot, usePortfolios, useQuotes } from "@/features/wheel/queries"
 import { money, pnlColor, shortDate, signedMoney, tradeTypeLabel } from "@/features/wheel/format";
 import { QueryError } from "@/features/wheel/components/QueryError";
 
-type StockLotDetail = {
-  id: string;
-  ticker: string;
-  shares: number;
-  avgCost: number | string;
-  status: string;
-  openedAt: string;
-  closedAt: string | null;
-  closePrice: number | null;
-  realizedPnl: number | null;
-  notes: string | null;
-  portfolioId: string;
-  trades?: Array<{
-    id: string;
-    type: string;
-    strikePrice: number;
-    contractsInitial: number;
-    contractsOpen: number;
-    contractPrice: number;
-    status: string;
-    expirationDate: string;
-    closedAt: string | null;
-    premiumCaptured: number | null;
-  }>;
-};
-
 function Row({ label, value, valueClass }: { label: string; value: string; valueClass?: string }) {
   return (
     <View className="flex-row items-baseline justify-between py-2 border-b border-slate-800/60">
@@ -43,7 +17,7 @@ export default function LotDetail() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const lot = useStockLot(id);
   const portfolios = usePortfolios();
-  const data = lot.data as StockLotDetail | undefined;
+  const data = lot.data;
   const ticker = data?.ticker;
   const quotes = useQuotes(ticker ? [ticker] : []);
 
@@ -63,11 +37,10 @@ export default function LotDetail() {
   }
   if (!data) return null;
 
-  const avgCost = typeof data.avgCost === "number" ? data.avgCost : Number(data.avgCost);
-  const basis = avgCost * data.shares;
+  const basis = data.avgCost * data.shares;
   const currentPrice = ticker ? quotes.data?.[ticker]?.price ?? null : null;
   const unrealized =
-    currentPrice != null ? (currentPrice - avgCost) * data.shares : null;
+    currentPrice != null ? (currentPrice - data.avgCost) * data.shares : null;
   const portfolioName =
     portfolios.data?.find((p) => p.id === data.portfolioId)?.name ?? "Unknown";
 
@@ -86,7 +59,7 @@ export default function LotDetail() {
 
         <View className="rounded-xl border border-slate-800 bg-slate-900 px-4">
           <Row label="Shares" value={String(data.shares)} />
-          <Row label="Avg cost" value={`$${avgCost.toFixed(2)}`} />
+          <Row label="Avg cost" value={`$${data.avgCost.toFixed(2)}`} />
           <Row label="Cost basis" value={money(basis)} />
           {currentPrice != null ? (
             <Row label="Current price" value={money(currentPrice)} />

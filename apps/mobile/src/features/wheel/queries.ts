@@ -1,9 +1,16 @@
 // TanStack Query hooks for the wheel section. All call wheel-tracker's
-// user-scoped routes with the mobile bearer token.
+// user-scoped routes with the mobile bearer token. Decimal fields get
+// normalized to real numbers before they reach the views.
 
 import { useQuery } from "@tanstack/react-query";
 import { apiGet, ApiError } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
+import {
+  normalizeStockLot,
+  normalizeStockLotDetail,
+  normalizeTrade,
+  type StockLotDetail,
+} from "./normalize";
 import type {
   JournalResponse,
   Portfolio,
@@ -41,7 +48,12 @@ export function useOpenTrades() {
     enabled: !!token,
     queryFn: async () => {
       try {
-        return await apiGet<Trade[]>("/api/trades?status=open", token, "wheel");
+        const raw = await apiGet<Trade[]>(
+          "/api/trades?status=open",
+          token,
+          "wheel",
+        );
+        return raw.map(normalizeTrade);
       } catch (err) {
         if (err instanceof ApiError && err.status === 401) await signOut();
         throw err;
@@ -57,7 +69,8 @@ export function useTrade(id: string | undefined) {
     enabled: !!token && !!id,
     queryFn: async () => {
       try {
-        return await apiGet<Trade>(`/api/trades/${id}`, token, "wheel");
+        const raw = await apiGet<Trade>(`/api/trades/${id}`, token, "wheel");
+        return normalizeTrade(raw);
       } catch (err) {
         if (err instanceof ApiError && err.status === 401) await signOut();
         throw err;
@@ -68,33 +81,38 @@ export function useTrade(id: string | undefined) {
 
 export function useOpenStockLots() {
   const { token, signOut } = useWheelToken();
-  return useQuery<{ stockLots: StockLot[] }, Error, StockLot[]>({
+  return useQuery<StockLot[]>({
     queryKey: ["wheel", "stocks", "open"],
     enabled: !!token,
     queryFn: async () => {
       try {
-        return await apiGet<{ stockLots: StockLot[] }>(
+        const raw = await apiGet<{ stockLots: StockLot[] }>(
           "/api/stocks?status=open",
           token,
           "wheel",
         );
+        return raw.stockLots.map(normalizeStockLot);
       } catch (err) {
         if (err instanceof ApiError && err.status === 401) await signOut();
         throw err;
       }
     },
-    select: (data) => data.stockLots,
   });
 }
 
 export function useStockLot(id: string | undefined) {
   const { token, signOut } = useWheelToken();
-  return useQuery({
+  return useQuery<StockLotDetail>({
     queryKey: ["wheel", "stock", id],
     enabled: !!token && !!id,
     queryFn: async () => {
       try {
-        return await apiGet<unknown>(`/api/stocks/${id}`, token, "wheel");
+        const raw = await apiGet<StockLotDetail>(
+          `/api/stocks/${id}`,
+          token,
+          "wheel",
+        );
+        return normalizeStockLotDetail(raw);
       } catch (err) {
         if (err instanceof ApiError && err.status === 401) await signOut();
         throw err;
