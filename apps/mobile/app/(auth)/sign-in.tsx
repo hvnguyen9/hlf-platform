@@ -1,5 +1,6 @@
 import { useState } from "react";
 import {
+  ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -7,14 +8,30 @@ import {
   TextInput,
   View,
 } from "react-native";
-import { router } from "expo-router";
+import { useAuth } from "@/lib/auth-context";
 
 export default function SignInScreen() {
+  const { signIn } = useAuth();
   const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
 
-  function handleSignIn() {
-    router.replace("/");
+  async function handleSignIn() {
+    if (submitting) return;
+    if (!identifier.trim() || !password) {
+      setError("Enter your username/email and password.");
+      return;
+    }
+    setError(null);
+    setSubmitting(true);
+    try {
+      await signIn(identifier.trim(), password);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Sign-in failed");
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   return (
@@ -34,11 +51,13 @@ export default function SignInScreen() {
         <TextInput
           autoCapitalize="none"
           autoCorrect={false}
+          autoComplete="username"
           value={identifier}
           onChangeText={setIdentifier}
           placeholder="hung or you@example.com"
           placeholderTextColor="#475569"
           className="rounded-lg border border-slate-700 bg-slate-900 px-3 py-3 text-white"
+          editable={!submitting}
         />
 
         <Text className="text-sm font-medium text-slate-300 mt-4 mb-2">
@@ -46,23 +65,31 @@ export default function SignInScreen() {
         </Text>
         <TextInput
           secureTextEntry
+          autoComplete="current-password"
           value={password}
           onChangeText={setPassword}
           placeholder="••••••••"
           placeholderTextColor="#475569"
           className="rounded-lg border border-slate-700 bg-slate-900 px-3 py-3 text-white"
+          editable={!submitting}
+          onSubmitEditing={handleSignIn}
         />
+
+        {error ? (
+          <Text className="text-sm text-rose-400 mt-3">{error}</Text>
+        ) : null}
 
         <Pressable
           onPress={handleSignIn}
-          className="mt-6 rounded-lg bg-emerald-500 py-3 active:bg-emerald-600"
+          disabled={submitting}
+          className="mt-6 rounded-lg bg-emerald-500 py-3 active:bg-emerald-600 disabled:opacity-60"
         >
-          <Text className="text-center font-semibold text-white">Sign in</Text>
+          {submitting ? (
+            <ActivityIndicator color="white" />
+          ) : (
+            <Text className="text-center font-semibold text-white">Sign in</Text>
+          )}
         </Pressable>
-
-        <Text className="text-xs text-slate-500 text-center mt-4">
-          Stub UI — real auth wires up in the next chunk.
-        </Text>
       </View>
     </KeyboardAvoidingView>
   );
