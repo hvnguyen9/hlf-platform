@@ -10,7 +10,7 @@ const { mockGetServerSession, mockUserFindUnique, mockUserUpdate, mockVerifyPass
 }));
 
 vi.mock("next-auth", () => ({ getServerSession: mockGetServerSession }));
-vi.mock("@/server/auth/auth", () => ({ authOptions: {} }));
+vi.mock("@/server/auth/auth", () => ({ authOptions: {}, auth: mockGetServerSession }));
 vi.mock("@/server/auth/password", () => ({
   hashPassword: mockHashPassword,
   verifyPassword: mockVerifyPassword,

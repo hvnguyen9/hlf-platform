@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/server/auth/auth";
+import { requireAuth } from "@/server/auth/require-auth";
 import { getQuoteSnapshots, type QuoteSnapshot } from "@/lib/alpaca";
 
 export const revalidate = 0;
@@ -11,8 +10,8 @@ export const dynamic = "force-dynamic";
 export type QuoteResult = QuoteSnapshot;
 
 export async function GET(request: Request) {
-  const session = await getServerSession(authOptions);
-  if (!session?.user?.id) {
+  const { user } = await requireAuth(request);
+  if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 

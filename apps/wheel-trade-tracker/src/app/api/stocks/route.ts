@@ -3,7 +3,7 @@ import { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/server/prisma";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/server/auth/auth";
-import { getEffectiveUserId } from "@/server/auth/getEffectiveUserId";
+import { requireAuth } from "@/server/auth/require-auth";
 
 type StockLotStatusQuery = "open" | "closed";
 
@@ -17,32 +17,31 @@ function parseStatus(value: string | null): Prisma.StockLotWhereInput["status"] 
 
 export async function GET(req: Request) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) {
+    const { user } = await requireAuth(req);
+    if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
-    const isAdmin = session.user.isAdmin ?? false;
-    const userId = await getEffectiveUserId(session.user.id, isAdmin);
+    const { isAdmin } = user;
 
     const url = new URL(req.url);
     const portfolioId = url.searchParams.get("portfolioId");
     const status = parseStatus(url.searchParams.get("status"));
 
-    if (!portfolioId) {
-      return NextResponse.json({ error: "Missing portfolioId" }, { status: 400 });
-    }
-
-    const portfolio = await prisma.portfolio.findFirst({
-      where: isAdmin ? { id: portfolioId } : { id: portfolioId, userId },
-      select: { id: true },
-    });
-    if (!portfolio) {
-      return NextResponse.json({ error: "Portfolio not found" }, { status: 404 });
+    if (portfolioId) {
+      const portfolio = await prisma.portfolio.findFirst({
+        where: isAdmin ? { id: portfolioId } : { id: portfolioId, userId: user.id },
+        select: { id: true },
+      });
+      if (!portfolio) {
+        return NextResponse.json({ error: "Portfolio not found" }, { status: 404 });
+      }
     }
 
     const stockLots = await prisma.stockLot.findMany({
       where: {
-        portfolioId,
+        ...(portfolioId
+          ? { portfolioId }
+          : { portfolio: { userId: user.id } }),
         ...(status ? { status } : {}),
       },
       select: {

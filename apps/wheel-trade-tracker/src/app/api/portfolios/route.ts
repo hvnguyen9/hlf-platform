@@ -1,19 +1,17 @@
 import { auth } from "@/server/auth/auth";
+import { requireAuth } from "@/server/auth/require-auth";
 import { prisma } from "@/server/prisma";
 import { NextResponse } from "next/server";
-import { getEffectiveUserId } from "@/server/auth/getEffectiveUserId";
 
-export async function GET(): Promise<NextResponse> {
-  const session = await auth();
-
-  if (!session?.user?.id) {
+export async function GET(req: Request): Promise<NextResponse> {
+  const { user } = await requireAuth(req);
+  if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   try {
-    const uid = await getEffectiveUserId(session.user.id, session.user.isAdmin ?? false);
     const portfolios = await prisma.portfolio.findMany({
-      where: { userId: uid },
+      where: { userId: user.id },
       orderBy: { createdAt: "asc" },
     });
 

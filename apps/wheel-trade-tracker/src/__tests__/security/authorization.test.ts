@@ -146,7 +146,7 @@ describe("Unauthenticated access — all protected routes return 401", () => {
   });
 
   it("GET /api/portfolios", async () => {
-    expect((await listPortfolios()).status).toBe(401);
+    expect((await listPortfolios(req())).status).toBe(401);
   });
   it("GET /api/portfolios/[id]", async () => {
     expect((await getPortfolio(req(), p("port-a"))).status).toBe(401);

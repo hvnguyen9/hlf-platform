@@ -28,7 +28,7 @@ const {
 }));
 
 vi.mock("next-auth", () => ({ getServerSession: mockGetServerSession }));
-vi.mock("@/server/auth/auth", () => ({ authOptions: {} }));
+vi.mock("@/server/auth/auth", () => ({ authOptions: {}, auth: mockGetServerSession }));
 vi.mock("@/server/auth/getEffectiveUserId", () => ({ getEffectiveUserId: mockGetEffectiveUserId }));
 vi.mock("@/server/prisma", () => ({
   prisma: {
@@ -75,13 +75,13 @@ beforeEach(() => {
 describe("GET /api/watchlist", () => {
   it("returns 401 when no session", async () => {
     mockGetServerSession.mockResolvedValue(null);
-    const res = await GET();
+    const res = await GET(new Request("http://localhost/api/watchlist"));
     expect(res.status).toBe(401);
   });
 
   it("returns watchlist with manual tickers and positions", async () => {
     mockWatchlistFindMany.mockResolvedValue([{ ticker: "AAPL" }]);
-    const res = await GET();
+    const res = await GET(new Request("http://localhost/api/watchlist"));
     expect(res.status).toBe(200);
     const body = await res.json() as { manual: string[]; positions: unknown[] };
     expect(body.manual).toContain("AAPL");
@@ -95,7 +95,7 @@ describe("GET /api/watchlist", () => {
       strikePrice: 200, expirationDate: new Date("2025-06-20"),
       contractsOpen: 2, contractPrice: 3.5, portfolioId: "port-1",
     }]);
-    const res = await GET();
+    const res = await GET(new Request("http://localhost/api/watchlist"));
     const body = await res.json() as { positions: Array<{ ticker: string }> };
     expect(body.positions.some(p => p.ticker === "TSLA")).toBe(true);
   });

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/server/prisma";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/server/auth/auth";
+import { requireAuth } from "@/server/auth/require-auth";
 import { Prisma } from "@/generated/prisma/client";
 import { getEffectiveUserId } from "@/server/auth/getEffectiveUserId";
 
@@ -14,16 +15,15 @@ function toNumber(v: unknown): number {
 }
 
 export async function GET(
-  _req: Request,
+  req: Request,
   props: { params: Promise<{ id: string }> },
 ) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) {
+    const { user } = await requireAuth(req);
+    if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
-    const isAdmin = session.user.isAdmin ?? false;
-    const userId = await getEffectiveUserId(session.user.id, isAdmin);
+    const { isAdmin, id: userId } = user;
 
     const params = await props.params;
     const id = params.id;

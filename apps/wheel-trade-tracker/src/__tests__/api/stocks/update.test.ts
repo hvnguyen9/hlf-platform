@@ -23,7 +23,7 @@ const {
 }));
 
 vi.mock("next-auth", () => ({ getServerSession: mockGetServerSession }));
-vi.mock("@/server/auth/auth", () => ({ authOptions: {} }));
+vi.mock("@/server/auth/auth", () => ({ authOptions: {}, auth: mockGetServerSession }));
 vi.mock("next/headers", () => ({
   cookies: vi.fn().mockResolvedValue({ get: () => undefined }),
 }));

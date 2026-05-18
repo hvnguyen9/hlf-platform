@@ -10,7 +10,7 @@ const { mockGetServerSession, mockGetEffectiveUserId, mockPortfolioFindFirst, mo
 }));
 
 vi.mock("next-auth", () => ({ getServerSession: mockGetServerSession }));
-vi.mock("@/server/auth/auth", () => ({ authOptions: {} }));
+vi.mock("@/server/auth/auth", () => ({ authOptions: {}, auth: mockGetServerSession }));
 vi.mock("@/server/auth/getEffectiveUserId", () => ({ getEffectiveUserId: mockGetEffectiveUserId }));
 vi.mock("@/server/prisma", () => ({
   prisma: {
@@ -45,9 +45,19 @@ describe("GET /api/stocks", () => {
     expect(res.status).toBe(401);
   });
 
-  it("returns 400 when portfolioId is missing", async () => {
+  it("returns user-wide lots when portfolioId is omitted", async () => {
+    mockStockLotFindMany.mockResolvedValue([
+      { id: "l1", ticker: "AAPL", shares: 100, avgCost: 150 },
+    ]);
     const res = await GET(new Request("http://localhost/api/stocks"));
-    expect(res.status).toBe(400);
+    expect(res.status).toBe(200);
+    expect(mockStockLotFindMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          portfolio: expect.objectContaining({ userId: expect.any(String) }),
+        }),
+      }),
+    );
   });
 
   it("returns 404 when portfolio not found", async () => {
