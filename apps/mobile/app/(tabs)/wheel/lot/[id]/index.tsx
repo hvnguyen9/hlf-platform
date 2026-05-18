@@ -1,5 +1,5 @@
-import { useLocalSearchParams } from "expo-router";
-import { ActivityIndicator, ScrollView, Text, View } from "react-native";
+import { router, useLocalSearchParams } from "expo-router";
+import { ActivityIndicator, Pressable, ScrollView, Text, View } from "react-native";
 import { useStockLot, usePortfolios, useQuotes } from "@/features/wheel/queries";
 import { money, pnlColor, shortDate, signedMoney, tradeTypeLabel } from "@/features/wheel/format";
 import { QueryError } from "@/features/wheel/components/QueryError";
@@ -81,6 +81,17 @@ export default function LotDetail() {
             />
           ) : null}
         </View>
+
+        {data.status === "OPEN" ? (
+          <Pressable
+            onPress={() => router.push(`/wheel/lot/${data.id}/sell`)}
+            className="rounded-xl bg-emerald-500 py-3 active:bg-emerald-600"
+          >
+            <Text className="text-center font-semibold text-white">
+              Sell shares
+            </Text>
+          </Pressable>
+        ) : null}
 
         {data.trades && data.trades.length > 0 ? (
           <View>

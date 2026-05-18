@@ -122,6 +122,17 @@ export default function TradeDetail() {
           </View>
         ) : null}
 
+        {isOpen ? (
+          <Pressable
+            onPress={() => router.push(`/wheel/trade/${t.id}/close`)}
+            className="rounded-xl bg-emerald-500 py-3 active:bg-emerald-600"
+          >
+            <Text className="text-center font-semibold text-white">
+              Close trade
+            </Text>
+          </Pressable>
+        ) : null}
+
         {t.stockLotId ? (
           <Pressable
             onPress={() => router.push(`/wheel/lot/${t.stockLotId}`)}

@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Pressable, RefreshControl, ScrollView, Text, View } from "react-native";
-import { router } from "expo-router";
+import { router, Stack } from "expo-router";
+import { Plus } from "lucide-react-native";
 import { useQueryClient } from "@tanstack/react-query";
 import { Segmented } from "@/features/wheel/components/Segmented";
 import { TradesView } from "@/features/wheel/components/TradesView";
@@ -31,6 +32,18 @@ export default function WheelHome() {
         />
       }
     >
+      <Stack.Screen
+        options={{
+          headerRight: () => (
+            <Pressable
+              onPress={() => router.push("/wheel/trade/new")}
+              className="mr-3 p-1.5 active:opacity-60"
+            >
+              <Plus color="#10b981" size={22} />
+            </Pressable>
+          ),
+        }}
+      />
       <View className="p-4 gap-4">
         <Segmented<Segment>
           value={segment}
