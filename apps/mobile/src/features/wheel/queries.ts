@@ -1,0 +1,162 @@
+// TanStack Query hooks for the wheel section. All call wheel-tracker's
+// user-scoped routes with the mobile bearer token.
+
+import { useQuery } from "@tanstack/react-query";
+import { apiGet, ApiError } from "@/lib/api";
+import { useAuth } from "@/lib/auth-context";
+import type {
+  JournalResponse,
+  Portfolio,
+  QuoteMap,
+  StockLot,
+  Trade,
+  WatchlistResponse,
+} from "./types";
+
+function useWheelToken() {
+  const { token, signOut } = useAuth();
+  return { token, signOut };
+}
+
+export function usePortfolios() {
+  const { token, signOut } = useWheelToken();
+  return useQuery<Portfolio[]>({
+    queryKey: ["wheel", "portfolios"],
+    enabled: !!token,
+    queryFn: async () => {
+      try {
+        return await apiGet<Portfolio[]>("/api/portfolios", token, "wheel");
+      } catch (err) {
+        if (err instanceof ApiError && err.status === 401) await signOut();
+        throw err;
+      }
+    },
+  });
+}
+
+export function useOpenTrades() {
+  const { token, signOut } = useWheelToken();
+  return useQuery<Trade[]>({
+    queryKey: ["wheel", "trades", "open"],
+    enabled: !!token,
+    queryFn: async () => {
+      try {
+        return await apiGet<Trade[]>("/api/trades?status=open", token, "wheel");
+      } catch (err) {
+        if (err instanceof ApiError && err.status === 401) await signOut();
+        throw err;
+      }
+    },
+  });
+}
+
+export function useTrade(id: string | undefined) {
+  const { token, signOut } = useWheelToken();
+  return useQuery<Trade>({
+    queryKey: ["wheel", "trade", id],
+    enabled: !!token && !!id,
+    queryFn: async () => {
+      try {
+        return await apiGet<Trade>(`/api/trades/${id}`, token, "wheel");
+      } catch (err) {
+        if (err instanceof ApiError && err.status === 401) await signOut();
+        throw err;
+      }
+    },
+  });
+}
+
+export function useOpenStockLots() {
+  const { token, signOut } = useWheelToken();
+  return useQuery<{ stockLots: StockLot[] }, Error, StockLot[]>({
+    queryKey: ["wheel", "stocks", "open"],
+    enabled: !!token,
+    queryFn: async () => {
+      try {
+        return await apiGet<{ stockLots: StockLot[] }>(
+          "/api/stocks?status=open",
+          token,
+          "wheel",
+        );
+      } catch (err) {
+        if (err instanceof ApiError && err.status === 401) await signOut();
+        throw err;
+      }
+    },
+    select: (data) => data.stockLots,
+  });
+}
+
+export function useStockLot(id: string | undefined) {
+  const { token, signOut } = useWheelToken();
+  return useQuery({
+    queryKey: ["wheel", "stock", id],
+    enabled: !!token && !!id,
+    queryFn: async () => {
+      try {
+        return await apiGet<unknown>(`/api/stocks/${id}`, token, "wheel");
+      } catch (err) {
+        if (err instanceof ApiError && err.status === 401) await signOut();
+        throw err;
+      }
+    },
+  });
+}
+
+export function useWatchlist() {
+  const { token, signOut } = useWheelToken();
+  return useQuery<WatchlistResponse>({
+    queryKey: ["wheel", "watchlist"],
+    enabled: !!token,
+    queryFn: async () => {
+      try {
+        return await apiGet<WatchlistResponse>("/api/watchlist", token, "wheel");
+      } catch (err) {
+        if (err instanceof ApiError && err.status === 401) await signOut();
+        throw err;
+      }
+    },
+  });
+}
+
+export function useQuotes(tickers: string[]) {
+  const { token, signOut } = useWheelToken();
+  const key = tickers.join(",");
+  return useQuery<QuoteMap>({
+    queryKey: ["wheel", "quotes", key],
+    enabled: !!token && tickers.length > 0,
+    refetchInterval: 60_000,
+    queryFn: async () => {
+      try {
+        return await apiGet<QuoteMap>(
+          `/api/quotes?tickers=${encodeURIComponent(key)}`,
+          token,
+          "wheel",
+        );
+      } catch (err) {
+        if (err instanceof ApiError && err.status === 401) await signOut();
+        throw err;
+      }
+    },
+  });
+}
+
+export function useJournal(yearMonth: string) {
+  const { token, signOut } = useWheelToken();
+  return useQuery<JournalResponse>({
+    queryKey: ["wheel", "journal", yearMonth],
+    enabled: !!token && /^\d{4}-\d{2}$/.test(yearMonth),
+    queryFn: async () => {
+      try {
+        return await apiGet<JournalResponse>(
+          `/api/journal/${yearMonth}`,
+          token,
+          "wheel",
+        );
+      } catch (err) {
+        if (err instanceof ApiError && err.status === 401) await signOut();
+        throw err;
+      }
+    },
+  });
+}

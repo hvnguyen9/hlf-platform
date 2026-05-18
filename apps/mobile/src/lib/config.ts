@@ -1,33 +1,49 @@
-// API base URL resolution.
+// Per-app base URL resolution.
 //
-// Production: set EXPO_PUBLIC_API_BASE_URL in EAS env (e.g.
-//   https://portal.hlfinancialstrategies.com).
+// Production: set EXPO_PUBLIC_{APP}_URL in EAS env, e.g.:
+//   EXPO_PUBLIC_PORTAL_URL=https://portal.hlfinancialstrategies.com
+//   EXPO_PUBLIC_WHEEL_URL=https://wheel.hlfinancialstrategies.com
+//   EXPO_PUBLIC_BOOKS_URL=https://books.hlfinancialstrategies.com
+//   EXPO_PUBLIC_BUDGET_URL=https://budget.hlfinancialstrategies.com
 //
-// Dev: we read the LAN IP Metro is serving on (Constants.expoConfig.hostUri
-// looks like "192.168.1.42:8081") and assume the Mac runs the portal at
-// port 3004 on the same IP. The phone has to be on the same WiFi as the
-// Mac for this to work.
+// Dev: derive Metro's LAN IP from Constants.expoConfig.hostUri and assume
+// the Mac runs each app at its standard port. Phone must be on the same WiFi.
+//
+// Each NEXT_PUBLIC_* must be read by its literal name so Expo can inline it.
 
 import Constants from "expo-constants";
 
-const PORTAL_DEV_PORT = 3004;
+const DEV_PORTS = {
+  portal: 3004,
+  wheel: 3000,
+  books: 3001,
+  budget: 3002,
+} as const;
 
-function getDevPortalUrl(): string | null {
+export type AppKey = keyof typeof DEV_PORTS;
+
+function getDevHost(): string | null {
   const hostUri =
     Constants.expoConfig?.hostUri ?? Constants.expoGoConfig?.hostUri;
-
   if (!hostUri) return null;
   const host = hostUri.split(":")[0];
-  if (!host) return null;
-  return `http://${host}:${PORTAL_DEV_PORT}`;
+  return host ?? null;
 }
 
-export function getApiBaseUrl(): string {
-  const fromEnv = process.env.EXPO_PUBLIC_API_BASE_URL;
-  if (fromEnv) return fromEnv;
-  const dev = getDevPortalUrl();
-  if (dev) return dev;
+export function getApiBaseUrl(app: AppKey = "portal"): string {
+  const prodEnv = {
+    portal: process.env.EXPO_PUBLIC_PORTAL_URL,
+    wheel: process.env.EXPO_PUBLIC_WHEEL_URL,
+    books: process.env.EXPO_PUBLIC_BOOKS_URL,
+    budget: process.env.EXPO_PUBLIC_BUDGET_URL,
+  }[app];
+
+  if (prodEnv) return prodEnv;
+
+  const host = getDevHost();
+  if (host) return `http://${host}:${DEV_PORTS[app]}`;
+
   throw new Error(
-    "API base URL not configured. Set EXPO_PUBLIC_API_BASE_URL or run via Expo CLI so the LAN host is available.",
+    `API base URL not configured for "${app}". Set EXPO_PUBLIC_${app.toUpperCase()}_URL or run via Expo CLI.`,
   );
 }

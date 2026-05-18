@@ -1,8 +1,7 @@
-// Auth-aware fetch wrapper. Auto-injects the bearer header from whatever the
-// caller passes as `token`. The auth context owns the token; this module is
-// stateless.
+// Auth-aware fetch wrapper. `app` selects which app's base URL to hit
+// (defaults to portal). The caller injects the token from the auth context.
 
-import { getApiBaseUrl } from "./config";
+import { getApiBaseUrl, type AppKey } from "./config";
 
 export class ApiError extends Error {
   status: number;
@@ -12,8 +11,12 @@ export class ApiError extends Error {
   }
 }
 
-export async function apiGet<T>(path: string, token: string | null): Promise<T> {
-  const res = await fetch(`${getApiBaseUrl()}${path}`, {
+export async function apiGet<T>(
+  path: string,
+  token: string | null,
+  app: AppKey = "portal",
+): Promise<T> {
+  const res = await fetch(`${getApiBaseUrl(app)}${path}`, {
     headers: token ? { Authorization: `Bearer ${token}` } : undefined,
   });
   if (!res.ok) {
