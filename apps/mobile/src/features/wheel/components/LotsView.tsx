@@ -5,10 +5,13 @@ import { money, pnlColor, shortDate, signedMoney } from "../format";
 import { EmptyState } from "./EmptyState";
 import { QueryError } from "./QueryError";
 
-export function LotsView() {
+export function LotsView({ portfolioId }: { portfolioId?: string | null }) {
   const lots = useOpenStockLots();
   const portfolios = usePortfolios();
-  const tickers = Array.from(new Set(lots.data?.map((l) => l.ticker) ?? []));
+  const filtered = portfolioId
+    ? lots.data?.filter((l) => l.portfolioId === portfolioId)
+    : lots.data;
+  const tickers = Array.from(new Set(filtered?.map((l) => l.ticker) ?? []));
   const quotes = useQuotes(tickers);
 
   const portfolioName = (id: string): string =>
@@ -22,15 +25,21 @@ export function LotsView() {
     );
   }
   if (lots.error) return <QueryError error={lots.error} />;
-  if (!lots.data || lots.data.length === 0) {
+  if (!filtered || filtered.length === 0) {
     return (
-      <EmptyState message="No open stock lots. Lots are created when CSPs get assigned." />
+      <EmptyState
+        message={
+          portfolioId
+            ? "No open stock lots in this portfolio."
+            : "No open stock lots. Lots are created when CSPs get assigned."
+        }
+      />
     );
   }
 
   return (
     <View className="gap-2">
-      {lots.data.map((lot) => {
+      {filtered.map((lot) => {
         const quote = quotes.data?.[lot.ticker];
         const currentPrice = quote?.price ?? null;
         const unrealizedPnl =

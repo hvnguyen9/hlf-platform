@@ -5,12 +5,16 @@ import { dte, money, shortDate, tradeTypeLabel } from "../format";
 import { EmptyState } from "./EmptyState";
 import { QueryError } from "./QueryError";
 
-export function TradesView() {
+export function TradesView({ portfolioId }: { portfolioId?: string | null }) {
   const trades = useOpenTrades();
   const portfolios = usePortfolios();
 
   const portfolioName = (id: string): string =>
     portfolios.data?.find((p) => p.id === id)?.name ?? "Unknown";
+
+  const filtered = portfolioId
+    ? trades.data?.filter((t) => t.portfolioId === portfolioId)
+    : trades.data;
 
   if (trades.isLoading) {
     return (
@@ -20,13 +24,21 @@ export function TradesView() {
     );
   }
   if (trades.error) return <QueryError error={trades.error} />;
-  if (!trades.data || trades.data.length === 0) {
-    return <EmptyState message="No open trades. Sell a CSP to get started." />;
+  if (!filtered || filtered.length === 0) {
+    return (
+      <EmptyState
+        message={
+          portfolioId
+            ? "No open trades in this portfolio."
+            : "No open trades. Sell a CSP to get started."
+        }
+      />
+    );
   }
 
   return (
     <View className="gap-2">
-      {trades.data.map((t) => {
+      {filtered.map((t) => {
         const days = dte(t.expirationDate);
         const dteColor =
           days < 0

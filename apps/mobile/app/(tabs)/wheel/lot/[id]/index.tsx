@@ -1,8 +1,18 @@
+import { useState } from "react";
 import { router, useLocalSearchParams } from "expo-router";
-import { ActivityIndicator, Pressable, ScrollView, Text, View } from "react-native";
+import {
+  ActivityIndicator,
+  Pressable,
+  RefreshControl,
+  ScrollView,
+  Text,
+  View,
+} from "react-native";
+import { useQueryClient } from "@tanstack/react-query";
 import { useStockLot, usePortfolios, useQuotes } from "@/features/wheel/queries";
 import { money, pnlColor, shortDate, signedMoney, tradeTypeLabel } from "@/features/wheel/format";
 import { QueryError } from "@/features/wheel/components/QueryError";
+import { StatusBadge } from "@/features/wheel/components/StatusBadge";
 
 function Row({ label, value, valueClass }: { label: string; value: string; valueClass?: string }) {
   return (
@@ -20,6 +30,14 @@ export default function LotDetail() {
   const data = lot.data;
   const ticker = data?.ticker;
   const quotes = useQuotes(ticker ? [ticker] : []);
+  const qc = useQueryClient();
+  const [refreshing, setRefreshing] = useState(false);
+
+  async function handleRefresh() {
+    setRefreshing(true);
+    await qc.invalidateQueries({ queryKey: ["wheel", "stock", id] });
+    setRefreshing(false);
+  }
 
   if (lot.isLoading) {
     return (
@@ -45,16 +63,23 @@ export default function LotDetail() {
     portfolios.data?.find((p) => p.id === data.portfolioId)?.name ?? "Unknown";
 
   return (
-    <ScrollView className="flex-1 bg-slate-950">
+    <ScrollView
+      className="flex-1 bg-slate-950"
+      refreshControl={
+        <RefreshControl
+          refreshing={refreshing}
+          onRefresh={handleRefresh}
+          tintColor="#10b981"
+        />
+      }
+    >
       <View className="p-4 gap-4">
         <View>
-          <Text className="text-3xl font-bold text-white">{data.ticker}</Text>
-          <Text className="text-sm text-slate-400 mt-1">
-            {portfolioName} ·{" "}
-            <Text className={data.status === "OPEN" ? "text-emerald-300" : "text-slate-500"}>
-              {data.status}
-            </Text>
-          </Text>
+          <View className="flex-row items-baseline gap-3">
+            <Text className="text-3xl font-bold text-white">{data.ticker}</Text>
+            <StatusBadge status={data.status} />
+          </View>
+          <Text className="text-sm text-slate-400 mt-1">{portfolioName}</Text>
         </View>
 
         <View className="rounded-xl border border-slate-800 bg-slate-900 px-4">

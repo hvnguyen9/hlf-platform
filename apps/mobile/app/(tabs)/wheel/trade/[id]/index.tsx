@@ -1,5 +1,14 @@
+import { useState } from "react";
 import { useLocalSearchParams, router } from "expo-router";
-import { ActivityIndicator, Pressable, ScrollView, Text, View } from "react-native";
+import {
+  ActivityIndicator,
+  Pressable,
+  RefreshControl,
+  ScrollView,
+  Text,
+  View,
+} from "react-native";
+import { useQueryClient } from "@tanstack/react-query";
 import { usePortfolios, useTrade } from "@/features/wheel/queries";
 import {
   dte,
@@ -10,6 +19,7 @@ import {
   tradeTypeLabel,
 } from "@/features/wheel/format";
 import { QueryError } from "@/features/wheel/components/QueryError";
+import { StatusBadge } from "@/features/wheel/components/StatusBadge";
 
 function Row({ label, value, valueClass }: { label: string; value: string; valueClass?: string }) {
   return (
@@ -24,6 +34,14 @@ export default function TradeDetail() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const trade = useTrade(id);
   const portfolios = usePortfolios();
+  const qc = useQueryClient();
+  const [refreshing, setRefreshing] = useState(false);
+
+  async function handleRefresh() {
+    setRefreshing(true);
+    await qc.invalidateQueries({ queryKey: ["wheel", "trade", id] });
+    setRefreshing(false);
+  }
 
   if (trade.isLoading) {
     return (
@@ -48,7 +66,16 @@ export default function TradeDetail() {
     portfolios.data?.find((p) => p.id === t.portfolioId)?.name ?? "Unknown";
 
   return (
-    <ScrollView className="flex-1 bg-slate-950">
+    <ScrollView
+      className="flex-1 bg-slate-950"
+      refreshControl={
+        <RefreshControl
+          refreshing={refreshing}
+          onRefresh={handleRefresh}
+          tintColor="#10b981"
+        />
+      }
+    >
       <View className="p-4 gap-4">
         <View>
           <View className="flex-row items-baseline gap-3">
@@ -56,13 +83,9 @@ export default function TradeDetail() {
             <Text className="text-sm font-medium text-emerald-300">
               {tradeTypeLabel(t.type)}
             </Text>
+            <StatusBadge status={t.status} reason={t.closeReason} />
           </View>
-          <Text className="text-sm text-slate-400 mt-1">
-            {portfolioName} ·{" "}
-            <Text className={isOpen ? "text-emerald-300" : "text-slate-500"}>
-              {isOpen ? "OPEN" : t.closeReason ?? "CLOSED"}
-            </Text>
-          </Text>
+          <Text className="text-sm text-slate-400 mt-1">{portfolioName}</Text>
         </View>
 
         <View className="rounded-xl border border-slate-800 bg-slate-900 px-4">

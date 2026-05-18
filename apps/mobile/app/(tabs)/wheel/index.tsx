@@ -7,11 +7,13 @@ import { Segmented } from "@/features/wheel/components/Segmented";
 import { TradesView } from "@/features/wheel/components/TradesView";
 import { LotsView } from "@/features/wheel/components/LotsView";
 import { WatchlistView } from "@/features/wheel/components/WatchlistView";
+import { PortfolioFilter } from "@/features/wheel/components/PortfolioFilter";
 
 type Segment = "trades" | "lots" | "watch";
 
 export default function WheelHome() {
   const [segment, setSegment] = useState<Segment>("trades");
+  const [portfolioId, setPortfolioId] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const qc = useQueryClient();
 
@@ -55,8 +57,12 @@ export default function WheelHome() {
           ]}
         />
 
-        {segment === "trades" ? <TradesView /> : null}
-        {segment === "lots" ? <LotsView /> : null}
+        {segment !== "watch" ? (
+          <PortfolioFilter value={portfolioId} onChange={setPortfolioId} />
+        ) : null}
+
+        {segment === "trades" ? <TradesView portfolioId={portfolioId} /> : null}
+        {segment === "lots" ? <LotsView portfolioId={portfolioId} /> : null}
         {segment === "watch" ? <WatchlistView /> : null}
 
         <View className="flex-row gap-3">

@@ -4,6 +4,7 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiDelete, apiPatch, apiPost, ApiError } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
+import type { WatchlistResponse } from "./types";
 
 export type CreateTradeInput = {
   portfolioId: string;
@@ -187,7 +188,12 @@ export function useAddWatchTicker() {
 export function useRemoveWatchTicker() {
   const { token, signOut } = useAuth();
   const qc = useQueryClient();
-  return useMutation<unknown, ApiError, string>({
+  return useMutation<
+    unknown,
+    ApiError,
+    string,
+    { previous: WatchlistResponse | undefined }
+  >({
     mutationFn: async (ticker) => {
       try {
         return await apiDelete(
@@ -200,7 +206,24 @@ export function useRemoveWatchTicker() {
         throw err;
       }
     },
-    onSuccess: () => {
+    onMutate: async (ticker) => {
+      const key = ["wheel", "watchlist"];
+      await qc.cancelQueries({ queryKey: key });
+      const previous = qc.getQueryData<WatchlistResponse>(key);
+      if (previous) {
+        qc.setQueryData<WatchlistResponse>(key, {
+          ...previous,
+          manual: previous.manual.filter((t) => t !== ticker),
+        });
+      }
+      return { previous };
+    },
+    onError: (_err, _ticker, ctx) => {
+      if (ctx?.previous) {
+        qc.setQueryData(["wheel", "watchlist"], ctx.previous);
+      }
+    },
+    onSettled: () => {
       qc.invalidateQueries({ queryKey: ["wheel", "watchlist"] });
     },
   });
