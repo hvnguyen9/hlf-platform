@@ -105,63 +105,76 @@ export default function HomeScreen() {
           </View>
         ) : data ? (
           <>
-            <View className="flex-row gap-3">
-              <KpiCard
-                label="Open positions"
-                value={String(data.wheel?.openTradeCount ?? "—")}
-                sub={
-                  data.wheel
-                    ? `${data.wheel.openLotCount} stock lots`
-                    : data.errors.wheel ?? "offline"
-                }
-              />
-              <KpiCard
-                label="MTD trading"
-                value={
-                  data.wheel ? signed(data.wheel.mtdRealizedPnl) : "—"
-                }
-                valueClass={
-                  data.wheel ? pnlColor(data.wheel.mtdRealizedPnl) : undefined
-                }
-                sub={
-                  data.wheel
-                    ? `YTD ${signed(data.wheel.ytdRealizedPnl)}`
-                    : data.errors.wheel ?? "offline"
-                }
-              />
-            </View>
-
-            <View className="flex-row gap-3">
-              <KpiCard
-                label="MTD net"
-                value={
-                  data.bookkeeping ? signed(data.bookkeeping.mtdNet) : "—"
-                }
-                valueClass={
-                  data.bookkeeping
-                    ? pnlColor(data.bookkeeping.mtdNet)
-                    : undefined
-                }
-                sub={
-                  data.bookkeeping
-                    ? `YTD ${signed(data.bookkeeping.ytdNet)}`
-                    : data.errors.bookkeeping ?? "offline"
-                }
-              />
-              <KpiCard
-                label="Budget left"
-                value={
-                  data.budget ? currency.format(data.budget.remaining) : "—"
-                }
-                sub={
-                  data.budget
-                    ? data.budget.fireScorePct != null
-                      ? `FIRE ${data.budget.fireScorePct.toFixed(1)}%`
-                      : "no FIRE goal set"
-                    : data.errors.budget ?? "offline"
-                }
-              />
-            </View>
+            {/*
+              Four headline KPIs for the MTD month:
+              - Total P&L: realized trading P&L from wheel-tracker
+              - Business expenses: bookkeeping mtdExpenses
+              - Personal expenses: budget-tracker mtdSpent
+              - Net: bookkeeping.mtdNet (which already nets income incl.
+                trading P&L vs. business expenses) minus personal spending.
+                Equivalent to total cash flow this month.
+            */}
+            {(() => {
+              const tradingPnl = data.wheel?.mtdRealizedPnl ?? null;
+              const businessExp = data.bookkeeping?.mtdExpenses ?? null;
+              const personalExp = data.budget?.mtdSpent ?? null;
+              const net =
+                data.bookkeeping && data.budget
+                  ? data.bookkeeping.mtdNet - data.budget.mtdSpent
+                  : null;
+              return (
+                <>
+                  <View className="flex-row gap-3">
+                    <KpiCard
+                      label="Total P&L (MTD)"
+                      value={tradingPnl != null ? signed(tradingPnl) : "—"}
+                      valueClass={
+                        tradingPnl != null ? pnlColor(tradingPnl) : undefined
+                      }
+                      sub={
+                        data.wheel
+                          ? `YTD ${signed(data.wheel.ytdRealizedPnl)}`
+                          : data.errors.wheel ?? "offline"
+                      }
+                    />
+                    <KpiCard
+                      label="Business exp."
+                      value={
+                        businessExp != null
+                          ? currency.format(businessExp)
+                          : "—"
+                      }
+                      sub={
+                        data.bookkeeping
+                          ? `income ${currency.format(data.bookkeeping.mtdIncome)}`
+                          : data.errors.bookkeeping ?? "offline"
+                      }
+                    />
+                  </View>
+                  <View className="flex-row gap-3">
+                    <KpiCard
+                      label="Personal exp."
+                      value={
+                        personalExp != null
+                          ? currency.format(personalExp)
+                          : "—"
+                      }
+                      sub={
+                        data.budget
+                          ? `of ${currency.format(data.budget.monthlyBudgetTotal)}`
+                          : data.errors.budget ?? "offline"
+                      }
+                    />
+                    <KpiCard
+                      label="Net"
+                      value={net != null ? signed(net) : "—"}
+                      valueClass={net != null ? pnlColor(net) : undefined}
+                      sub="P&L − business − personal"
+                    />
+                  </View>
+                </>
+              );
+            })()}
 
             {data.wheel ? (
               <View>
