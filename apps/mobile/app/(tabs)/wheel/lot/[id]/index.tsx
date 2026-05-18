@@ -83,15 +83,44 @@ export default function LotDetail() {
         </View>
 
         {data.status === "OPEN" ? (
+          <View className="gap-2">
+            <Pressable
+              onPress={() => router.push(`/wheel/lot/${data.id}/sell`)}
+              className="rounded-xl bg-emerald-500 py-3 active:bg-emerald-600"
+            >
+              <Text className="text-center font-semibold text-white">
+                Sell shares
+              </Text>
+            </Pressable>
+            <View className="flex-row gap-2">
+              <Pressable
+                onPress={() => router.push(`/wheel/lot/${data.id}/add`)}
+                className="flex-1 rounded-xl border border-slate-700 bg-slate-900 py-3 active:bg-slate-800"
+              >
+                <Text className="text-center font-medium text-slate-200">
+                  Add shares
+                </Text>
+              </Pressable>
+              <Pressable
+                onPress={() => router.push(`/wheel/lot/${data.id}/notes`)}
+                className="flex-1 rounded-xl border border-slate-700 bg-slate-900 py-3 active:bg-slate-800"
+              >
+                <Text className="text-center font-medium text-slate-200">
+                  Edit notes
+                </Text>
+              </Pressable>
+            </View>
+          </View>
+        ) : (
           <Pressable
-            onPress={() => router.push(`/wheel/lot/${data.id}/sell`)}
-            className="rounded-xl bg-emerald-500 py-3 active:bg-emerald-600"
+            onPress={() => router.push(`/wheel/lot/${data.id}/notes`)}
+            className="rounded-xl border border-slate-700 bg-slate-900 py-3 active:bg-slate-800"
           >
-            <Text className="text-center font-semibold text-white">
-              Sell shares
+            <Text className="text-center font-medium text-slate-200">
+              Edit notes
             </Text>
           </Pressable>
-        ) : null}
+        )}
 
         {data.trades && data.trades.length > 0 ? (
           <View>

@@ -79,3 +79,11 @@ export function apiPatch<T>(
 ): Promise<T> {
   return send<T>("PATCH", path, body, token, app);
 }
+
+export function apiDelete<T>(
+  path: string,
+  token: string | null,
+  app: AppKey = "portal",
+): Promise<T> {
+  return send<T>("DELETE", path, undefined, token, app);
+}

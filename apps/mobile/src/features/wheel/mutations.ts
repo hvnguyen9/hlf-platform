@@ -2,7 +2,7 @@
 // Each one invalidates the wheel cache on success so list views refresh.
 
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { apiPatch, apiPost, ApiError } from "@/lib/api";
+import { apiDelete, apiPatch, apiPost, ApiError } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
 
 export type CreateTradeInput = {
@@ -60,6 +60,148 @@ export function useCloseTrade() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["wheel"] });
       qc.invalidateQueries({ queryKey: ["portal-summary"] });
+    },
+  });
+}
+
+export type AddContractsInput = {
+  tradeId: string;
+  addedContracts: number;
+  addedContractPrice: number;
+};
+
+export function useAddContracts() {
+  const { token, signOut } = useAuth();
+  const qc = useQueryClient();
+  return useMutation<unknown, ApiError, AddContractsInput>({
+    mutationFn: async ({ tradeId, ...body }) => {
+      try {
+        return await apiPatch(`/api/trades/${tradeId}/add`, body, token, "wheel");
+      } catch (err) {
+        if (err instanceof ApiError && err.status === 401) await signOut();
+        throw err;
+      }
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["wheel"] });
+    },
+  });
+}
+
+export type EditTradeInput = {
+  tradeId: string;
+  notes?: string;
+};
+
+export function useEditTrade() {
+  const { token, signOut } = useAuth();
+  const qc = useQueryClient();
+  return useMutation<unknown, ApiError, EditTradeInput>({
+    mutationFn: async ({ tradeId, ...body }) => {
+      try {
+        return await apiPatch(`/api/trades/${tradeId}`, body, token, "wheel");
+      } catch (err) {
+        if (err instanceof ApiError && err.status === 401) await signOut();
+        throw err;
+      }
+    },
+    onSuccess: (_, vars) => {
+      qc.invalidateQueries({ queryKey: ["wheel", "trade", vars.tradeId] });
+      qc.invalidateQueries({ queryKey: ["wheel", "trades", "open"] });
+    },
+  });
+}
+
+export type AddSharesInput = {
+  stockLotId: string;
+  addedShares: number;
+  costPerShare: number;
+  note?: string;
+};
+
+export function useAddShares() {
+  const { token, signOut } = useAuth();
+  const qc = useQueryClient();
+  return useMutation<unknown, ApiError, AddSharesInput>({
+    mutationFn: async ({ stockLotId, ...body }) => {
+      try {
+        return await apiPost(`/api/stocks/${stockLotId}/add`, body, token, "wheel");
+      } catch (err) {
+        if (err instanceof ApiError && err.status === 401) await signOut();
+        throw err;
+      }
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["wheel"] });
+    },
+  });
+}
+
+export type EditLotInput = {
+  stockLotId: string;
+  notes?: string;
+};
+
+export function useEditLot() {
+  const { token, signOut } = useAuth();
+  const qc = useQueryClient();
+  return useMutation<unknown, ApiError, EditLotInput>({
+    mutationFn: async ({ stockLotId, ...body }) => {
+      try {
+        return await apiPatch(`/api/stocks/${stockLotId}`, body, token, "wheel");
+      } catch (err) {
+        if (err instanceof ApiError && err.status === 401) await signOut();
+        throw err;
+      }
+    },
+    onSuccess: (_, vars) => {
+      qc.invalidateQueries({ queryKey: ["wheel", "stock", vars.stockLotId] });
+      qc.invalidateQueries({ queryKey: ["wheel", "stocks", "open"] });
+    },
+  });
+}
+
+export function useAddWatchTicker() {
+  const { token, signOut } = useAuth();
+  const qc = useQueryClient();
+  return useMutation<unknown, ApiError, string>({
+    mutationFn: async (ticker) => {
+      try {
+        return await apiPost(
+          "/api/watchlist",
+          { ticker },
+          token,
+          "wheel",
+        );
+      } catch (err) {
+        if (err instanceof ApiError && err.status === 401) await signOut();
+        throw err;
+      }
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["wheel", "watchlist"] });
+    },
+  });
+}
+
+export function useRemoveWatchTicker() {
+  const { token, signOut } = useAuth();
+  const qc = useQueryClient();
+  return useMutation<unknown, ApiError, string>({
+    mutationFn: async (ticker) => {
+      try {
+        return await apiDelete(
+          `/api/watchlist/${encodeURIComponent(ticker)}`,
+          token,
+          "wheel",
+        );
+      } catch (err) {
+        if (err instanceof ApiError && err.status === 401) await signOut();
+        throw err;
+      }
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["wheel", "watchlist"] });
     },
   });
 }

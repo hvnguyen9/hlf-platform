@@ -27,8 +27,24 @@ export default function WheelLayout() {
         options={{ title: "Close trade", presentation: "modal" }}
       />
       <Stack.Screen
+        name="trade/[id]/add"
+        options={{ title: "Add contracts", presentation: "modal" }}
+      />
+      <Stack.Screen
+        name="trade/[id]/notes"
+        options={{ title: "Trade notes", presentation: "modal" }}
+      />
+      <Stack.Screen
         name="lot/[id]/sell"
         options={{ title: "Sell shares", presentation: "modal" }}
+      />
+      <Stack.Screen
+        name="lot/[id]/add"
+        options={{ title: "Add shares", presentation: "modal" }}
+      />
+      <Stack.Screen
+        name="lot/[id]/notes"
+        options={{ title: "Lot notes", presentation: "modal" }}
       />
     </Stack>
   );
