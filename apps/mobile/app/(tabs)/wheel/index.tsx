@@ -1,25 +1,43 @@
 import { useState } from "react";
-import { Pressable, RefreshControl, ScrollView, Text, View } from "react-native";
-import { router, Stack } from "expo-router";
-import { Plus } from "lucide-react-native";
+import {
+  ActivityIndicator,
+  Pressable,
+  RefreshControl,
+  ScrollView,
+  Text,
+  View,
+} from "react-native";
+import { router } from "expo-router";
 import { useQueryClient } from "@tanstack/react-query";
-import { Segmented } from "@/features/wheel/components/Segmented";
-import { TradesView } from "@/features/wheel/components/TradesView";
-import { LotsView } from "@/features/wheel/components/LotsView";
+import { usePortalSummary } from "@/features/dashboard/usePortalSummary";
+import {
+  useOpenStockLots,
+  useOpenTrades,
+  usePortfolios,
+} from "@/features/wheel/queries";
+import { KpiGrid } from "@/features/wheel/components/KpiGrid";
+import { PortfolioCard } from "@/features/wheel/components/PortfolioCard";
+import { ExpiringSoon } from "@/features/wheel/components/ExpiringSoon";
 import { WatchlistView } from "@/features/wheel/components/WatchlistView";
-import { PortfolioFilter } from "@/features/wheel/components/PortfolioFilter";
-
-type Segment = "trades" | "lots" | "watch";
+import { EmptyState } from "@/features/wheel/components/EmptyState";
+import { pnlColor, signedMoney } from "@/features/wheel/format";
 
 export default function WheelHome() {
-  const [segment, setSegment] = useState<Segment>("trades");
-  const [portfolioId, setPortfolioId] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const qc = useQueryClient();
 
+  const portalSummary = usePortalSummary();
+  const portfolios = usePortfolios();
+  const trades = useOpenTrades();
+  const lots = useOpenStockLots();
+  const wheel = portalSummary.data?.wheel;
+
   async function handleRefresh() {
     setRefreshing(true);
-    await qc.invalidateQueries({ queryKey: ["wheel"] });
+    await Promise.all([
+      qc.invalidateQueries({ queryKey: ["wheel"] }),
+      qc.invalidateQueries({ queryKey: ["portal-summary"] }),
+    ]);
     setRefreshing(false);
   }
 
@@ -34,55 +52,79 @@ export default function WheelHome() {
         />
       }
     >
-      <Stack.Screen
-        options={{
-          headerRight: () => (
-            <Pressable
-              onPress={() => router.push("/wheel/trade/new")}
-              className="mr-3 p-1.5 active:opacity-60"
-            >
-              <Plus color="#10b981" size={22} />
-            </Pressable>
-          ),
-        }}
-      />
-      <View className="p-4 gap-4">
-        <Segmented<Segment>
-          value={segment}
-          onChange={setSegment}
-          options={[
-            { value: "trades", label: "Trades" },
-            { value: "lots", label: "Lots" },
-            { value: "watch", label: "Watch" },
-          ]}
-        />
-
-        {segment !== "watch" ? (
-          <PortfolioFilter value={portfolioId} onChange={setPortfolioId} />
+      <View className="p-4 gap-5">
+        {wheel ? (
+          <KpiGrid
+            items={[
+              {
+                label: "Open positions",
+                value: String(wheel.openTradeCount),
+                sub: `${wheel.openLotCount} stock lot${wheel.openLotCount === 1 ? "" : "s"}`,
+              },
+              {
+                label: "Alerts this week",
+                value: String(wheel.alertsThisWeek),
+                sub: `${wheel.alertsToday} today`,
+              },
+              {
+                label: "MTD trading",
+                value: signedMoney(wheel.mtdRealizedPnl, true),
+                valueClass: pnlColor(wheel.mtdRealizedPnl),
+              },
+              {
+                label: "YTD trading",
+                value: signedMoney(wheel.ytdRealizedPnl, true),
+                valueClass: pnlColor(wheel.ytdRealizedPnl),
+              },
+            ]}
+          />
+        ) : portalSummary.isLoading ? (
+          <View className="py-6 items-center">
+            <ActivityIndicator color="#10b981" />
+          </View>
         ) : null}
 
-        {segment === "trades" ? <TradesView portfolioId={portfolioId} /> : null}
-        {segment === "lots" ? <LotsView portfolioId={portfolioId} /> : null}
-        {segment === "watch" ? <WatchlistView /> : null}
-
-        <View className="flex-row gap-3">
-          <Pressable
-            onPress={() => router.push("/wheel/portfolios")}
-            className="flex-1 rounded-xl border border-slate-800 bg-slate-900 px-4 py-3 active:bg-slate-800/80"
-          >
-            <Text className="text-center font-medium text-slate-200">
-              Portfolios →
-            </Text>
-          </Pressable>
-          <Pressable
-            onPress={() => router.push("/wheel/journal")}
-            className="flex-1 rounded-xl border border-slate-800 bg-slate-900 px-4 py-3 active:bg-slate-800/80"
-          >
-            <Text className="text-center font-medium text-slate-200">
-              Journal →
-            </Text>
-          </Pressable>
+        <View>
+          <Text className="text-sm font-semibold text-slate-300 mb-2">
+            Portfolios
+          </Text>
+          {portfolios.isLoading ? (
+            <View className="py-4 items-center">
+              <ActivityIndicator color="#10b981" />
+            </View>
+          ) : portfolios.data?.length === 0 ? (
+            <EmptyState message="No portfolios yet. Create one in the web app." />
+          ) : (
+            <View className="gap-2">
+              {portfolios.data?.map((p) => (
+                <PortfolioCard
+                  key={p.id}
+                  portfolio={p}
+                  openTrades={trades.data ?? []}
+                  openLots={lots.data ?? []}
+                />
+              ))}
+            </View>
+          )}
         </View>
+
+        <ExpiringSoon />
+
+        <View>
+          <Text className="text-sm font-semibold text-slate-300 mb-2">
+            Watchlist
+          </Text>
+          <WatchlistView />
+        </View>
+
+        <Pressable
+          onPress={() => router.push("/wheel/journal")}
+          className="rounded-xl border border-slate-800 bg-slate-900 px-4 py-3 active:bg-slate-800/80"
+        >
+          <Text className="text-center font-medium text-slate-200">
+            Open Journal →
+          </Text>
+        </Pressable>
       </View>
     </ScrollView>
   );

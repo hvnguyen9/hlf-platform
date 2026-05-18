@@ -7,7 +7,7 @@ import {
   Text,
   View,
 } from "react-native";
-import { router } from "expo-router";
+import { router, useLocalSearchParams } from "expo-router";
 import { useOpenStockLots, usePortfolios } from "@/features/wheel/queries";
 import { useCreateTrade, type CreateTradeInput } from "@/features/wheel/mutations";
 import { Segmented } from "@/features/wheel/components/Segmented";
@@ -19,12 +19,17 @@ import { money } from "@/features/wheel/format";
 type TradeType = "CashSecuredPut" | "CoveredCall";
 
 export default function NewTradeScreen() {
+  const { portfolioId: preselectId } = useLocalSearchParams<{
+    portfolioId?: string;
+  }>();
   const portfolios = usePortfolios();
   const lots = useOpenStockLots();
   const create = useCreateTrade();
 
   const [type, setType] = useState<TradeType>("CashSecuredPut");
-  const [portfolioId, setPortfolioId] = useState<string | null>(null);
+  const [portfolioId, setPortfolioId] = useState<string | null>(
+    preselectId ?? null,
+  );
   const [ticker, setTicker] = useState("");
   const [strikePrice, setStrikePrice] = useState("");
   const [expirationDate, setExpirationDate] = useState<string | null>(null);
@@ -36,7 +41,7 @@ export default function NewTradeScreen() {
 
   const tickerUpper = ticker.trim().toUpperCase();
 
-  // Auto-pick first portfolio
+  // Auto-pick first portfolio when nothing is preselected and we have data
   if (!portfolioId && portfolios.data?.[0]) {
     setPortfolioId(portfolios.data[0].id);
   }

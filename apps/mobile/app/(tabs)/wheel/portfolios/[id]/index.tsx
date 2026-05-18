@@ -7,7 +7,8 @@ import {
   Text,
   View,
 } from "react-native";
-import { router, useLocalSearchParams } from "expo-router";
+import { router, Stack, useLocalSearchParams } from "expo-router";
+import { Plus } from "lucide-react-native";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   useClosedHistory,
@@ -116,6 +117,20 @@ export default function PortfolioDetailScreen() {
         />
       }
     >
+      <Stack.Screen
+        options={{
+          headerRight: () => (
+            <Pressable
+              onPress={() =>
+                router.push(`/wheel/trade/new?portfolioId=${id}`)
+              }
+              className="mr-3 p-1.5 active:opacity-60"
+            >
+              <Plus color="#10b981" size={22} />
+            </Pressable>
+          ),
+        }}
+      />
       <View className="p-4 gap-4">
         <View>
           <Text className="text-2xl font-bold text-white">
