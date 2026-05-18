@@ -1,18 +1,17 @@
 import { prisma } from "@/server/prisma";
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/server/auth/auth";
+import { requireAuth } from "@/server/auth/require-auth";
 import type { Trade } from "@/generated/prisma/client";
 
 export async function PATCH(
   req: Request,
   props: { params: Promise<{ id: string }> },
 ) {
-  const session = await getServerSession(authOptions);
-  const userId = session?.user?.id;
-  if (!userId) {
+  const { user } = await requireAuth(req);
+  if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+  const userId = user.id;
 
   const params = await props.params;
   const id = await params.id;
@@ -28,7 +27,7 @@ export async function PATCH(
     return NextResponse.json({ error: "Invalid input" }, { status: 400 });
   }
 
-  const isAdmin = session?.user?.isAdmin ?? false;
+  const isAdmin = user.isAdmin;
   const trade = await prisma.trade.findFirst({
     where: isAdmin ? { id } : { id, portfolio: { userId } },
   });

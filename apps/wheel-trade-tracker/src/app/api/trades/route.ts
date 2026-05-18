@@ -1,5 +1,4 @@
 import { NextResponse } from "next/server";
-import { auth } from "@/server/auth/auth";
 import { requireAuth } from "@/server/auth/require-auth";
 import { db } from "@/server/db";
 
@@ -9,8 +8,8 @@ import { db } from "@/server/db";
  * @returns
  */
 export async function POST(req: Request) {
-  const session = await auth();
-  if (!session?.user) {
+  const { user } = await requireAuth(req);
+  if (!user) {
     return new NextResponse("Unauthorized", { status: 401 });
   }
 
