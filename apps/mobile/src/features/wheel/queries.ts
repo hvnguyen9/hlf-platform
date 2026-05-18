@@ -6,14 +6,18 @@ import { useQuery } from "@tanstack/react-query";
 import { apiGet, ApiError } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
 import {
+  normalizeClosedHistory,
+  normalizePortfolioMetrics,
   normalizeStockLot,
   normalizeStockLotDetail,
   normalizeTrade,
   type StockLotDetail,
 } from "./normalize";
 import type {
+  ClosedHistoryResponse,
   JournalResponse,
   Portfolio,
+  PortfolioMetrics,
   QuoteMap,
   StockLot,
   Trade,
@@ -151,6 +155,48 @@ export function useQuotes(tickers: string[]) {
           token,
           "wheel",
         );
+      } catch (err) {
+        if (err instanceof ApiError && err.status === 401) await signOut();
+        throw err;
+      }
+    },
+  });
+}
+
+export function usePortfolioMetrics(id: string | undefined) {
+  const { token, signOut } = useWheelToken();
+  return useQuery<PortfolioMetrics>({
+    queryKey: ["wheel", "portfolio-metrics", id],
+    enabled: !!token && !!id,
+    queryFn: async () => {
+      try {
+        const raw = await apiGet<PortfolioMetrics>(
+          `/api/portfolios/${id}/metrics`,
+          token,
+          "wheel",
+        );
+        return normalizePortfolioMetrics(raw);
+      } catch (err) {
+        if (err instanceof ApiError && err.status === 401) await signOut();
+        throw err;
+      }
+    },
+  });
+}
+
+export function useClosedHistory(id: string | undefined, take = 25) {
+  const { token, signOut } = useWheelToken();
+  return useQuery<ClosedHistoryResponse>({
+    queryKey: ["wheel", "closed-history", id, take],
+    enabled: !!token && !!id,
+    queryFn: async () => {
+      try {
+        const raw = await apiGet<ClosedHistoryResponse>(
+          `/api/portfolios/${id}/closed-history?take=${take}`,
+          token,
+          "wheel",
+        );
+        return normalizeClosedHistory(raw);
       } catch (err) {
         if (err instanceof ApiError && err.status === 401) await signOut();
         throw err;

@@ -98,6 +98,81 @@ export type JournalDay = {
   trades: JournalTrade[];
 };
 
+export type PortfolioMetrics = {
+  capitalBase: number;
+  currentCapital: number;
+  cashAvailable: number;
+  percentCapitalDeployed: number;
+  capitalUsed: number;
+  capitalUsedOptions: number;
+  capitalUsedStocks: number;
+  totalProfit: number;
+  realizedMTD: number;
+  realizedYTD: number;
+  potentialPremium: number;
+  avgPLPercent: number | null;
+  winRate: number | null;
+  avgDaysInTrade: number | null;
+  openTradesCount: number;
+  biggestPosition: {
+    ticker: string;
+    type: string;
+    strikePrice: number;
+    contractsOpen: number;
+    contractPrice: number;
+  } | null;
+  nextExpirations: Array<{
+    id: string;
+    ticker: string;
+    strikePrice: number;
+    contracts: number;
+    expirationDate: string;
+    locked: number;
+  }>;
+  expiringInSevenDays: number;
+  expiringInThirtyDays: number;
+};
+
+export type ClosedHistoryItem =
+  | {
+      kind: "trade";
+      id: string;
+      portfolioId: string;
+      ticker: string;
+      type: string;
+      strikePrice: number;
+      contractsInitial: number;
+      contractsOpen: number;
+      contractPrice: number;
+      closingPrice: number | null;
+      premiumCaptured: number | null;
+      percentPL: number | null;
+      createdAt: string;
+      closedAt: string;
+      closeReason: string | null;
+      entryPrice: number | null;
+      expirationDate: string;
+    }
+  | {
+      kind: "stock";
+      id: string;
+      portfolioId: string;
+      ticker: string;
+      shares: number;
+      avgCost: number;
+      closePrice: number | null;
+      realizedPnl: number | null;
+      openedAt: string;
+      closedAt: string;
+    };
+
+export type ClosedHistoryResponse = {
+  items: ClosedHistoryItem[];
+  total: number;
+  totalPremium: number;
+  avgPercentPL: number | null;
+};
+
 export type JournalResponse = {
   notes: string;
   days: Record<string, JournalDay>;

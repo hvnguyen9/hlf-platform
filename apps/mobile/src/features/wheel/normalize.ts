@@ -2,7 +2,13 @@
 // Views want real `number`s so `.toFixed`, formatting, and arithmetic work.
 // One coercion pass at the query boundary keeps every screen below honest.
 
-import type { StockLot, Trade } from "./types";
+import type {
+  ClosedHistoryItem,
+  ClosedHistoryResponse,
+  PortfolioMetrics,
+  StockLot,
+  Trade,
+} from "./types";
 
 function num(v: unknown): number {
   if (typeof v === "number") return v;
@@ -52,5 +58,66 @@ export function normalizeStockLotDetail(raw: StockLotDetail): StockLotDetail {
   return {
     ...base,
     trades: raw.trades?.map((t) => normalizeTrade(t)),
+  };
+}
+
+export function normalizePortfolioMetrics(raw: PortfolioMetrics): PortfolioMetrics {
+  return {
+    ...raw,
+    capitalBase: num(raw.capitalBase),
+    currentCapital: num(raw.currentCapital),
+    cashAvailable: num(raw.cashAvailable),
+    percentCapitalDeployed: num(raw.percentCapitalDeployed),
+    capitalUsed: num(raw.capitalUsed),
+    capitalUsedOptions: num(raw.capitalUsedOptions),
+    capitalUsedStocks: num(raw.capitalUsedStocks),
+    totalProfit: num(raw.totalProfit),
+    realizedMTD: num(raw.realizedMTD),
+    realizedYTD: num(raw.realizedYTD),
+    potentialPremium: num(raw.potentialPremium),
+    avgPLPercent: numOrNull(raw.avgPLPercent),
+    winRate: numOrNull(raw.winRate),
+    avgDaysInTrade: numOrNull(raw.avgDaysInTrade),
+    biggestPosition: raw.biggestPosition
+      ? {
+          ...raw.biggestPosition,
+          strikePrice: num(raw.biggestPosition.strikePrice),
+          contractPrice: num(raw.biggestPosition.contractPrice),
+        }
+      : null,
+    nextExpirations: raw.nextExpirations.map((e) => ({
+      ...e,
+      strikePrice: num(e.strikePrice),
+      locked: num(e.locked),
+    })),
+  };
+}
+
+function normalizeClosedHistoryItem(item: ClosedHistoryItem): ClosedHistoryItem {
+  if (item.kind === "trade") {
+    return {
+      ...item,
+      strikePrice: num(item.strikePrice),
+      contractPrice: num(item.contractPrice),
+      closingPrice: numOrNull(item.closingPrice),
+      premiumCaptured: numOrNull(item.premiumCaptured),
+      percentPL: numOrNull(item.percentPL),
+      entryPrice: numOrNull(item.entryPrice),
+    };
+  }
+  return {
+    ...item,
+    avgCost: num(item.avgCost),
+    closePrice: numOrNull(item.closePrice),
+    realizedPnl: numOrNull(item.realizedPnl),
+  };
+}
+
+export function normalizeClosedHistory(raw: ClosedHistoryResponse): ClosedHistoryResponse {
+  return {
+    ...raw,
+    totalPremium: num(raw.totalPremium),
+    avgPercentPL: numOrNull(raw.avgPercentPL),
+    items: raw.items.map(normalizeClosedHistoryItem),
   };
 }

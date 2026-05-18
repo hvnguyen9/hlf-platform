@@ -11,6 +11,11 @@ export default function WheelLayout() {
     >
       <Stack.Screen name="index" options={{ title: "Wheel" }} />
       <Stack.Screen name="journal" options={{ title: "Journal" }} />
+      <Stack.Screen name="portfolios/index" options={{ title: "Portfolios" }} />
+      <Stack.Screen
+        name="portfolios/[id]/index"
+        options={{ title: "Portfolio" }}
+      />
       <Stack.Screen name="trade/[id]/index" options={{ title: "Trade" }} />
       <Stack.Screen name="lot/[id]/index" options={{ title: "Stock lot" }} />
       <Stack.Screen
