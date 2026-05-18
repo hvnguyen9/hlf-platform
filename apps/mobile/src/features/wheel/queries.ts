@@ -12,6 +12,7 @@ import {
   normalizeStockLotDetail,
   normalizeTrade,
   type StockLotDetail,
+  type StockLotDetailResponse,
 } from "./normalize";
 import type {
   ClosedHistoryResponse,
@@ -111,7 +112,7 @@ export function useStockLot(id: string | undefined) {
     enabled: !!token && !!id,
     queryFn: async () => {
       try {
-        const raw = await apiGet<StockLotDetail>(
+        const raw = await apiGet<StockLotDetailResponse>(
           `/api/stocks/${id}`,
           token,
           "wheel",

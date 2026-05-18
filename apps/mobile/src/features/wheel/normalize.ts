@@ -42,6 +42,12 @@ export function normalizeStockLot(raw: StockLot): StockLot {
   };
 }
 
+export type EffectiveBasis = {
+  cspPremiumDuringHold: number;
+  cspPendingPremium: number;
+  effectiveAvgCost: number;
+};
+
 export type StockLotDetail = StockLot & {
   trades?: Array<
     Trade & {
@@ -49,15 +55,28 @@ export type StockLotDetail = StockLot & {
       notes?: string | null;
     }
   >;
-  // additional computed fields the lot detail route returns; pass through
-  [key: string]: unknown;
+  effectiveBasis?: EffectiveBasis;
 };
 
-export function normalizeStockLotDetail(raw: StockLotDetail): StockLotDetail {
-  const base = normalizeStockLot(raw as StockLot) as StockLotDetail;
+export type StockLotDetailResponse = {
+  stockLot: StockLotDetail;
+  effectiveBasis?: EffectiveBasis;
+};
+
+export function normalizeStockLotDetail(
+  raw: StockLotDetailResponse,
+): StockLotDetail {
+  const base = normalizeStockLot(raw.stockLot as StockLot) as StockLotDetail;
   return {
     ...base,
-    trades: raw.trades?.map((t) => normalizeTrade(t)),
+    trades: raw.stockLot.trades?.map((t) => normalizeTrade(t)),
+    effectiveBasis: raw.effectiveBasis
+      ? {
+          cspPremiumDuringHold: num(raw.effectiveBasis.cspPremiumDuringHold),
+          cspPendingPremium: num(raw.effectiveBasis.cspPendingPremium),
+          effectiveAvgCost: num(raw.effectiveBasis.effectiveAvgCost),
+        }
+      : undefined,
   };
 }
 

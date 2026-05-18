@@ -85,6 +85,14 @@ export default function LotDetail() {
         <View className="rounded-xl border border-slate-800 bg-slate-900 px-4">
           <Row label="Shares" value={String(data.shares)} />
           <Row label="Avg cost" value={`$${data.avgCost.toFixed(2)}`} />
+          {data.effectiveBasis &&
+          data.effectiveBasis.effectiveAvgCost !== data.avgCost ? (
+            <Row
+              label="Effective avg"
+              value={`$${data.effectiveBasis.effectiveAvgCost.toFixed(2)}`}
+              valueClass="text-emerald-300"
+            />
+          ) : null}
           <Row label="Cost basis" value={money(basis)} />
           {currentPrice != null ? (
             <Row label="Current price" value={money(currentPrice)} />
