@@ -1,9 +1,6 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/server/auth/auth";
 import { requireAuth } from "@/server/auth/require-auth";
 import { prisma } from "@/server/prisma";
-import { getEffectiveUserId } from "@/server/auth/getEffectiveUserId";
 
 export type WatchlistPosition = {
   ticker: string;
@@ -115,11 +112,11 @@ export async function GET(req: Request) {
 }
 
 export async function POST(req: Request) {
-  const session = await getServerSession(authOptions);
-  if (!session?.user?.id) {
+  const { user } = await requireAuth(req);
+  if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
-  const userId = session.user.id;
+  const userId = user.id;
 
   const { ticker } = await req.json();
   if (!ticker || typeof ticker !== "string") {
@@ -147,11 +144,11 @@ export async function POST(req: Request) {
 }
 
 export async function PATCH(req: Request) {
-  const session = await getServerSession(authOptions);
-  if (!session?.user?.id) {
+  const { user } = await requireAuth(req);
+  if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
-  const userId = await getEffectiveUserId(session.user.id, session.user.isAdmin ?? false);
+  const userId = user.id;
 
   const { tickers } = await req.json();
   if (!Array.isArray(tickers) || !tickers.every((t) => typeof t === "string")) {

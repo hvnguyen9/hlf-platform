@@ -9,6 +9,12 @@ const { mockGetServerSession, mockTradeFindUnique, mockTradeUpdate } = vi.hoiste
 
 vi.mock("next-auth", () => ({ getServerSession: mockGetServerSession }));
 vi.mock("@/server/auth/auth", () => ({ authOptions: {}, auth: mockGetServerSession }));
+vi.mock("@/server/auth/getEffectiveUserId", () => ({
+  getEffectiveUserId: vi.fn(async (userId: string) => userId),
+}));
+vi.mock("next/headers", () => ({
+  cookies: vi.fn().mockResolvedValue({ get: () => undefined }),
+}));
 vi.mock("@/server/prisma", () => ({
   prisma: {
     trade: { findUnique: mockTradeFindUnique, update: mockTradeUpdate },
