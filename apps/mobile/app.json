@@ -1,0 +1,29 @@
+{
+  "expo": {
+    "name": "HLF",
+    "slug": "hlf-mobile",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "scheme": "hlf",
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": true,
+    "splash": {
+      "resizeMode": "contain",
+      "backgroundColor": "#0f172a"
+    },
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.hlfinancialstrategies.mobile"
+    },
+    "android": {
+      "package": "com.hlfinancialstrategies.mobile",
+      "adaptiveIcon": {
+        "backgroundColor": "#10b981"
+      }
+    },
+    "plugins": ["expo-router", "expo-secure-store"],
+    "experiments": {
+      "typedRoutes": true
+    }
+  }
+}
