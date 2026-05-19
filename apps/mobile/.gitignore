@@ -12,6 +12,9 @@ expo-env.d.ts
 *.mobileprovision
 *.orig.*
 
-# Env
+# Env — .env.production is committed (URLs are public domains, not
+# secrets) so EAS Build and `eas update` always inline the right base
+# URLs regardless of who's running the build.
 .env*
 !.env.example
+!.env.production
