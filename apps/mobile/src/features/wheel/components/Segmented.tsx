@@ -21,7 +21,7 @@ export function Segmented<T extends string>({ options, value, onChange }: Props<
           >
             <Text
               className={`text-center text-sm font-medium ${
-                active ? "text-emerald-300" : "text-slate-600 dark:text-slate-400"
+                active ? "text-emerald-700 dark:text-emerald-300" : "text-slate-600 dark:text-slate-400"
               }`}
             >
               {opt.label}

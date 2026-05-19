@@ -29,6 +29,7 @@ export type Trade = {
   premiumCaptured?: number | null;
   percentPL?: number | null;
   closeReason?: string | null;
+  notes?: string | null;
 };
 
 export type StockLot = {

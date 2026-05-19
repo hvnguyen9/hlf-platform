@@ -218,8 +218,8 @@ export default function NewTradeScreen() {
                 Linked stock lot
               </Text>
               {matchingLots.length === 0 ? (
-                <View className="rounded-lg border border-amber-900/50 bg-amber-950/30 p-3">
-                  <Text className="text-xs text-amber-300">
+                <View className="rounded-lg border border-amber-300 dark:border-amber-900/50 bg-amber-100 dark:bg-amber-950/30 p-3">
+                  <Text className="text-xs text-amber-700 dark:text-amber-300">
                     {tickerUpper
                       ? `No open ${tickerUpper} lots in this portfolio.`
                       : "Enter a ticker to see available lots."}

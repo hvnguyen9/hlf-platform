@@ -38,7 +38,7 @@ export function PortfolioCard({
           {portfolio.name}
         </Text>
         {openPremium > 0 ? (
-          <Text className="text-sm text-emerald-300">
+          <Text className="text-sm text-emerald-700 dark:text-emerald-300">
             {money(openPremium, true)} open
           </Text>
         ) : null}

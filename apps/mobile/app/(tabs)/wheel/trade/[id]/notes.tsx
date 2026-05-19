@@ -14,8 +14,6 @@ import { useTrade } from "@/features/wheel/queries";
 import { useEditTrade } from "@/features/wheel/mutations";
 import { SubmitBar } from "@/features/wheel/components/SubmitBar";
 
-type TradeWithNotes = { notes?: string | null };
-
 export default function TradeNotesScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const trade = useTrade(id);
@@ -23,7 +21,7 @@ export default function TradeNotesScreen() {
   const [notes, setNotes] = useState("");
   const [formError, setFormError] = useState<string | null>(null);
 
-  const tradeNotes = (trade.data as TradeWithNotes | undefined)?.notes ?? "";
+  const tradeNotes = trade.data?.notes ?? "";
 
   useEffect(() => {
     if (trade.data) setNotes(tradeNotes);

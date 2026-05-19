@@ -165,13 +165,13 @@ export default function CloseTradeScreen() {
           ) : null}
 
           {outcome === "assigned" ? (
-            <View className="rounded-lg border border-amber-900/50 bg-amber-950/30 p-3 gap-1">
-              <Text className="text-sm font-medium text-amber-300">
+            <View className="rounded-lg border border-amber-300 dark:border-amber-900/50 bg-amber-100 dark:bg-amber-950/30 p-3 gap-1">
+              <Text className="text-sm font-medium text-amber-700 dark:text-amber-300">
                 {t.type === "CashSecuredPut"
                   ? "Stock will be put to you"
                   : "Your shares will be called away"}
               </Text>
-              <Text className="text-xs text-amber-200/80">
+              <Text className="text-xs text-amber-700/80 dark:text-amber-200/80">
                 {t.type === "CashSecuredPut"
                   ? "A stock lot will be created (or merged) at net basis (strike − premium)."
                   : "The linked stock lot will be closed; realized P/L = (strike − avgCost) × shares."}

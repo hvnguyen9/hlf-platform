@@ -202,10 +202,24 @@ export default function TradeDetail() {
         {t.stockLotId ? (
           <Pressable
             onPress={() => router.push(`/wheel/lot/${t.stockLotId}`)}
-            className="rounded-xl border border-emerald-900/50 bg-emerald-950/30 px-4 py-3 active:bg-emerald-950/50"
+            className="rounded-xl border border-emerald-300 dark:border-emerald-900/50 bg-emerald-100 dark:bg-emerald-950/30 px-4 py-3 active:bg-emerald-200 dark:active:bg-emerald-950/50"
           >
-            <Text className="text-emerald-300 text-sm font-medium">
+            <Text className="text-emerald-700 dark:text-emerald-300 text-sm font-medium">
               View linked stock lot →
+            </Text>
+          </Pressable>
+        ) : null}
+
+        {t.notes ? (
+          <Pressable
+            onPress={() => router.push(`/wheel/trade/${t.id}/notes`)}
+            className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 active:bg-slate-100 dark:active:bg-slate-800/60"
+          >
+            <Text className="text-xs uppercase tracking-wide text-slate-500 mb-1">
+              Notes
+            </Text>
+            <Text className="text-sm text-slate-800 dark:text-slate-200">
+              {t.notes}
             </Text>
           </Pressable>
         ) : null}

@@ -353,7 +353,7 @@ export default function NewAlertScreen() {
 
           {!tradeId && !ticker && !stockLotId ? (
             <View className="rounded-xl border border-rose-900 bg-rose-950/30 p-4">
-              <Text className="text-rose-300">
+              <Text className="text-rose-700 dark:text-rose-300">
                 Open the alert form from a trade, stock lot, or watchlist row.
               </Text>
             </View>

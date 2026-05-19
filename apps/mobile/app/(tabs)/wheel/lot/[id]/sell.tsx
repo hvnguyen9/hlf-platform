@@ -98,7 +98,7 @@ export default function SellSharesScreen() {
               <Text className="text-xs text-slate-500">Sellable now</Text>
               <Text
                 className={`text-sm font-medium ${
-                  sellable > 0 ? "text-emerald-300" : "text-slate-500"
+                  sellable > 0 ? "text-emerald-700 dark:text-emerald-300" : "text-slate-500"
                 }`}
               >
                 {sellable}
@@ -134,7 +134,7 @@ export default function SellSharesScreen() {
             disabled={sellable <= 0}
           />
           {sellable <= 0 ? (
-            <Text className="text-xs text-amber-300 text-center">
+            <Text className="text-xs text-amber-700 dark:text-amber-300 text-center">
               All shares are covered by open CCs. Close those first.
             </Text>
           ) : null}

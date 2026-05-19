@@ -50,7 +50,7 @@ function Chip({
     >
       <Text
         className={`text-xs font-medium ${
-          active ? "text-emerald-300" : "text-slate-700 dark:text-slate-300"
+          active ? "text-emerald-700 dark:text-emerald-300" : "text-slate-700 dark:text-slate-300"
         }`}
       >
         {label}

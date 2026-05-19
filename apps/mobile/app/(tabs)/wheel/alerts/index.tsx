@@ -134,7 +134,7 @@ function EventRow({ event }: { event: AlertEvent }) {
       className="rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-100/60 dark:bg-slate-900/60 p-3 active:bg-slate-300/60 dark:active:bg-slate-800/60"
     >
       <View className="flex-row items-baseline justify-between">
-        <Text className="text-[10px] uppercase tracking-wider text-amber-300">
+        <Text className="text-[10px] uppercase tracking-wider text-amber-700 dark:text-amber-300">
           {TYPE_LABEL[event.config.type]}
         </Text>
         <Text className="text-[10px] text-slate-500">{when}</Text>

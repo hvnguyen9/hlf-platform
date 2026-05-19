@@ -95,7 +95,7 @@ export default function LotDetail() {
             <Row
               label="Effective avg"
               value={`$${data.effectiveBasis.effectiveAvgCost.toFixed(2)}`}
-              valueClass="text-emerald-300"
+              valueClass="text-emerald-700 dark:text-emerald-300"
             />
           ) : null}
           <Row label="Cost basis" value={money(basis)} />
@@ -190,7 +190,7 @@ export default function LotDetail() {
                     </View>
                     <Text
                       className={
-                        t.status === "open" ? "text-emerald-300 text-xs" : "text-slate-500 text-xs"
+                        t.status === "open" ? "text-emerald-700 dark:text-emerald-300 text-xs" : "text-slate-500 text-xs"
                       }
                     >
                       {t.status}
@@ -214,12 +214,17 @@ export default function LotDetail() {
         ) : null}
 
         {data.notes ? (
-          <View className="rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-100/60 dark:bg-slate-900/60 p-4">
+          <Pressable
+            onPress={() => router.push(`/wheel/lot/${data.id}/notes`)}
+            className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 active:bg-slate-100 dark:active:bg-slate-800/60"
+          >
             <Text className="text-xs uppercase tracking-wide text-slate-500 mb-1">
               Notes
             </Text>
-            <Text className="text-sm text-slate-800 dark:text-slate-200">{data.notes}</Text>
-          </View>
+            <Text className="text-sm text-slate-800 dark:text-slate-200">
+              {data.notes}
+            </Text>
+          </Pressable>
         ) : null}
       </View>
     </ScrollView>

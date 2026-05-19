@@ -11,23 +11,23 @@ export function TypeBadge({ type }: { type: string }) {
   const isCall = t === "call";
 
   const cls = isCSP
-    ? "bg-blue-900/40 border-blue-900/60"
+    ? "bg-blue-100 dark:bg-blue-900/40 border-blue-300 dark:border-blue-900/60"
     : isCC
-      ? "bg-violet-900/40 border-violet-900/60"
+      ? "bg-violet-100 dark:bg-violet-900/40 border-violet-300 dark:border-violet-900/60"
       : isPut
-        ? "bg-amber-900/40 border-amber-900/60"
+        ? "bg-amber-100 dark:bg-amber-900/40 border-amber-300 dark:border-amber-900/60"
         : isCall
-          ? "bg-emerald-900/40 border-emerald-900/60"
+          ? "bg-emerald-100 dark:bg-emerald-900/40 border-emerald-300 dark:border-emerald-900/60"
           : "bg-slate-200 dark:bg-slate-800 border-slate-300 dark:border-slate-700";
 
   const textCls = isCSP
-    ? "text-blue-300"
+    ? "text-blue-700 dark:text-blue-300"
     : isCC
-      ? "text-violet-300"
+      ? "text-violet-700 dark:text-violet-300"
       : isPut
-        ? "text-amber-300"
+        ? "text-amber-700 dark:text-amber-300"
         : isCall
-          ? "text-emerald-300"
+          ? "text-emerald-700 dark:text-emerald-300"
           : "text-slate-600 dark:text-slate-400";
 
   const label = isCSP

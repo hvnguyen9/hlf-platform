@@ -85,7 +85,7 @@ export default function WheelHome() {
                     label: "Open premium",
                     value: money(openPremium, true),
                     sub: "if all expire worthless",
-                    valueClass: "text-emerald-300",
+                    valueClass: "text-emerald-700 dark:text-emerald-300",
                   },
                   {
                     label: "MTD trading",
