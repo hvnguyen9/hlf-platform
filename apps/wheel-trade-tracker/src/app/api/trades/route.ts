@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { auth } from "@/server/auth/auth";
+import { requireAuth } from "@/server/auth/require-auth";
 import { db } from "@/server/db";
 
 /**
@@ -8,8 +8,8 @@ import { db } from "@/server/db";
  * @returns
  */
 export async function POST(req: Request) {
-  const session = await auth();
-  if (!session?.user) {
+  const { user } = await requireAuth(req);
+  if (!user) {
     return new NextResponse("Unauthorized", { status: 401 });
   }
 
@@ -130,8 +130,8 @@ export async function POST(req: Request) {
  * @returns
  */
 export async function GET(req: Request) {
-  const session = await auth();
-  if (!session?.user) {
+  const { user } = await requireAuth(req);
+  if (!user) {
     return new NextResponse("Unauthorized", { status: 401 });
   }
 
@@ -139,13 +139,18 @@ export async function GET(req: Request) {
   const status = searchParams.get("status") as "open" | "closed" | null;
   const portfolioId = searchParams.get("portfolioId");
 
-  if (!status || !portfolioId) {
-    return new NextResponse("Missing status or portfolioId", { status: 400 });
+  if (!status) {
+    return new NextResponse("Missing status", { status: 400 });
   }
 
   try {
     const trades = await db.trade.findMany({
-      where: { status, portfolioId },
+      where: {
+        status,
+        ...(portfolioId
+          ? { portfolioId }
+          : { portfolio: { userId: user.id } }),
+      },
       select: {
         id: true,
         ticker: true,

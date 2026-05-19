@@ -55,12 +55,12 @@ beforeEach(() => {
 describe("GET /api/portfolios", () => {
   it("returns 401 when no session", async () => {
     mockAuth.mockResolvedValue(null);
-    const res = await listPortfolios();
+    const res = await listPortfolios(new Request("http://localhost/api/portfolios"));
     expect(res.status).toBe(401);
   });
 
   it("returns portfolio list", async () => {
-    const res = await listPortfolios();
+    const res = await listPortfolios(new Request("http://localhost/api/portfolios"));
     expect(res.status).toBe(200);
     const body = await res.json() as unknown[];
     expect(body).toHaveLength(1);

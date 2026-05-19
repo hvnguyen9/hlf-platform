@@ -12,6 +12,7 @@ apps/
   wheel-strat-tracker/   Options wheel strategy tracker (hub — owns the alerts module since 2026-05-13)
   hlf-bookkeeping/       Finance & trading P&L bookkeeping
   hlf-budgettracker/     Monthly budget tracker + FIRE dashboard
+  mobile/                Native mobile app (Expo + React Native) — single gateway, mirrors the portal
   hlf-website/           Marketing site (static)
   hungvnguyen-site/      Personal portfolio (static)
   # stock-alerts/        Retired 2026-05-13 — alerts rebuilt from scratch inside wheel-strat-tracker
@@ -33,6 +34,7 @@ packages/
 | `hlf-bookkeeping` | 3001 | Indigo | `turntable:21201` Railway |
 | `hlf-budgettracker` | 3002 | Teal | `shuttle` Railway |
 | `portal` | 3004 | HLF green | no DB — reads from `@hlf/auth-db` + cross-app internal APIs |
+| `mobile` | — | HLF green | no DB — same internal APIs as portal, bearer-JWT auth (planned) |
 
 `stock-alerts` (port 3003) retired 2026-05-13 — alerts now live inside wheel-strat-tracker at `/alerts/*` with Web Push + GitHub Actions cron.
 
@@ -144,3 +146,4 @@ Apps moved into the monorepo:
 - [x] `packages/typescript-config` — done
 - [x] `packages/eslint-config` — done
 - [ ] `packages/ui` — shell only, components to be moved from apps
+- [ ] `apps/mobile` — scaffolded 2026-05-18 (Expo SDK 52 + Expo Router 4 + NativeWind 4 + TanStack Query). Tabbed shell + sign-in stub only; auth + first real screens land next.

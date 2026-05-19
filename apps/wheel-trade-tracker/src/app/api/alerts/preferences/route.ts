@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/server/auth/auth";
+import { requireAuth } from "@/server/auth/require-auth";
 import prisma from "@/server/prisma";
 import { z } from "zod";
 
@@ -21,27 +20,27 @@ async function getOrCreate(userId: string) {
   });
 }
 
-export async function GET() {
-  const session = await getServerSession(authOptions);
-  if (!session?.user?.id) {
+export async function GET(request: Request) {
+  const { user } = await requireAuth(request);
+  if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
-  const prefs = await getOrCreate(session.user.id);
+  const prefs = await getOrCreate(user.id);
   return NextResponse.json({ preferences: prefs });
 }
 
 export async function PATCH(request: Request) {
-  const session = await getServerSession(authOptions);
-  if (!session?.user?.id) {
+  const { user } = await requireAuth(request);
+  if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
   const parse = patchBody.safeParse(await request.json().catch(() => null));
   if (!parse.success) {
     return NextResponse.json({ error: "Invalid body" }, { status: 400 });
   }
-  await getOrCreate(session.user.id);
+  await getOrCreate(user.id);
   const updated = await prisma.userAlertPreferences.update({
-    where: { userId: session.user.id },
+    where: { userId: user.id },
     data: parse.data,
   });
   return NextResponse.json({ preferences: updated });

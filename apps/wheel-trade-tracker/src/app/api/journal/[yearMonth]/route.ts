@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/server/auth/auth";
+import { requireAuth } from "@/server/auth/require-auth";
 import { prisma } from "@/server/prisma";
 import { getEffectiveUserId } from "@/server/auth/getEffectiveUserId";
 
@@ -59,15 +60,15 @@ export async function GET(
   req: Request,
   props: { params: Promise<{ yearMonth: string }> },
 ) {
-  const session = await getServerSession(authOptions);
-  if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const { user } = await requireAuth(req);
+  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const { yearMonth } = await props.params;
   if (!/^\d{4}-\d{2}$/.test(yearMonth)) {
     return NextResponse.json({ error: "Invalid yearMonth" }, { status: 400 });
   }
 
-  const userId = await getEffectiveUserId(session.user.id, session.user.isAdmin ?? false);
+  const userId = user.id;
   const { searchParams } = new URL(req.url);
   const portfolioIdFilter = searchParams.get("portfolioId") ?? null;
 

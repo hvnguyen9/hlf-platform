@@ -1,11 +1,10 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/server/auth/auth";
+import { requireAuth } from "@/server/auth/require-auth";
 import prisma from "@/server/prisma";
 
 export async function GET(request: Request) {
-  const session = await getServerSession(authOptions);
-  if (!session?.user?.id) {
+  const { user } = await requireAuth(request);
+  if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
   const { searchParams } = new URL(request.url);
@@ -19,7 +18,7 @@ export async function GET(request: Request) {
 
   const events = await prisma.alertEvent.findMany({
     where: {
-      userId: session.user.id,
+      userId: user.id,
       ...(sinceFilter ? { firedAt: sinceFilter } : {}),
     },
     orderBy: { firedAt: "desc" },

@@ -1,8 +1,6 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/server/auth/auth";
+import { requireAuth } from "@/server/auth/require-auth";
 import { prisma } from "@/server/prisma";
-import { getEffectiveUserId } from "@/server/auth/getEffectiveUserId";
 
 export const dynamic = "force-dynamic";
 
@@ -57,12 +55,11 @@ export async function GET(
   req: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  const session = await getServerSession(authOptions);
-  if (!session?.user?.id) {
+  const { user } = await requireAuth(req);
+  if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
-  const isAdmin = session.user.isAdmin ?? false;
-  const userId = await getEffectiveUserId(session.user.id, isAdmin);
+  const { isAdmin, id: userId } = user;
   const { id: portfolioId } = await params;
 
   // Verify ownership

@@ -1,18 +1,17 @@
 // src/app/api/trades/[id]/route.ts
 import { prisma } from "@/server/prisma";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/server/auth/auth";
+import { requireAuth } from "@/server/auth/require-auth";
 import { NextResponse } from "next/server";
 import { CloseReason, Prisma, TradeType } from "@/generated/prisma/client";
 
 export async function GET(
-  _req: Request,
+  req: Request,
   props: { params: Promise<{ id: string }> },
 ) {
   const { id } = await props.params;
-  const session = await getServerSession(authOptions);
+  const { user } = await requireAuth(req);
 
-  if (!session?.user?.id) {
+  if (!user) {
     return new NextResponse("Unauthorized", { status: 401 });
   }
 
@@ -35,12 +34,12 @@ export async function PATCH(
   props: { params: Promise<{ id: string }> },
 ) {
   const { id } = await props.params;
-  const session = await getServerSession(authOptions);
-  if (!session?.user?.id) {
+  const { user } = await requireAuth(req);
+  if (!user) {
     return new NextResponse("Unauthorized", { status: 401 });
   }
 
-  const isAdmin = session.user.isAdmin ?? false;
+  const isAdmin = user.isAdmin;
 
   type PatchBody = {
     notes?: string;

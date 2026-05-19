@@ -17,7 +17,7 @@ const {
 }));
 
 vi.mock("next-auth", () => ({ getServerSession: mockGetServerSession }));
-vi.mock("@/server/auth/auth", () => ({ authOptions: {} }));
+vi.mock("@/server/auth/auth", () => ({ authOptions: {}, auth: mockGetServerSession }));
 vi.mock("@/lib/formatDateOnly", () => ({ formatDateOnlyUTC: () => "01/01/2025" }));
 vi.mock("@/server/prisma", () => ({
   prisma: {
