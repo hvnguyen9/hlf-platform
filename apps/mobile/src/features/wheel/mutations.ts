@@ -9,7 +9,7 @@ import type { WatchlistResponse } from "./types";
 export type CreateTradeInput = {
   portfolioId: string;
   ticker: string;
-  type: "CashSecuredPut" | "CoveredCall";
+  type: "CashSecuredPut" | "CoveredCall" | "Put" | "Call";
   strikePrice: number;
   expirationDate: string;
   contracts: number;
@@ -222,6 +222,53 @@ export function useRemoveWatchTicker() {
       if (ctx?.previous) {
         qc.setQueryData(["wheel", "watchlist"], ctx.previous);
       }
+    },
+    onSettled: () => {
+      qc.invalidateQueries({ queryKey: ["wheel", "watchlist"] });
+    },
+  });
+}
+
+// Reorder manual watchlist tickers. PATCH /api/watchlist accepts the
+// full ordered array; the server updates the `order` column on each
+// row to match the array index. Optimistic so the row jumps
+// immediately on tap.
+export function useReorderWatchlist() {
+  const { token, signOut } = useAuth();
+  const qc = useQueryClient();
+  return useMutation<
+    unknown,
+    ApiError,
+    string[],
+    { previous: WatchlistResponse | undefined; key: readonly unknown[] }
+  >({
+    mutationFn: async (tickers) => {
+      try {
+        return await apiPatch(
+          "/api/watchlist",
+          { tickers },
+          token,
+          "wheel",
+        );
+      } catch (err) {
+        if (err instanceof ApiError && err.status === 401) await signOut();
+        throw err;
+      }
+    },
+    onMutate: async (tickers) => {
+      const key = ["wheel", "watchlist"];
+      await qc.cancelQueries({ queryKey: key });
+      const previous = qc.getQueryData<WatchlistResponse>(key);
+      if (previous) {
+        qc.setQueryData<WatchlistResponse>(key, {
+          ...previous,
+          manual: tickers,
+        });
+      }
+      return { previous, key };
+    },
+    onError: (_e, _v, ctx) => {
+      if (ctx?.previous) qc.setQueryData(ctx.key, ctx.previous);
     },
     onSettled: () => {
       qc.invalidateQueries({ queryKey: ["wheel", "watchlist"] });

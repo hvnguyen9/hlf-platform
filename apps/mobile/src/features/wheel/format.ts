@@ -47,14 +47,18 @@ export function expenseColor(n: number | null | undefined): string {
   return "text-rose-400";
 }
 
-// DTE coloring matches the web wheel's OpenTradesTable: red ≤7,
-// amber ≤21, muted otherwise. Already-expired (negative DTE) also
-// rose since it's the most urgent state.
+// DTE coloring. Every state gets a visible color since wheel strategies
+// typically live around 30–45 DTE — a default "gray" hue there reads as
+// "no color shown at all" to the user.
+//   ≤0d (past/today) → rose    · over expiration
+//   ≤7d              → rose    · urgent
+//   ≤21d             → amber   · watching
+//   >21d             → emerald · healthy
 export function dteColor(days: number): string {
-  if (days < 0) return "text-rose-500";
+  if (days <= 0) return "text-rose-500";
   if (days <= 7) return "text-rose-500";
   if (days <= 21) return "text-amber-500";
-  return "text-slate-500";
+  return "text-emerald-500";
 }
 
 // Win-rate threshold colors. ≥65% emerald, 40–65 amber, <40 rose.

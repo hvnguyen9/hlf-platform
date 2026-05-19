@@ -16,7 +16,7 @@ import { DateField } from "@/features/wheel/components/DateField";
 import { SubmitBar } from "@/features/wheel/components/SubmitBar";
 import { money } from "@/features/wheel/format";
 
-type TradeType = "CashSecuredPut" | "CoveredCall";
+type TradeType = "CashSecuredPut" | "CoveredCall" | "Put" | "Call";
 
 export default function NewTradeScreen() {
   const { portfolioId: preselectId } = useLocalSearchParams<{
@@ -130,6 +130,8 @@ export default function NewTradeScreen() {
             options={[
               { value: "CashSecuredPut", label: "CSP" },
               { value: "CoveredCall", label: "CC" },
+              { value: "Put", label: "Put" },
+              { value: "Call", label: "Call" },
             ]}
           />
 

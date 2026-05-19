@@ -7,10 +7,14 @@ import {
   TextInput,
   View,
 } from "react-native";
-import { Bell, Plus, Trash2 } from "lucide-react-native";
+import { Bell, ChevronDown, ChevronUp, Plus, Trash2 } from "lucide-react-native";
 import { router } from "expo-router";
 import { useQuotes, useWatchlist } from "../queries";
-import { useAddWatchTicker, useRemoveWatchTicker } from "../mutations";
+import {
+  useAddWatchTicker,
+  useRemoveWatchTicker,
+  useReorderWatchlist,
+} from "../mutations";
 import { money, pnlColor, signedMoney } from "../format";
 import { EmptyState } from "./EmptyState";
 import { QueryError } from "./QueryError";
@@ -19,11 +23,14 @@ export function WatchlistView() {
   const watchlist = useWatchlist();
   const addTicker = useAddWatchTicker();
   const removeTicker = useRemoveWatchTicker();
+  const reorder = useReorderWatchlist();
   const [pending, setPending] = useState("");
   const [error, setError] = useState<string | null>(null);
 
   const manual = watchlist.data?.manual ?? [];
   const positionTickers = watchlist.data?.positions.map((p) => p.ticker) ?? [];
+  // Manual first (in user-set order), then position-derived. Dedup keeps
+  // a ticker that's BOTH manual and position-held from rendering twice.
   const tickers = Array.from(new Set([...manual, ...positionTickers]));
   const quotes = useQuotes(tickers);
 
@@ -54,6 +61,16 @@ export function WatchlistView() {
         },
       ],
     );
+  }
+
+  function handleMove(ticker: string, direction: -1 | 1) {
+    const idx = manual.indexOf(ticker);
+    if (idx < 0) return;
+    const swapIdx = idx + direction;
+    if (swapIdx < 0 || swapIdx >= manual.length) return;
+    const next = [...manual];
+    [next[idx], next[swapIdx]] = [next[swapIdx]!, next[idx]!];
+    reorder.mutate(next);
   }
 
   if (watchlist.isLoading) {
@@ -105,6 +122,9 @@ export function WatchlistView() {
             (p) => p.ticker === ticker,
           );
           const isManual = manual.includes(ticker);
+          const manualIdx = manual.indexOf(ticker);
+          const canMoveUp = isManual && manualIdx > 0;
+          const canMoveDown = isManual && manualIdx < manual.length - 1;
           const tradeCount = position?.trades.length ?? 0;
           const shareTotal =
             position?.stockLots.reduce((s, l) => s + l.shares, 0) ?? 0;
@@ -143,6 +163,32 @@ export function WatchlistView() {
                     </Text>
                   ) : null}
                 </View>
+                {isManual ? (
+                  <View className="ml-2 items-center">
+                    <Pressable
+                      onPress={() => handleMove(ticker, -1)}
+                      disabled={!canMoveUp}
+                      className="p-0.5 active:opacity-60"
+                      hitSlop={6}
+                    >
+                      <ChevronUp
+                        color={canMoveUp ? "#64748b" : "#cbd5e1"}
+                        size={16}
+                      />
+                    </Pressable>
+                    <Pressable
+                      onPress={() => handleMove(ticker, 1)}
+                      disabled={!canMoveDown}
+                      className="p-0.5 active:opacity-60"
+                      hitSlop={6}
+                    >
+                      <ChevronDown
+                        color={canMoveDown ? "#64748b" : "#cbd5e1"}
+                        size={16}
+                      />
+                    </Pressable>
+                  </View>
+                ) : null}
                 <Pressable
                   onPress={() =>
                     router.push(
