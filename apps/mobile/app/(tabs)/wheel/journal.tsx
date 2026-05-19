@@ -9,6 +9,7 @@ import {
   shortDate,
   signedMoney,
   tradeTypeLabel,
+  winRateColor,
   yearMonthOf,
 } from "@/features/wheel/format";
 import { QueryError } from "@/features/wheel/components/QueryError";
@@ -99,9 +100,14 @@ export default function JournalScreen() {
                 label="Win rate"
                 value={
                   journal.data.monthStats.winRate != null
-                    ? `${(journal.data.monthStats.winRate * 100).toFixed(0)}%`
+                    ? `${journal.data.monthStats.winRate.toFixed(0)}%`
                     : "—"
                 }
+                valueClass={winRateColor(
+                  journal.data.monthStats.winRate != null
+                    ? journal.data.monthStats.winRate / 100
+                    : null,
+                )}
               />
             </View>
             <View className="flex-row gap-3">

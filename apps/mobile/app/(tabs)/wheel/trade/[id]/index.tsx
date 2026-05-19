@@ -119,10 +119,12 @@ export default function TradeDetail() {
           {t.entryPrice != null ? (
             <Row label="Underlying entry" value={`$${t.entryPrice.toFixed(2)}`} />
           ) : null}
-          <Row
-            label="Premium captured"
-            value={money(t.contractPrice * t.contractsOpen * 100)}
-          />
+          {isOpen ? (
+            <Row
+              label="Open premium"
+              value={money(t.contractPrice * t.contractsOpen * 100)}
+            />
+          ) : null}
         </View>
 
         {!isOpen ? (

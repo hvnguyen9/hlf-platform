@@ -1,7 +1,7 @@
 import { Pressable, Text, View } from "react-native";
 import { router } from "expo-router";
 import { useOpenTrades } from "../queries";
-import { dte, dteLabel, shortDate } from "../format";
+import { dte, dteColor, dteLabel, shortDate } from "../format";
 import { TypeBadge } from "./TypeBadge";
 
 const URGENCY_DAYS = 7;
@@ -28,12 +28,7 @@ export function ExpiringSoon() {
       </View>
       <View className="gap-2">
         {expiring.slice(0, 5).map(({ trade: t, days }) => {
-          const color =
-            days < 0
-              ? "text-rose-400"
-              : days <= 2
-                ? "text-amber-400"
-                : "text-slate-700 dark:text-slate-300";
+          const color = dteColor(days);
           return (
             <Pressable
               key={t.id}

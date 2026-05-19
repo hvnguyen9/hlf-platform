@@ -47,6 +47,49 @@ export function expenseColor(n: number | null | undefined): string {
   return "text-rose-400";
 }
 
+// DTE coloring matches the web wheel's OpenTradesTable: red ≤7,
+// amber ≤21, muted otherwise. Already-expired (negative DTE) also
+// rose since it's the most urgent state.
+export function dteColor(days: number): string {
+  if (days < 0) return "text-rose-500";
+  if (days <= 7) return "text-rose-500";
+  if (days <= 21) return "text-amber-500";
+  return "text-slate-500";
+}
+
+// Win-rate threshold colors. ≥65% emerald, 40–65 amber, <40 rose.
+// Helper takes the decimal form (0.65 = 65%) since that's what the
+// portfolio metrics endpoint returns. Journal returns it as a
+// percentage already, so callers there should pass `pct/100`.
+export function winRateColor(pct: number | null | undefined): string {
+  if (pct == null) return "text-slate-700 dark:text-slate-300";
+  if (pct >= 0.65) return "text-emerald-400";
+  if (pct >= 0.4) return "text-amber-400";
+  return "text-rose-400";
+}
+
+// Compute % "out-of-the-money" for an option. Negative = ITM. Matches
+// the same math the web's OpenTradesTable.makeOtmColumn produces:
+//   CSP otm = (price - strike) / price * 100  (price above strike → OTM)
+//   CC  otm = (strike - price) / price * 100  (strike above price → OTM)
+// Returns null when the quote isn't available or the type isn't a
+// short option.
+export function otmPercent(
+  type: string,
+  strikePrice: number,
+  currentPrice: number | null | undefined,
+): number | null {
+  if (currentPrice == null || currentPrice <= 0) return null;
+  const t = type.toLowerCase().replace(/[\s_-]/g, "");
+  if (t === "cashsecuredput" || t === "csp") {
+    return ((currentPrice - strikePrice) / currentPrice) * 100;
+  }
+  if (t === "coveredcall" || t === "cc") {
+    return ((strikePrice - currentPrice) / currentPrice) * 100;
+  }
+  return null;
+}
+
 const TYPE_LABEL: Record<string, string> = {
   CashSecuredPut: "CSP",
   cashsecuredput: "CSP",

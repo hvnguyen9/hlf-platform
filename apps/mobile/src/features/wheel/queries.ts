@@ -222,15 +222,27 @@ export function usePortfolioMetricsBatch(portfolioIds: string[]) {
   });
 }
 
-export function useClosedHistory(id: string | undefined, take = 25) {
+// Defaults to the last 30 days — mobile mostly wants "recent activity".
+// Pass days=null for all-time. The web app's full history page is the
+// place for deep retrospection.
+export function useClosedHistory(
+  id: string | undefined,
+  options: { take?: number; days?: number | null } = {},
+) {
   const { token, signOut } = useWheelToken();
+  const { take = 50, days = 30 } = options;
   return useQuery<ClosedHistoryResponse>({
-    queryKey: ["wheel", "closed-history", id, take],
+    queryKey: ["wheel", "closed-history", id, take, days],
     enabled: !!token && !!id,
     queryFn: async () => {
       try {
+        const params = new URLSearchParams({ take: String(take) });
+        if (days != null) {
+          const dateFrom = new Date(Date.now() - days * 86_400_000);
+          params.set("dateFrom", dateFrom.toISOString());
+        }
         const raw = await apiGet<ClosedHistoryResponse>(
-          `/api/portfolios/${id}/closed-history?take=${take}`,
+          `/api/portfolios/${id}/closed-history?${params.toString()}`,
           token,
           "wheel",
         );

@@ -23,6 +23,7 @@ import {
   pnlColor,
   shortDate,
   signedMoney,
+  winRateColor,
 } from "@/features/wheel/format";
 import { Segmented } from "@/features/wheel/components/Segmented";
 import { KpiGrid } from "@/features/wheel/components/KpiGrid";
@@ -182,6 +183,7 @@ export default function PortfolioDetailScreen() {
                   metrics.data.avgPLPercent != null
                     ? `avg ${metrics.data.avgPLPercent.toFixed(1)}%`
                     : undefined,
+                valueClass: winRateColor(metrics.data.winRate),
               },
               {
                 label: "Open",
@@ -309,10 +311,10 @@ export default function PortfolioDetailScreen() {
                 ) : null}
 
                 <Text className="text-xs uppercase tracking-wide text-slate-500">
-                  Closed history ({closed.data.total})
+                  Last 30 days ({closed.data.total})
                 </Text>
                 {closed.data.items.length === 0 ? (
-                  <EmptyState message="No closed trades or lots yet." />
+                  <EmptyState message="No closed trades or lots in the last 30 days." />
                 ) : (
                   <View className="gap-2">
                     {closed.data.items.map((item) => (
@@ -323,12 +325,9 @@ export default function PortfolioDetailScreen() {
                     ))}
                   </View>
                 )}
-                {closed.data.total > closed.data.items.length ? (
-                  <Text className="text-xs text-slate-500 text-center mt-2">
-                    Showing {closed.data.items.length} of{" "}
-                    {closed.data.total}. View the rest in the web app.
-                  </Text>
-                ) : null}
+                <Text className="text-xs text-slate-500 text-center mt-2">
+                  Full history on the web app
+                </Text>
               </View>
             ) : null}
           </View>
