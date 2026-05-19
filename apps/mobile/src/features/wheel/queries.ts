@@ -58,7 +58,14 @@ export function useOpenTrades() {
           token,
           "wheel",
         );
-        return raw.map(normalizeTrade);
+        // Earliest expiration first — what you're actively managing toward.
+        return raw
+          .map(normalizeTrade)
+          .sort(
+            (a, b) =>
+              new Date(a.expirationDate).getTime() -
+              new Date(b.expirationDate).getTime(),
+          );
       } catch (err) {
         if (err instanceof ApiError && err.status === 401) await signOut();
         throw err;
@@ -96,7 +103,10 @@ export function useOpenStockLots() {
           token,
           "wheel",
         );
-        return raw.stockLots.map(normalizeStockLot);
+        // Ticker A→Z so the same lots stay in the same spot run-to-run.
+        return raw.stockLots
+          .map(normalizeStockLot)
+          .sort((a, b) => a.ticker.localeCompare(b.ticker));
       } catch (err) {
         if (err instanceof ApiError && err.status === 401) await signOut();
         throw err;

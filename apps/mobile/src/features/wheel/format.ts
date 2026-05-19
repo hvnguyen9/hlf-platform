@@ -30,6 +30,23 @@ export function pnlColor(n: number | null | undefined): string {
   return "text-slate-300";
 }
 
+// Capital-deployment threshold coloring — matches the web's status bar.
+// Healthy room (<60%) = green; cautionary (60–85%) = amber; tight (≥85%) = red.
+export function deployedColor(pct: number | null | undefined): string {
+  if (pct == null) return "text-slate-300";
+  if (pct >= 85) return "text-rose-400";
+  if (pct >= 60) return "text-amber-400";
+  return "text-emerald-400";
+}
+
+// Outflow values (expenses, withdrawals) render in rose so they read as
+// money-out at a glance, even though the underlying number is positive.
+export function expenseColor(n: number | null | undefined): string {
+  if (n == null) return "text-slate-300";
+  if (n <= 0) return "text-slate-300";
+  return "text-rose-400";
+}
+
 const TYPE_LABEL: Record<string, string> = {
   CashSecuredPut: "CSP",
   cashsecuredput: "CSP",

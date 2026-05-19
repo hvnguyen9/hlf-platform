@@ -18,12 +18,12 @@ import {
   usePortfolios,
 } from "@/features/wheel/queries";
 import {
+  deployedColor,
   dte,
   money,
   pnlColor,
   shortDate,
   signedMoney,
-  tradeTypeLabel,
 } from "@/features/wheel/format";
 import { Segmented } from "@/features/wheel/components/Segmented";
 import { KpiGrid } from "@/features/wheel/components/KpiGrid";

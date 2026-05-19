@@ -144,6 +144,11 @@ export default function HomeScreen() {
                           ? currency.format(businessExp)
                           : "—"
                       }
+                      valueClass={
+                        businessExp != null && businessExp > 0
+                          ? "text-rose-400"
+                          : undefined
+                      }
                       sub={
                         data.bookkeeping
                           ? `income ${currency.format(data.bookkeeping.mtdIncome)}`
@@ -158,6 +163,11 @@ export default function HomeScreen() {
                         personalExp != null
                           ? currency.format(personalExp)
                           : "—"
+                      }
+                      valueClass={
+                        personalExp != null && personalExp > 0
+                          ? "text-rose-400"
+                          : undefined
                       }
                       sub={
                         data.budget
