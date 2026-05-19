@@ -18,7 +18,6 @@ import {
 import { KpiGrid } from "@/features/wheel/components/KpiGrid";
 import { PortfolioCard } from "@/features/wheel/components/PortfolioCard";
 import { ExpiringSoon } from "@/features/wheel/components/ExpiringSoon";
-import { WatchlistView } from "@/features/wheel/components/WatchlistView";
 import { EmptyState } from "@/features/wheel/components/EmptyState";
 import { pnlColor, signedMoney } from "@/features/wheel/format";
 
@@ -109,13 +108,6 @@ export default function WheelHome() {
         </View>
 
         <ExpiringSoon />
-
-        <View>
-          <Text className="text-sm font-semibold text-slate-300 mb-2">
-            Watchlist
-          </Text>
-          <WatchlistView />
-        </View>
 
         <Pressable
           onPress={() => router.push("/wheel/journal")}

@@ -1,5 +1,5 @@
 import { Tabs } from "expo-router";
-import { BookOpen, Home, TrendingUp, User, Wallet } from "lucide-react-native";
+import { BookOpen, Eye, Home, TrendingUp, User, Wallet } from "lucide-react-native";
 
 export default function TabsLayout() {
   return (
@@ -16,13 +16,23 @@ export default function TabsLayout() {
         name="index"
         options={{
           title: "Home",
+          tabBarLabel: "Home",
           tabBarIcon: ({ color, size }) => <Home color={color} size={size} />,
+        }}
+      />
+      <Tabs.Screen
+        name="watchlist"
+        options={{
+          title: "Watchlist",
+          tabBarLabel: "Watch",
+          tabBarIcon: ({ color, size }) => <Eye color={color} size={size} />,
         }}
       />
       <Tabs.Screen
         name="wheel"
         options={{
-          title: "Wheel",
+          title: "Wheel Tracker",
+          tabBarLabel: "Wheel",
           tabBarIcon: ({ color, size }) => (
             <TrendingUp color={color} size={size} />
           ),
@@ -31,7 +41,8 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="books"
         options={{
-          title: "Books",
+          title: "Bookkeeping",
+          tabBarLabel: "Books",
           tabBarIcon: ({ color, size }) => (
             <BookOpen color={color} size={size} />
           ),
@@ -40,14 +51,16 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="budget"
         options={{
-          title: "Budget",
+          title: "Budget Tracker",
+          tabBarLabel: "Budget",
           tabBarIcon: ({ color, size }) => <Wallet color={color} size={size} />,
         }}
       />
       <Tabs.Screen
         name="me"
         options={{
-          title: "Me",
+          title: "Profile",
+          tabBarLabel: "Me",
           tabBarIcon: ({ color, size }) => <User color={color} size={size} />,
         }}
       />

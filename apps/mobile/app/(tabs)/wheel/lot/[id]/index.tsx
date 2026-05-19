@@ -10,9 +10,10 @@ import {
 } from "react-native";
 import { useQueryClient } from "@tanstack/react-query";
 import { useStockLot, usePortfolios, useQuotes } from "@/features/wheel/queries";
-import { money, pnlColor, shortDate, signedMoney, tradeTypeLabel } from "@/features/wheel/format";
+import { money, pnlColor, shortDate, signedMoney } from "@/features/wheel/format";
 import { QueryError } from "@/features/wheel/components/QueryError";
 import { StatusBadge } from "@/features/wheel/components/StatusBadge";
+import { TypeBadge } from "@/features/wheel/components/TypeBadge";
 
 function Row({ label, value, valueClass }: { label: string; value: string; valueClass?: string }) {
   return (
@@ -166,10 +167,13 @@ export default function LotDetail() {
                   key={t.id}
                   className="rounded-lg border border-slate-800 bg-slate-900/60 p-3"
                 >
-                  <View className="flex-row items-baseline justify-between">
-                    <Text className="text-sm text-slate-200">
-                      {tradeTypeLabel(t.type)} · ${t.strikePrice}
-                    </Text>
+                  <View className="flex-row items-center justify-between">
+                    <View className="flex-row items-center gap-2">
+                      <TypeBadge type={t.type} />
+                      <Text className="text-sm text-slate-200">
+                        ${t.strikePrice}
+                      </Text>
+                    </View>
                     <Text
                       className={
                         t.status === "open" ? "text-emerald-300 text-xs" : "text-slate-500 text-xs"

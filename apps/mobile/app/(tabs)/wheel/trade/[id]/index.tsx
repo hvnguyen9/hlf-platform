@@ -20,6 +20,7 @@ import {
 } from "@/features/wheel/format";
 import { QueryError } from "@/features/wheel/components/QueryError";
 import { StatusBadge } from "@/features/wheel/components/StatusBadge";
+import { TypeBadge } from "@/features/wheel/components/TypeBadge";
 
 function Row({ label, value, valueClass }: { label: string; value: string; valueClass?: string }) {
   return (
@@ -78,11 +79,9 @@ export default function TradeDetail() {
     >
       <View className="p-4 gap-4">
         <View>
-          <View className="flex-row items-baseline gap-3">
+          <View className="flex-row items-center gap-2 flex-wrap">
             <Text className="text-3xl font-bold text-white">{t.ticker}</Text>
-            <Text className="text-sm font-medium text-emerald-300">
-              {tradeTypeLabel(t.type)}
-            </Text>
+            <TypeBadge type={t.type} />
             <StatusBadge status={t.status} reason={t.closeReason} />
           </View>
           <Text className="text-sm text-slate-400 mt-1">{portfolioName}</Text>

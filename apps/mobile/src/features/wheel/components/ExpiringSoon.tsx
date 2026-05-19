@@ -1,7 +1,8 @@
 import { Pressable, Text, View } from "react-native";
 import { router } from "expo-router";
 import { useOpenTrades } from "../queries";
-import { dte, shortDate, tradeTypeLabel } from "../format";
+import { dte, shortDate } from "../format";
+import { TypeBadge } from "./TypeBadge";
 
 const URGENCY_DAYS = 7;
 
@@ -39,14 +40,12 @@ export function ExpiringSoon() {
               onPress={() => router.push(`/wheel/trade/${t.id}`)}
               className="rounded-xl border border-slate-800 bg-slate-900 p-3 active:bg-slate-800/80"
             >
-              <View className="flex-row items-baseline justify-between">
-                <View className="flex-row items-baseline gap-2">
+              <View className="flex-row items-center justify-between">
+                <View className="flex-row items-center gap-2">
                   <Text className="text-sm font-semibold text-white">
                     {t.ticker}
                   </Text>
-                  <Text className="text-xs text-emerald-300">
-                    {tradeTypeLabel(t.type)}
-                  </Text>
+                  <TypeBadge type={t.type} />
                 </View>
                 <Text className={`text-xs font-medium ${color}`}>
                   {days < 0

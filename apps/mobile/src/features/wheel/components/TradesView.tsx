@@ -1,9 +1,10 @@
 import { ActivityIndicator, Pressable, Text, View } from "react-native";
 import { router } from "expo-router";
 import { useOpenTrades, usePortfolios } from "../queries";
-import { dte, money, shortDate, tradeTypeLabel } from "../format";
+import { dte, money, shortDate } from "../format";
 import { EmptyState } from "./EmptyState";
 import { QueryError } from "./QueryError";
+import { TypeBadge } from "./TypeBadge";
 
 export function TradesView({ portfolioId }: { portfolioId?: string | null }) {
   const trades = useOpenTrades();
@@ -53,13 +54,11 @@ export function TradesView({ portfolioId }: { portfolioId?: string | null }) {
             className="rounded-xl border border-slate-800 bg-slate-900 p-4 active:bg-slate-800/80"
           >
             <View className="flex-row items-baseline justify-between">
-              <View className="flex-row items-baseline gap-2">
+              <View className="flex-row items-center gap-2">
                 <Text className="text-base font-semibold text-white">
                   {t.ticker}
                 </Text>
-                <Text className="text-xs font-medium text-emerald-300">
-                  {tradeTypeLabel(t.type)}
-                </Text>
+                <TypeBadge type={t.type} />
               </View>
               <Text className="text-sm text-slate-300">
                 {money(t.contractPrice * t.contractsOpen * 100)}

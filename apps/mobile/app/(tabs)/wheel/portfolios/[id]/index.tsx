@@ -29,6 +29,7 @@ import { Segmented } from "@/features/wheel/components/Segmented";
 import { KpiGrid } from "@/features/wheel/components/KpiGrid";
 import { EmptyState } from "@/features/wheel/components/EmptyState";
 import { QueryError } from "@/features/wheel/components/QueryError";
+import { TypeBadge } from "@/features/wheel/components/TypeBadge";
 import type { ClosedHistoryItem } from "@/features/wheel/types";
 
 type Segment = "open" | "closed";
@@ -41,14 +42,12 @@ function ClosedRow({ item }: { item: ClosedHistoryItem }) {
         onPress={() => router.push(`/wheel/trade/${item.id}`)}
         className="rounded-xl border border-slate-800 bg-slate-900 p-3 active:bg-slate-800/80"
       >
-        <View className="flex-row items-baseline justify-between">
-          <View className="flex-row items-baseline gap-2">
+        <View className="flex-row items-center justify-between">
+          <View className="flex-row items-center gap-2">
             <Text className="text-sm font-semibold text-white">
               {item.ticker}
             </Text>
-            <Text className="text-xs text-emerald-300">
-              {tradeTypeLabel(item.type)}
-            </Text>
+            <TypeBadge type={item.type} />
           </View>
           <Text className={`text-sm font-medium ${pnlColor(realized)}`}>
             {signedMoney(realized)}
@@ -219,14 +218,12 @@ export default function PortfolioDetailScreen() {
                         onPress={() => router.push(`/wheel/trade/${t.id}`)}
                         className="rounded-xl border border-slate-800 bg-slate-900 p-3 active:bg-slate-800/80"
                       >
-                        <View className="flex-row items-baseline justify-between">
-                          <View className="flex-row items-baseline gap-2">
+                        <View className="flex-row items-center justify-between">
+                          <View className="flex-row items-center gap-2">
                             <Text className="text-sm font-semibold text-white">
                               {t.ticker}
                             </Text>
-                            <Text className="text-xs text-emerald-300">
-                              {tradeTypeLabel(t.type)}
-                            </Text>
+                            <TypeBadge type={t.type} />
                           </View>
                           <Text className="text-xs text-slate-400">
                             {days < 0 ? `${-days}d past` : `${days}d`}

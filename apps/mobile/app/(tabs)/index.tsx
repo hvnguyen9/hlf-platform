@@ -87,7 +87,7 @@ export default function HomeScreen() {
           <Text className="text-2xl font-bold text-white">
             Hi, {user?.firstName ?? "there"}
           </Text>
-          <Text className="text-slate-400 mt-1">Your HLF snapshot.</Text>
+          <Text className="text-slate-400 mt-1">Your snapshot.</Text>
         </View>
 
         {isLoading ? (
