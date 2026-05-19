@@ -34,6 +34,19 @@ export type BudgetSummary = {
   fireScorePct: number | null;
 };
 
+export type TodayItem = {
+  id: string;
+  kind: "ALERT" | "EXPIRING" | "OVER_BUDGET";
+  severity: "high" | "medium" | "low";
+  title: string;
+  description: string;
+  actionLabel: string;
+  actionUrl: string;
+  ticker?: string;
+  timestamp?: string;
+  pct?: number;
+};
+
 export type PortalSummaryResponse = {
   user: {
     id: string;
@@ -46,6 +59,7 @@ export type PortalSummaryResponse = {
   wheel: WheelSummary | null;
   bookkeeping: BookkeepingSummary | null;
   budget: BudgetSummary | null;
+  todayItems: TodayItem[];
   errors: {
     wheel?: string;
     bookkeeping?: string;
