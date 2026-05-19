@@ -119,18 +119,26 @@ export default function WheelHome() {
 
         <ExpiringSoon />
 
-        <View className="flex-row gap-3">
+        <View className="flex-row gap-2">
           <Pressable
             onPress={() => router.push("/wheel/watchlist")}
-            className="flex-1 rounded-xl border border-slate-800 bg-slate-900 px-4 py-3 active:bg-slate-800/80"
+            className="flex-1 rounded-xl border border-slate-800 bg-slate-900 px-3 py-3 active:bg-slate-800/80"
           >
             <Text className="text-center font-medium text-slate-200">
               Watchlist →
             </Text>
           </Pressable>
           <Pressable
+            onPress={() => router.push("/wheel/alerts")}
+            className="flex-1 rounded-xl border border-slate-800 bg-slate-900 px-3 py-3 active:bg-slate-800/80"
+          >
+            <Text className="text-center font-medium text-slate-200">
+              Alerts →
+            </Text>
+          </Pressable>
+          <Pressable
             onPress={() => router.push("/wheel/journal")}
-            className="flex-1 rounded-xl border border-slate-800 bg-slate-900 px-4 py-3 active:bg-slate-800/80"
+            className="flex-1 rounded-xl border border-slate-800 bg-slate-900 px-3 py-3 active:bg-slate-800/80"
           >
             <Text className="text-center font-medium text-slate-200">
               Journal →

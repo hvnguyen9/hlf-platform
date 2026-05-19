@@ -12,6 +12,11 @@ export default function WheelLayout() {
       <Stack.Screen name="index" options={{ title: "Wheel Tracker" }} />
       <Stack.Screen name="journal" options={{ title: "Journal" }} />
       <Stack.Screen name="watchlist" options={{ title: "Watchlist" }} />
+      <Stack.Screen name="alerts/index" options={{ title: "Alerts" }} />
+      <Stack.Screen
+        name="alerts/new"
+        options={{ title: "New alert", presentation: "modal" }}
+      />
       <Stack.Screen name="portfolios/index" options={{ title: "Portfolios" }} />
       <Stack.Screen
         name="portfolios/[id]/index"

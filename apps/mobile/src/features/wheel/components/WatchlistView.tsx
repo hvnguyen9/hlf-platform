@@ -7,7 +7,8 @@ import {
   TextInput,
   View,
 } from "react-native";
-import { Plus, Trash2 } from "lucide-react-native";
+import { Bell, Plus, Trash2 } from "lucide-react-native";
+import { router } from "expo-router";
 import { useQuotes, useWatchlist } from "../queries";
 import { useAddWatchTicker, useRemoveWatchTicker } from "../mutations";
 import { money, pnlColor, signedMoney } from "../format";
@@ -142,10 +143,21 @@ export function WatchlistView() {
                     </Text>
                   ) : null}
                 </View>
+                <Pressable
+                  onPress={() =>
+                    router.push(
+                      `/wheel/alerts/new?ticker=${encodeURIComponent(ticker)}`,
+                    )
+                  }
+                  className="ml-3 p-1 active:opacity-60"
+                  hitSlop={8}
+                >
+                  <Bell color="#64748b" size={18} />
+                </Pressable>
                 {isManual ? (
                   <Pressable
                     onPress={() => handleRemove(ticker)}
-                    className="ml-3 p-1 active:opacity-60"
+                    className="ml-2 p-1 active:opacity-60"
                     hitSlop={8}
                   >
                     <Trash2 color="#64748b" size={18} />

@@ -164,11 +164,21 @@ export default function TradeDetail() {
                 </Text>
               </Pressable>
               <Pressable
+                onPress={() =>
+                  router.push(`/wheel/alerts/new?tradeId=${t.id}`)
+                }
+                className="flex-1 rounded-xl border border-slate-700 bg-slate-900 py-3 active:bg-slate-800"
+              >
+                <Text className="text-center font-medium text-slate-200">
+                  Add alert
+                </Text>
+              </Pressable>
+              <Pressable
                 onPress={() => router.push(`/wheel/trade/${t.id}/notes`)}
                 className="flex-1 rounded-xl border border-slate-700 bg-slate-900 py-3 active:bg-slate-800"
               >
                 <Text className="text-center font-medium text-slate-200">
-                  Edit notes
+                  Notes
                 </Text>
               </Pressable>
             </View>
