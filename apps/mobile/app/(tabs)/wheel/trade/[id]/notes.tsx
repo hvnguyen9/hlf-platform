@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import {
   ActivityIndicator,
+  Alert,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -37,14 +38,19 @@ export default function TradeNotesScreen() {
   }
   if (!trade.data) return null;
 
-  async function handleSubmit() {
+  function handleSubmit() {
     setFormError(null);
-    try {
-      await edit.mutateAsync({ tradeId: trade.data!.id, notes });
-      router.back();
-    } catch (err) {
-      setFormError(err instanceof Error ? err.message : "Save failed");
-    }
+    edit.mutate(
+      { tradeId: trade.data!.id, notes },
+      {
+        onError: (err) =>
+          Alert.alert(
+            "Couldn't save notes",
+            err instanceof Error ? err.message : "Try again later.",
+          ),
+      },
+    );
+    router.back();
   }
 
   return (

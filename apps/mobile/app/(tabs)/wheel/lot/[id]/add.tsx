@@ -1,6 +1,7 @@
 import { useState } from "react";
 import {
   ActivityIndicator,
+  Alert,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -34,7 +35,7 @@ export default function AddSharesScreen() {
   if (!lot.data) return null;
   const data = lot.data;
 
-  async function handleSubmit() {
+  function handleSubmit() {
     setFormError(null);
     const shares = Math.trunc(Number(addedShares));
     if (!Number.isInteger(shares) || shares <= 0) {
@@ -46,17 +47,22 @@ export default function AddSharesScreen() {
       setFormError("Cost per share must be positive");
       return;
     }
-    try {
-      await addShares.mutateAsync({
+    addShares.mutate(
+      {
         stockLotId: data.id,
         addedShares: shares,
         costPerShare: cost,
         note: note.trim() || undefined,
-      });
-      router.back();
-    } catch (err) {
-      setFormError(err instanceof Error ? err.message : "Add failed");
-    }
+      },
+      {
+        onError: (err) =>
+          Alert.alert(
+            "Couldn't add shares",
+            err instanceof Error ? err.message : "Try again later.",
+          ),
+      },
+    );
+    router.back();
   }
 
   const newTotal = data.shares + Math.trunc(Number(addedShares) || 0);

@@ -1,6 +1,7 @@
 import { useState } from "react";
 import {
   ActivityIndicator,
+  Alert,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -33,7 +34,7 @@ export default function AddContractsScreen() {
   if (!trade.data) return null;
   const t = trade.data;
 
-  async function handleSubmit() {
+  function handleSubmit() {
     setFormError(null);
     const ctr = Math.trunc(Number(addedContracts));
     if (!Number.isInteger(ctr) || ctr <= 0) {
@@ -45,16 +46,20 @@ export default function AddContractsScreen() {
       setFormError("Contract price must be positive");
       return;
     }
-    try {
-      await addContracts.mutateAsync({
-        tradeId: t.id,
-        addedContracts: ctr,
-        addedContractPrice: price,
-      });
-      router.back();
-    } catch (err) {
-      setFormError(err instanceof Error ? err.message : "Add failed");
-    }
+    // Fire-and-forget: dismiss immediately so the user gets back to the
+    // trade detail without staring at a spinner. If the server rejects,
+    // surface that via a native Alert.
+    addContracts.mutate(
+      { tradeId: t.id, addedContracts: ctr, addedContractPrice: price },
+      {
+        onError: (err) =>
+          Alert.alert(
+            "Couldn't add contracts",
+            err instanceof Error ? err.message : "Try again later.",
+          ),
+      },
+    );
+    router.back();
   }
 
   const newTotalContracts = t.contractsOpen + Math.trunc(Number(addedContracts) || 0);
