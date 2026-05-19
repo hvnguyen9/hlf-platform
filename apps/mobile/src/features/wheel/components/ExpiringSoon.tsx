@@ -1,7 +1,7 @@
 import { Pressable, Text, View } from "react-native";
 import { router } from "expo-router";
 import { useOpenTrades } from "../queries";
-import { dte, shortDate } from "../format";
+import { dte, dteLabel, shortDate } from "../format";
 import { TypeBadge } from "./TypeBadge";
 
 const URGENCY_DAYS = 7;
@@ -48,11 +48,7 @@ export function ExpiringSoon() {
                   <TypeBadge type={t.type} />
                 </View>
                 <Text className={`text-xs font-medium ${color}`}>
-                  {days < 0
-                    ? `${Math.abs(days)}d past`
-                    : days === 0
-                      ? "today"
-                      : `${days}d`}
+                  {dteLabel(t.expirationDate)}
                 </Text>
               </View>
               <Text className="text-xs text-slate-500 mt-1">

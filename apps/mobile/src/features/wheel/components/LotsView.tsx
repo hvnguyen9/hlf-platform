@@ -1,9 +1,10 @@
-import { ActivityIndicator, Pressable, Text, View } from "react-native";
+import { Pressable, Text, View } from "react-native";
 import { router } from "expo-router";
 import { useOpenStockLots, usePortfolios, useQuotes } from "../queries";
 import { money, pnlColor, shortDate, signedMoney } from "../format";
 import { EmptyState } from "./EmptyState";
 import { QueryError } from "./QueryError";
+import { RowSkeletonList } from "./Skeleton";
 
 export function LotsView({ portfolioId }: { portfolioId?: string | null }) {
   const lots = useOpenStockLots();
@@ -18,11 +19,7 @@ export function LotsView({ portfolioId }: { portfolioId?: string | null }) {
     portfolios.data?.find((p) => p.id === id)?.name ?? "Unknown";
 
   if (lots.isLoading) {
-    return (
-      <View className="py-8 items-center">
-        <ActivityIndicator color="#10b981" />
-      </View>
-    );
+    return <RowSkeletonList count={3} />;
   }
   if (lots.error) return <QueryError error={lots.error} />;
   if (!filtered || filtered.length === 0) {

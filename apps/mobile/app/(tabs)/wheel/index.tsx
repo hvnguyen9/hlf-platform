@@ -1,6 +1,5 @@
 import { useState } from "react";
 import {
-  ActivityIndicator,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -13,6 +12,7 @@ import { usePortalSummary } from "@/features/dashboard/usePortalSummary";
 import {
   useOpenStockLots,
   useOpenTrades,
+  usePortfolioMetricsBatch,
   usePortfolios,
 } from "@/features/wheel/queries";
 import { useAlertConfigs } from "@/features/alerts/queries";
@@ -20,6 +20,10 @@ import { KpiGrid } from "@/features/wheel/components/KpiGrid";
 import { PortfolioCard } from "@/features/wheel/components/PortfolioCard";
 import { ExpiringSoon } from "@/features/wheel/components/ExpiringSoon";
 import { EmptyState } from "@/features/wheel/components/EmptyState";
+import {
+  KpiGridSkeleton,
+  RowSkeletonList,
+} from "@/features/wheel/components/Skeleton";
 import { money, pnlColor, signedMoney } from "@/features/wheel/format";
 
 export default function WheelHome() {
@@ -34,6 +38,12 @@ export default function WheelHome() {
   const activeAlertCount =
     alertConfigs.data?.filter((c) => c.enabled).length ?? 0;
   const wheel = portalSummary.data?.wheel;
+
+  const portfolioIds = portfolios.data?.map((p) => p.id) ?? [];
+  const metricsResults = usePortfolioMetricsBatch(portfolioIds);
+  const metricsByPortfolio = Object.fromEntries(
+    portfolioIds.map((id, i) => [id, metricsResults[i]?.data]),
+  );
 
   async function handleRefresh() {
     setRefreshing(true);
@@ -92,9 +102,7 @@ export default function WheelHome() {
             );
           })()
         ) : portalSummary.isLoading ? (
-          <View className="py-6 items-center">
-            <ActivityIndicator color="#10b981" />
-          </View>
+          <KpiGridSkeleton count={4} />
         ) : null}
 
         <View>
@@ -102,9 +110,7 @@ export default function WheelHome() {
             Portfolios
           </Text>
           {portfolios.isLoading ? (
-            <View className="py-4 items-center">
-              <ActivityIndicator color="#10b981" />
-            </View>
+            <RowSkeletonList count={2} />
           ) : portfolios.data?.length === 0 ? (
             <EmptyState message="No portfolios yet. Create one in the web app." />
           ) : (
@@ -115,6 +121,7 @@ export default function WheelHome() {
                   portfolio={p}
                   openTrades={trades.data ?? []}
                   openLots={lots.data ?? []}
+                  metrics={metricsByPortfolio[p.id]}
                 />
               ))}
             </View>

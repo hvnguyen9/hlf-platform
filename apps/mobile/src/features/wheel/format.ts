@@ -69,6 +69,28 @@ export function dte(expirationDate: string): number {
   return Math.ceil((exp - now) / 86_400_000);
 }
 
+// Human-friendly DTE label.
+//   today / tomorrow / yesterday for the immediate window
+//   weekday name (e.g. "Fri") for 2–6 days out
+//   "Nov 15" for further-out
+//   "5d past" for expired-but-not-closed yet
+export function dteLabel(expirationDate: string): string {
+  const days = dte(expirationDate);
+  if (days === 0) return "today";
+  if (days === 1) return "tomorrow";
+  if (days === -1) return "yesterday";
+  if (days < 0) return `${Math.abs(days)}d past`;
+  if (days <= 6) {
+    return new Date(expirationDate).toLocaleDateString(undefined, {
+      weekday: "short",
+    });
+  }
+  return new Date(expirationDate).toLocaleDateString(undefined, {
+    month: "short",
+    day: "numeric",
+  });
+}
+
 export function shortDate(iso: string): string {
   return new Date(iso).toLocaleDateString(undefined, {
     month: "short",

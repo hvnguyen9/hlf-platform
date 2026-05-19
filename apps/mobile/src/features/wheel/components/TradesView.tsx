@@ -1,9 +1,10 @@
-import { ActivityIndicator, Pressable, Text, View } from "react-native";
+import { Pressable, Text, View } from "react-native";
 import { router } from "expo-router";
 import { useOpenTrades, usePortfolios } from "../queries";
-import { dte, money, shortDate } from "../format";
+import { dte, dteLabel, money, shortDate } from "../format";
 import { EmptyState } from "./EmptyState";
 import { QueryError } from "./QueryError";
+import { RowSkeletonList } from "./Skeleton";
 import { TypeBadge } from "./TypeBadge";
 
 export function TradesView({ portfolioId }: { portfolioId?: string | null }) {
@@ -18,11 +19,7 @@ export function TradesView({ portfolioId }: { portfolioId?: string | null }) {
     : trades.data;
 
   if (trades.isLoading) {
-    return (
-      <View className="py-8 items-center">
-        <ActivityIndicator color="#10b981" />
-      </View>
-    );
+    return <RowSkeletonList count={3} />;
   }
   if (trades.error) return <QueryError error={trades.error} />;
   if (!filtered || filtered.length === 0) {
@@ -70,7 +67,7 @@ export function TradesView({ portfolioId }: { portfolioId?: string | null }) {
                 {t.contractsOpen}x @ ${t.contractPrice.toFixed(2)}
               </Text>
               <Text className={`text-xs font-medium ${dteColor}`}>
-                {days < 0 ? `${Math.abs(days)}d past` : `${days}d`}
+                {dteLabel(t.expirationDate)}
               </Text>
             </View>
             <Text className="text-xs text-slate-600 mt-1">

@@ -2,7 +2,7 @@
 // user-scoped routes with the mobile bearer token. Decimal fields get
 // normalized to real numbers before they reach the views.
 
-import { useQuery } from "@tanstack/react-query";
+import { useQueries, useQuery } from "@tanstack/react-query";
 import { apiGet, ApiError } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
 import {
@@ -192,6 +192,33 @@ export function usePortfolioMetrics(id: string | undefined) {
         throw err;
       }
     },
+  });
+}
+
+// Fetch metrics for many portfolios in parallel. Used by the wheel
+// landing's portfolio cards to show per-portfolio MTD without a single
+// fat aggregator endpoint. TanStack Query dedupes by queryKey so this
+// shares cache with the per-portfolio usePortfolioMetrics calls.
+export function usePortfolioMetricsBatch(portfolioIds: string[]) {
+  const { token, signOut } = useWheelToken();
+  return useQueries({
+    queries: portfolioIds.map((id) => ({
+      queryKey: ["wheel", "portfolio-metrics", id],
+      enabled: !!token && !!id,
+      queryFn: async () => {
+        try {
+          const raw = await apiGet<PortfolioMetrics>(
+            `/api/portfolios/${id}/metrics`,
+            token,
+            "wheel",
+          );
+          return normalizePortfolioMetrics(raw);
+        } catch (err) {
+          if (err instanceof ApiError && err.status === 401) await signOut();
+          throw err;
+        }
+      },
+    })),
   });
 }
 
