@@ -6,12 +6,17 @@ import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { StatusBar } from "expo-status-bar";
 import { useEffect, useState } from "react";
 import { ActivityIndicator, View } from "react-native";
+import Toast, { BaseToast, type BaseToastProps } from "react-native-toast-message";
 import { AuthProvider, useAuth } from "@/lib/auth-context";
+import { useAlertPoll } from "@/features/alerts/useAlertPoll";
 
 function RootStack() {
   const { ready, token } = useAuth();
   const segments = useSegments();
   const router = useRouter();
+
+  // Background poll for alerts — only active while signed in.
+  useAlertPoll();
 
   useEffect(() => {
     if (!ready) return;
@@ -39,6 +44,26 @@ function RootStack() {
   );
 }
 
+// Themed toast that matches the rest of the dark UI.
+const toastConfig = {
+  info: (props: BaseToastProps) => (
+    <BaseToast
+      {...props}
+      style={{
+        borderLeftColor: "#10b981",
+        backgroundColor: "#0f172a",
+        borderColor: "#1e293b",
+        borderTopWidth: 1,
+        borderRightWidth: 1,
+        borderBottomWidth: 1,
+      }}
+      contentContainerStyle={{ paddingHorizontal: 12 }}
+      text1Style={{ color: "#f8fafc", fontSize: 14, fontWeight: "600" }}
+      text2Style={{ color: "#cbd5e1", fontSize: 13 }}
+    />
+  ),
+};
+
 export default function RootLayout() {
   const [queryClient] = useState(
     () =>
@@ -58,6 +83,7 @@ export default function RootLayout() {
         <QueryClientProvider client={queryClient}>
           <StatusBar style="light" />
           <RootStack />
+          <Toast config={toastConfig} />
         </QueryClientProvider>
       </AuthProvider>
     </GestureHandlerRootView>
