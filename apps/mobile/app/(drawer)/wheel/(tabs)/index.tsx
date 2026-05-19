@@ -1,12 +1,10 @@
 import { useState } from "react";
 import {
-  Pressable,
   RefreshControl,
   ScrollView,
   Text,
   View,
 } from "react-native";
-import { router } from "expo-router";
 import { useQueryClient } from "@tanstack/react-query";
 import { usePortalSummary } from "@/features/dashboard/usePortalSummary";
 import {
@@ -15,7 +13,6 @@ import {
   usePortfolioMetricsBatch,
   usePortfolios,
 } from "@/features/wheel/queries";
-import { useAlertConfigs } from "@/features/alerts/queries";
 import { KpiGrid } from "@/features/wheel/components/KpiGrid";
 import { PortfolioCard } from "@/features/wheel/components/PortfolioCard";
 import { ExpiringSoon } from "@/features/wheel/components/ExpiringSoon";
@@ -34,9 +31,6 @@ export default function WheelHome() {
   const portfolios = usePortfolios();
   const trades = useOpenTrades();
   const lots = useOpenStockLots();
-  const alertConfigs = useAlertConfigs();
-  const activeAlertCount =
-    alertConfigs.data?.filter((c) => c.enabled).length ?? 0;
   const wheel = portalSummary.data?.wheel;
 
   const portfolioIds = portfolios.data?.map((p) => p.id) ?? [];
@@ -129,33 +123,6 @@ export default function WheelHome() {
         </View>
 
         <ExpiringSoon />
-
-        <View className="flex-row gap-2">
-          <Pressable
-            onPress={() => router.push("/wheel/watchlist")}
-            className="flex-1 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-3 py-3 active:bg-slate-300/80 dark:active:bg-slate-800/80"
-          >
-            <Text className="text-center font-medium text-slate-800 dark:text-slate-200">
-              Watchlist →
-            </Text>
-          </Pressable>
-          <Pressable
-            onPress={() => router.push("/wheel/alerts")}
-            className="flex-1 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-3 py-3 active:bg-slate-300/80 dark:active:bg-slate-800/80"
-          >
-            <Text className="text-center font-medium text-slate-800 dark:text-slate-200">
-              Alerts{activeAlertCount > 0 ? ` (${activeAlertCount})` : ""} →
-            </Text>
-          </Pressable>
-          <Pressable
-            onPress={() => router.push("/wheel/journal")}
-            className="flex-1 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-3 py-3 active:bg-slate-300/80 dark:active:bg-slate-800/80"
-          >
-            <Text className="text-center font-medium text-slate-800 dark:text-slate-200">
-              Journal →
-            </Text>
-          </Pressable>
-        </View>
       </View>
     </ScrollView>
   );
