@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/server/auth/auth";
+import { requireAuth } from "@/server/auth/require-auth";
 import prisma from "@/server/prisma";
 import { z } from "zod";
 import { paramsByType } from "@/lib/alerts/types";
@@ -15,14 +14,14 @@ interface Params {
 }
 
 export async function PATCH(request: Request, ctx: Params) {
-  const session = await getServerSession(authOptions);
-  if (!session?.user?.id) {
+  const { user } = await requireAuth(request);
+  if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
   const { id } = await ctx.params;
 
   const existing = await prisma.alertConfig.findUnique({ where: { id } });
-  if (!existing || existing.userId !== session.user.id) {
+  if (!existing || existing.userId !== user.id) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
@@ -54,15 +53,15 @@ export async function PATCH(request: Request, ctx: Params) {
   return NextResponse.json({ config: updated });
 }
 
-export async function DELETE(_request: Request, ctx: Params) {
-  const session = await getServerSession(authOptions);
-  if (!session?.user?.id) {
+export async function DELETE(request: Request, ctx: Params) {
+  const { user } = await requireAuth(request);
+  if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
   const { id } = await ctx.params;
 
   const existing = await prisma.alertConfig.findUnique({ where: { id } });
-  if (!existing || existing.userId !== session.user.id) {
+  if (!existing || existing.userId !== user.id) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
   await prisma.alertConfig.delete({ where: { id } });

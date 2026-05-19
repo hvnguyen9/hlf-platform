@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/server/auth/auth";
+import { requireAuth } from "@/server/auth/require-auth";
 import prisma from "@/server/prisma";
 import { z } from "zod";
 import { paramsByType } from "@/lib/alerts/types";
@@ -34,8 +33,8 @@ const createBody = z.discriminatedUnion("type", [
 ]);
 
 export async function GET(request: Request) {
-  const session = await getServerSession(authOptions);
-  if (!session?.user?.id) {
+  const { user } = await requireAuth(request);
+  if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -47,7 +46,7 @@ export async function GET(request: Request) {
 
   const configs = await prisma.alertConfig.findMany({
     where: {
-      userId: session.user.id,
+      userId: user.id,
       ...(tradeId ? { tradeId } : {}),
       ...(ticker ? { watchlistTicker: ticker } : {}),
       ...(stockLotId ? { stockLotId } : {}),
@@ -105,8 +104,8 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
-  const session = await getServerSession(authOptions);
-  if (!session?.user?.id) {
+  const { user } = await requireAuth(request);
+  if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -126,7 +125,7 @@ export async function POST(request: Request) {
       where: { id: data.tradeId },
       include: { portfolio: { select: { userId: true } } },
     });
-    if (!trade || trade.portfolio.userId !== session.user.id) {
+    if (!trade || trade.portfolio.userId !== user.id) {
       return NextResponse.json({ error: "Trade not found" }, { status: 404 });
     }
   } else if (data.type === "LOT_PRICE_BREACH") {
@@ -134,14 +133,14 @@ export async function POST(request: Request) {
       where: { id: data.stockLotId },
       include: { portfolio: { select: { userId: true } } },
     });
-    if (!lot || lot.portfolio.userId !== session.user.id) {
+    if (!lot || lot.portfolio.userId !== user.id) {
       return NextResponse.json({ error: "Stock lot not found" }, { status: 404 });
     }
   }
 
   const created = await prisma.alertConfig.create({
     data: {
-      userId: session.user.id,
+      userId: user.id,
       type: data.type,
       tradeId:
         data.type === "PROFIT_TARGET" ||

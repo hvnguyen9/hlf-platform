@@ -19,7 +19,7 @@ import { KpiGrid } from "@/features/wheel/components/KpiGrid";
 import { PortfolioCard } from "@/features/wheel/components/PortfolioCard";
 import { ExpiringSoon } from "@/features/wheel/components/ExpiringSoon";
 import { EmptyState } from "@/features/wheel/components/EmptyState";
-import { pnlColor, signedMoney } from "@/features/wheel/format";
+import { money, pnlColor, signedMoney } from "@/features/wheel/format";
 
 export default function WheelHome() {
   const [refreshing, setRefreshing] = useState(false);
@@ -53,30 +53,40 @@ export default function WheelHome() {
     >
       <View className="p-4 gap-5">
         {wheel ? (
-          <KpiGrid
-            items={[
-              {
-                label: "Open positions",
-                value: String(wheel.openTradeCount),
-                sub: `${wheel.openLotCount} stock lot${wheel.openLotCount === 1 ? "" : "s"}`,
-              },
-              {
-                label: "Alerts this week",
-                value: String(wheel.alertsThisWeek),
-                sub: `${wheel.alertsToday} today`,
-              },
-              {
-                label: "MTD trading",
-                value: signedMoney(wheel.mtdRealizedPnl, true),
-                valueClass: pnlColor(wheel.mtdRealizedPnl),
-              },
-              {
-                label: "YTD trading",
-                value: signedMoney(wheel.ytdRealizedPnl, true),
-                valueClass: pnlColor(wheel.ytdRealizedPnl),
-              },
-            ]}
-          />
+          (() => {
+            const openPremium =
+              trades.data?.reduce(
+                (sum, t) => sum + t.contractPrice * t.contractsOpen * 100,
+                0,
+              ) ?? 0;
+            return (
+              <KpiGrid
+                items={[
+                  {
+                    label: "Open positions",
+                    value: String(wheel.openTradeCount),
+                    sub: `${wheel.openLotCount} stock lot${wheel.openLotCount === 1 ? "" : "s"}`,
+                  },
+                  {
+                    label: "Open premium",
+                    value: money(openPremium, true),
+                    sub: "if all expire worthless",
+                    valueClass: "text-emerald-300",
+                  },
+                  {
+                    label: "MTD trading",
+                    value: signedMoney(wheel.mtdRealizedPnl, true),
+                    valueClass: pnlColor(wheel.mtdRealizedPnl),
+                  },
+                  {
+                    label: "YTD trading",
+                    value: signedMoney(wheel.ytdRealizedPnl, true),
+                    valueClass: pnlColor(wheel.ytdRealizedPnl),
+                  },
+                ]}
+              />
+            );
+          })()
         ) : portalSummary.isLoading ? (
           <View className="py-6 items-center">
             <ActivityIndicator color="#10b981" />
