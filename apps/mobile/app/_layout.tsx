@@ -6,9 +6,11 @@ import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { StatusBar } from "expo-status-bar";
 import { useEffect, useState } from "react";
 import { ActivityIndicator, View } from "react-native";
+import { useColorScheme } from "nativewind";
 import Toast, { BaseToast, type BaseToastProps } from "react-native-toast-message";
 import { AuthProvider, useAuth } from "@/lib/auth-context";
 import { useAlertPoll } from "@/features/alerts/useAlertPoll";
+import { ThemeBoot } from "@/lib/theme";
 
 function RootStack() {
   const { ready, token } = useAuth();
@@ -30,7 +32,7 @@ function RootStack() {
 
   if (!ready) {
     return (
-      <View className="flex-1 items-center justify-center bg-slate-950">
+      <View className="flex-1 items-center justify-center bg-slate-100 dark:bg-slate-950">
         <ActivityIndicator color="#10b981" />
       </View>
     );
@@ -44,25 +46,47 @@ function RootStack() {
   );
 }
 
-// Themed toast that matches the rest of the dark UI.
-const toastConfig = {
-  info: (props: BaseToastProps) => (
-    <BaseToast
-      {...props}
-      style={{
-        borderLeftColor: "#10b981",
-        backgroundColor: "#0f172a",
-        borderColor: "#1e293b",
-        borderTopWidth: 1,
-        borderRightWidth: 1,
-        borderBottomWidth: 1,
-      }}
-      contentContainerStyle={{ paddingHorizontal: 12 }}
-      text1Style={{ color: "#f8fafc", fontSize: 14, fontWeight: "600" }}
-      text2Style={{ color: "#cbd5e1", fontSize: 13 }}
-    />
-  ),
-};
+// Toast that picks colors based on the current color scheme so it reads
+// well on both light and dark backgrounds.
+function useToastConfig() {
+  const { colorScheme } = useColorScheme();
+  const isDark = colorScheme === "dark";
+  return {
+    info: (props: BaseToastProps) => (
+      <BaseToast
+        {...props}
+        style={{
+          borderLeftColor: "#10b981",
+          backgroundColor: isDark ? "#0f172a" : "#ffffff",
+          borderColor: isDark ? "#1e293b" : "#e2e8f0",
+          borderTopWidth: 1,
+          borderRightWidth: 1,
+          borderBottomWidth: 1,
+        }}
+        contentContainerStyle={{ paddingHorizontal: 12 }}
+        text1Style={{
+          color: isDark ? "#f8fafc" : "#0f172a",
+          fontSize: 14,
+          fontWeight: "600",
+        }}
+        text2Style={{
+          color: isDark ? "#cbd5e1" : "#475569",
+          fontSize: 13,
+        }}
+      />
+    ),
+  };
+}
+
+function ThemedToast() {
+  const config = useToastConfig();
+  return <Toast config={config} />;
+}
+
+function ThemedStatusBar() {
+  const { colorScheme } = useColorScheme();
+  return <StatusBar style={colorScheme === "dark" ? "light" : "dark"} />;
+}
 
 export default function RootLayout() {
   const [queryClient] = useState(
@@ -79,11 +103,12 @@ export default function RootLayout() {
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
+      <ThemeBoot />
       <AuthProvider>
         <QueryClientProvider client={queryClient}>
-          <StatusBar style="light" />
+          <ThemedStatusBar />
           <RootStack />
-          <Toast config={toastConfig} />
+          <ThemedToast />
         </QueryClientProvider>
       </AuthProvider>
     </GestureHandlerRootView>

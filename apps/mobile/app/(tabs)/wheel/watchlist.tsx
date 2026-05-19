@@ -18,7 +18,7 @@ export default function WatchlistScreen() {
 
   return (
     <ScrollView
-      className="flex-1 bg-slate-950"
+      className="flex-1 bg-slate-100 dark:bg-slate-950"
       refreshControl={
         <RefreshControl
           refreshing={refreshing}

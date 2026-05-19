@@ -25,7 +25,7 @@ function signed(value: number): string {
 function pnlColor(value: number): string {
   if (value > 0) return "text-emerald-400";
   if (value < 0) return "text-rose-400";
-  return "text-slate-300";
+  return "text-slate-700 dark:text-slate-300";
 }
 
 function KpiCard({
@@ -40,11 +40,11 @@ function KpiCard({
   valueClass?: string;
 }) {
   return (
-    <View className="flex-1 rounded-xl border border-slate-800 bg-slate-900 p-4">
+    <View className="flex-1 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4">
       <Text className="text-xs uppercase tracking-wide text-slate-500">
         {label}
       </Text>
-      <Text className={`text-2xl font-semibold mt-1 ${valueClass ?? "text-white"}`}>
+      <Text className={`text-2xl font-semibold mt-1 ${valueClass ?? "text-slate-900 dark:text-white"}`}>
         {value}
       </Text>
       {sub ? <Text className="text-xs text-slate-500 mt-1">{sub}</Text> : null}
@@ -60,8 +60,8 @@ function AlertRow({ alert }: { alert: RecentAlert }) {
     minute: "2-digit",
   });
   return (
-    <View className="rounded-lg border border-slate-800 bg-slate-900/60 p-3">
-      <Text className="text-sm text-slate-200">{alert.message}</Text>
+    <View className="rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-100/60 dark:bg-slate-900/60 p-3">
+      <Text className="text-sm text-slate-800 dark:text-slate-200">{alert.message}</Text>
       <Text className="text-xs text-slate-500 mt-1">{when}</Text>
     </View>
   );
@@ -73,7 +73,7 @@ export default function HomeScreen() {
 
   return (
     <ScrollView
-      className="flex-1 bg-slate-950"
+      className="flex-1 bg-slate-100 dark:bg-slate-950"
       refreshControl={
         <RefreshControl
           refreshing={isFetching && !isLoading}
@@ -84,10 +84,10 @@ export default function HomeScreen() {
     >
       <View className="p-4 gap-4">
         <View>
-          <Text className="text-2xl font-bold text-white">
+          <Text className="text-2xl font-bold text-slate-900 dark:text-white">
             Hi, {user?.firstName ?? "there"}
           </Text>
-          <Text className="text-slate-400 mt-1">Your snapshot.</Text>
+          <Text className="text-slate-600 dark:text-slate-400 mt-1">Your snapshot.</Text>
         </View>
 
         {isLoading ? (
@@ -189,7 +189,7 @@ export default function HomeScreen() {
             {data.wheel ? (
               <View>
                 <View className="flex-row items-baseline justify-between mb-2">
-                  <Text className="text-sm font-semibold text-slate-300">
+                  <Text className="text-sm font-semibold text-slate-700 dark:text-slate-300">
                     Alerts
                   </Text>
                   <Text className="text-xs text-slate-500">
@@ -204,7 +204,7 @@ export default function HomeScreen() {
                     ))}
                   </View>
                 ) : (
-                  <View className="rounded-lg border border-slate-800 bg-slate-900/40 p-4">
+                  <View className="rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-100/40 dark:bg-slate-900/40 p-4">
                     <Text className="text-sm text-slate-500">
                       No recent alerts.
                     </Text>

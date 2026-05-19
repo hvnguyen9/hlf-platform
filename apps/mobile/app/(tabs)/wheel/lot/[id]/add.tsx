@@ -27,7 +27,7 @@ export default function AddSharesScreen() {
 
   if (lot.isLoading) {
     return (
-      <View className="flex-1 items-center justify-center bg-slate-950">
+      <View className="flex-1 items-center justify-center bg-slate-100 dark:bg-slate-950">
         <ActivityIndicator color="#10b981" />
       </View>
     );
@@ -76,12 +76,12 @@ export default function AddSharesScreen() {
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === "ios" ? "padding" : undefined}
-      className="flex-1 bg-slate-950"
+      className="flex-1 bg-slate-100 dark:bg-slate-950"
     >
       <ScrollView keyboardShouldPersistTaps="handled">
         <View className="p-4 gap-4">
           <View>
-            <Text className="text-lg font-semibold text-white">
+            <Text className="text-lg font-semibold text-slate-900 dark:text-white">
               Add to {data.ticker}
             </Text>
             <Text className="text-xs text-slate-500 mt-1">
@@ -113,14 +113,14 @@ export default function AddSharesScreen() {
           />
 
           {newAvg != null ? (
-            <View className="rounded-lg border border-slate-800 bg-slate-900 p-3 gap-1">
+            <View className="rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-3 gap-1">
               <View className="flex-row justify-between">
                 <Text className="text-xs text-slate-500">New total</Text>
-                <Text className="text-sm text-slate-200">{newTotal} shares</Text>
+                <Text className="text-sm text-slate-800 dark:text-slate-200">{newTotal} shares</Text>
               </View>
               <View className="flex-row justify-between">
                 <Text className="text-xs text-slate-500">New avg cost</Text>
-                <Text className="text-sm text-slate-200">${newAvg.toFixed(2)}</Text>
+                <Text className="text-sm text-slate-800 dark:text-slate-200">${newAvg.toFixed(2)}</Text>
               </View>
             </View>
           ) : null}

@@ -43,21 +43,21 @@ export function TradesView({ portfolioId }: { portfolioId?: string | null }) {
             ? "text-rose-400"
             : days <= 7
               ? "text-amber-400"
-              : "text-slate-400";
+              : "text-slate-600 dark:text-slate-400";
         return (
           <Pressable
             key={t.id}
             onPress={() => router.push(`/wheel/trade/${t.id}`)}
-            className="rounded-xl border border-slate-800 bg-slate-900 p-4 active:bg-slate-800/80"
+            className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 active:bg-slate-300/80 dark:active:bg-slate-800/80"
           >
             <View className="flex-row items-baseline justify-between">
               <View className="flex-row items-center gap-2">
-                <Text className="text-base font-semibold text-white">
+                <Text className="text-base font-semibold text-slate-900 dark:text-white">
                   {t.ticker}
                 </Text>
                 <TypeBadge type={t.type} />
               </View>
-              <Text className="text-sm text-slate-300">
+              <Text className="text-sm text-slate-700 dark:text-slate-300">
                 {money(t.contractPrice * t.contractsOpen * 100)}
               </Text>
             </View>
@@ -70,7 +70,7 @@ export function TradesView({ portfolioId }: { portfolioId?: string | null }) {
                 {dteLabel(t.expirationDate)}
               </Text>
             </View>
-            <Text className="text-xs text-slate-600 mt-1">
+            <Text className="text-xs text-slate-500 dark:text-slate-600 mt-1">
               {portfolioName(t.portfolioId)}
             </Text>
           </Pressable>

@@ -28,7 +28,7 @@ export default function LotNotesScreen() {
 
   if (lot.isLoading) {
     return (
-      <View className="flex-1 items-center justify-center bg-slate-950">
+      <View className="flex-1 items-center justify-center bg-slate-100 dark:bg-slate-950">
         <ActivityIndicator color="#10b981" />
       </View>
     );
@@ -53,11 +53,11 @@ export default function LotNotesScreen() {
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === "ios" ? "padding" : undefined}
-      className="flex-1 bg-slate-950"
+      className="flex-1 bg-slate-100 dark:bg-slate-950"
     >
       <ScrollView keyboardShouldPersistTaps="handled">
         <View className="p-4 gap-4">
-          <Text className="text-lg font-semibold text-white">
+          <Text className="text-lg font-semibold text-slate-900 dark:text-white">
             Notes for {lot.data.ticker}
           </Text>
           <TextInput
@@ -67,7 +67,7 @@ export default function LotNotesScreen() {
             textAlignVertical="top"
             placeholder="Anything to remember about this lot…"
             placeholderTextColor="#475569"
-            className="rounded-lg border border-slate-700 bg-slate-900 px-3 py-3 text-white min-h-[200px]"
+            className="rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-3 text-slate-900 dark:text-white min-h-[200px]"
           />
           {formError ? (
             <Text className="text-sm text-rose-400">{formError}</Text>

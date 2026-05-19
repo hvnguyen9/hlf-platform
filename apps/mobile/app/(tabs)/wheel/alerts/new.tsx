@@ -170,7 +170,7 @@ export default function NewAlertScreen() {
   const loading = (tradeId && trade.isLoading) || (stockLotId && lot.isLoading);
   if (loading) {
     return (
-      <View className="flex-1 items-center justify-center bg-slate-950">
+      <View className="flex-1 items-center justify-center bg-slate-100 dark:bg-slate-950">
         <ActivityIndicator color="#10b981" />
       </View>
     );
@@ -179,7 +179,7 @@ export default function NewAlertScreen() {
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === "ios" ? "padding" : undefined}
-      className="flex-1 bg-slate-950"
+      className="flex-1 bg-slate-100 dark:bg-slate-950"
     >
       <ScrollView keyboardShouldPersistTaps="handled">
         <View className="p-4 gap-4">
@@ -187,7 +187,7 @@ export default function NewAlertScreen() {
             <>
               <View>
                 <View className="flex-row items-center gap-2">
-                  <Text className="text-lg font-semibold text-white">
+                  <Text className="text-lg font-semibold text-slate-900 dark:text-white">
                     Alert on {trade.data.ticker}
                   </Text>
                   <TypeBadge type={trade.data.type} />
@@ -258,7 +258,7 @@ export default function NewAlertScreen() {
           {ticker ? (
             <>
               <View>
-                <Text className="text-lg font-semibold text-white">
+                <Text className="text-lg font-semibold text-slate-900 dark:text-white">
                   Watchlist alert for {ticker.toUpperCase()}
                 </Text>
                 <Text className="text-xs text-slate-500 mt-1">
@@ -286,7 +286,7 @@ export default function NewAlertScreen() {
           {stockLotId && lot.data ? (
             <>
               <View>
-                <Text className="text-lg font-semibold text-white">
+                <Text className="text-lg font-semibold text-slate-900 dark:text-white">
                   Lot alert for {lot.data.ticker}
                 </Text>
                 <Text className="text-xs text-slate-500 mt-1">

@@ -26,7 +26,7 @@ export function SubmitBar({ label, onPress, loading, disabled, variant = "defaul
       {loading ? (
         <ActivityIndicator color="white" />
       ) : (
-        <Text className="text-center font-semibold text-white">{label}</Text>
+        <Text className="text-center font-semibold text-slate-900 dark:text-white">{label}</Text>
       )}
     </Pressable>
   );

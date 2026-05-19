@@ -76,7 +76,7 @@ export function WatchlistView() {
           placeholder="Add ticker"
           placeholderTextColor="#475569"
           onSubmitEditing={handleAdd}
-          className="flex-1 rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-white"
+          className="flex-1 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2 text-slate-900 dark:text-white"
         />
         <Pressable
           onPress={handleAdd}
@@ -111,12 +111,12 @@ export function WatchlistView() {
           return (
             <View
               key={ticker}
-              className="rounded-xl border border-slate-800 bg-slate-900 p-4"
+              className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4"
             >
               <View className="flex-row items-start">
                 <View className="flex-1">
                   <View className="flex-row items-baseline gap-2">
-                    <Text className="text-base font-semibold text-white">
+                    <Text className="text-base font-semibold text-slate-900 dark:text-white">
                       {ticker}
                     </Text>
                     {isManual ? (
@@ -133,7 +133,7 @@ export function WatchlistView() {
                   </Text>
                 </View>
                 <View className="items-end">
-                  <Text className="text-sm text-slate-300">
+                  <Text className="text-sm text-slate-700 dark:text-slate-300">
                     {quote?.price != null ? money(quote.price) : "—"}
                   </Text>
                   {change != null && changePct != null ? (

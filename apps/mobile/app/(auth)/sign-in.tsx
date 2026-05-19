@@ -37,15 +37,15 @@ export default function SignInScreen() {
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === "ios" ? "padding" : undefined}
-      className="flex-1 bg-slate-950"
+      className="flex-1 bg-slate-100 dark:bg-slate-950"
     >
       <View className="flex-1 justify-center px-6">
         <View className="mb-8">
-          <Text className="text-3xl font-bold text-white">HLF</Text>
-          <Text className="text-slate-400 mt-1">Sign in to continue</Text>
+          <Text className="text-3xl font-bold text-slate-900 dark:text-white">HLF</Text>
+          <Text className="text-slate-600 dark:text-slate-400 mt-1">Sign in to continue</Text>
         </View>
 
-        <Text className="text-sm font-medium text-slate-300 mb-2">
+        <Text className="text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
           Username or email
         </Text>
         <TextInput
@@ -56,11 +56,11 @@ export default function SignInScreen() {
           onChangeText={setIdentifier}
           placeholder="hung or you@example.com"
           placeholderTextColor="#475569"
-          className="rounded-lg border border-slate-700 bg-slate-900 px-3 py-3 text-white"
+          className="rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-3 text-slate-900 dark:text-white"
           editable={!submitting}
         />
 
-        <Text className="text-sm font-medium text-slate-300 mt-4 mb-2">
+        <Text className="text-sm font-medium text-slate-700 dark:text-slate-300 mt-4 mb-2">
           Password
         </Text>
         <TextInput
@@ -70,7 +70,7 @@ export default function SignInScreen() {
           onChangeText={setPassword}
           placeholder="••••••••"
           placeholderTextColor="#475569"
-          className="rounded-lg border border-slate-700 bg-slate-900 px-3 py-3 text-white"
+          className="rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-3 text-slate-900 dark:text-white"
           editable={!submitting}
           onSubmitEditing={handleSignIn}
         />
@@ -87,7 +87,7 @@ export default function SignInScreen() {
           {submitting ? (
             <ActivityIndicator color="white" />
           ) : (
-            <Text className="text-center font-semibold text-white">Sign in</Text>
+            <Text className="text-center font-semibold text-slate-900 dark:text-white">Sign in</Text>
           )}
         </Pressable>
       </View>

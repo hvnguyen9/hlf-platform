@@ -18,7 +18,7 @@ export function TypeBadge({ type }: { type: string }) {
         ? "bg-amber-900/40 border-amber-900/60"
         : isCall
           ? "bg-emerald-900/40 border-emerald-900/60"
-          : "bg-slate-800 border-slate-700";
+          : "bg-slate-200 dark:bg-slate-800 border-slate-300 dark:border-slate-700";
 
   const textCls = isCSP
     ? "text-blue-300"
@@ -28,7 +28,7 @@ export function TypeBadge({ type }: { type: string }) {
         ? "text-amber-300"
         : isCall
           ? "text-emerald-300"
-          : "text-slate-400";
+          : "text-slate-600 dark:text-slate-400";
 
   const label = isCSP
     ? "CSP"

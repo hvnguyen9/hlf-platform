@@ -26,7 +26,7 @@ export default function AddContractsScreen() {
 
   if (trade.isLoading) {
     return (
-      <View className="flex-1 items-center justify-center bg-slate-950">
+      <View className="flex-1 items-center justify-center bg-slate-100 dark:bg-slate-950">
         <ActivityIndicator color="#10b981" />
       </View>
     );
@@ -73,12 +73,12 @@ export default function AddContractsScreen() {
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === "ios" ? "padding" : undefined}
-      className="flex-1 bg-slate-950"
+      className="flex-1 bg-slate-100 dark:bg-slate-950"
     >
       <ScrollView keyboardShouldPersistTaps="handled">
         <View className="p-4 gap-4">
           <View>
-            <Text className="text-lg font-semibold text-white">
+            <Text className="text-lg font-semibold text-slate-900 dark:text-white">
               Add to {t.ticker} {tradeTypeLabel(t.type)}
             </Text>
             <Text className="text-xs text-slate-500 mt-1">
@@ -104,16 +104,16 @@ export default function AddContractsScreen() {
           />
 
           {newAvgPrice != null ? (
-            <View className="rounded-lg border border-slate-800 bg-slate-900 p-3 gap-1">
+            <View className="rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-3 gap-1">
               <View className="flex-row justify-between">
                 <Text className="text-xs text-slate-500">New total</Text>
-                <Text className="text-sm text-slate-200">
+                <Text className="text-sm text-slate-800 dark:text-slate-200">
                   {newTotalContracts} contracts
                 </Text>
               </View>
               <View className="flex-row justify-between">
                 <Text className="text-xs text-slate-500">New avg price</Text>
-                <Text className="text-sm text-slate-200">
+                <Text className="text-sm text-slate-800 dark:text-slate-200">
                   ${newAvgPrice.toFixed(2)}
                 </Text>
               </View>

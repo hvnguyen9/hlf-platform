@@ -48,13 +48,13 @@ export function LotsView({ portfolioId }: { portfolioId?: string | null }) {
           <Pressable
             key={lot.id}
             onPress={() => router.push(`/wheel/lot/${lot.id}`)}
-            className="rounded-xl border border-slate-800 bg-slate-900 p-4 active:bg-slate-800/80"
+            className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 active:bg-slate-300/80 dark:active:bg-slate-800/80"
           >
             <View className="flex-row items-baseline justify-between">
-              <Text className="text-base font-semibold text-white">
+              <Text className="text-base font-semibold text-slate-900 dark:text-white">
                 {lot.ticker}
               </Text>
-              <Text className="text-sm text-slate-300">
+              <Text className="text-sm text-slate-700 dark:text-slate-300">
                 {lot.shares} sh
               </Text>
             </View>
@@ -67,16 +67,16 @@ export function LotsView({ portfolioId }: { portfolioId?: string | null }) {
                   {signedMoney(unrealizedPnl)}
                 </Text>
               ) : (
-                <Text className="text-xs text-slate-600">
+                <Text className="text-xs text-slate-500 dark:text-slate-600">
                   {quote ? "no quote" : "…"}
                 </Text>
               )}
             </View>
             <View className="flex-row items-center justify-between mt-1">
-              <Text className="text-xs text-slate-600">
+              <Text className="text-xs text-slate-500 dark:text-slate-600">
                 {portfolioName(lot.portfolioId)}
               </Text>
-              <Text className="text-xs text-slate-600">
+              <Text className="text-xs text-slate-500 dark:text-slate-600">
                 opened {shortDate(lot.openedAt)}
               </Text>
             </View>

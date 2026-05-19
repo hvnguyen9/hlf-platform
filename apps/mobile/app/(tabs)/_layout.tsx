@@ -1,15 +1,28 @@
 import { Tabs } from "expo-router";
 import { BookOpen, Home, TrendingUp, User, Wallet } from "lucide-react-native";
+import { useColorScheme } from "nativewind";
 
 export default function TabsLayout() {
+  const { colorScheme } = useColorScheme();
+  const isDark = colorScheme === "dark";
+
+  const headerBg = isDark ? "#0f172a" : "#ffffff";
+  const headerText = isDark ? "#f8fafc" : "#0f172a";
+  const tabBg = isDark ? "#0f172a" : "#ffffff";
+  const tabBorder = isDark ? "#1e293b" : "#e2e8f0";
+  const inactiveTint = isDark ? "#64748b" : "#94a3b8";
+
   return (
     <Tabs
       screenOptions={{
         tabBarActiveTintColor: "#10b981",
-        tabBarInactiveTintColor: "#64748b",
-        headerStyle: { backgroundColor: "#0f172a" },
-        headerTintColor: "#f8fafc",
-        tabBarStyle: { backgroundColor: "#0f172a", borderTopColor: "#1e293b" },
+        tabBarInactiveTintColor: inactiveTint,
+        headerStyle: { backgroundColor: headerBg },
+        headerTintColor: headerText,
+        tabBarStyle: {
+          backgroundColor: tabBg,
+          borderTopColor: tabBorder,
+        },
       }}
     >
       <Tabs.Screen
@@ -23,9 +36,6 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="wheel"
         options={{
-          // The nested wheel Stack owns its own headers; hiding the outer
-          // Tabs header here prevents a double-title stack on every wheel
-          // screen.
           headerShown: false,
           tabBarLabel: "Wheel",
           tabBarIcon: ({ color, size }) => (

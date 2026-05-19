@@ -15,7 +15,7 @@ export function FormField({ label, hint, error, ...inputProps }: Props) {
       <TextInput
         {...inputProps}
         placeholderTextColor="#475569"
-        className="rounded-lg border border-slate-700 bg-slate-900 px-3 py-3 text-white"
+        className="rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-3 text-slate-900 dark:text-white"
       />
       {error ? (
         <Text className="text-xs text-rose-400 mt-1">{error}</Text>

@@ -29,7 +29,7 @@ export default function CloseTradeScreen() {
 
   if (trade.isLoading) {
     return (
-      <View className="flex-1 items-center justify-center bg-slate-950">
+      <View className="flex-1 items-center justify-center bg-slate-100 dark:bg-slate-950">
         <ActivityIndicator color="#10b981" />
       </View>
     );
@@ -104,12 +104,12 @@ export default function CloseTradeScreen() {
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === "ios" ? "padding" : undefined}
-      className="flex-1 bg-slate-950"
+      className="flex-1 bg-slate-100 dark:bg-slate-950"
     >
       <ScrollView keyboardShouldPersistTaps="handled">
         <View className="p-4 gap-4">
           <View>
-            <Text className="text-lg font-semibold text-white">
+            <Text className="text-lg font-semibold text-slate-900 dark:text-white">
               Close {t.ticker} {tradeTypeLabel(t.type)}
             </Text>
             <Text className="text-xs text-slate-500 mt-1">
@@ -156,8 +156,8 @@ export default function CloseTradeScreen() {
           ) : null}
 
           {outcome === "expired" ? (
-            <View className="rounded-lg border border-slate-800 bg-slate-900 p-3">
-              <Text className="text-sm text-slate-300">
+            <View className="rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-3">
+              <Text className="text-sm text-slate-700 dark:text-slate-300">
                 Full {t.contractsOpen}-contract close at $0.00. You keep the
                 full premium captured.
               </Text>

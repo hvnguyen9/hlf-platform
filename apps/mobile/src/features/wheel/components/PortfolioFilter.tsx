@@ -45,12 +45,12 @@ function Chip({
       className={`rounded-full border px-3 py-1.5 ${
         active
           ? "border-emerald-500 bg-emerald-500/20"
-          : "border-slate-700 bg-slate-900 active:bg-slate-800"
+          : "border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 active:bg-slate-300 dark:active:bg-slate-800"
       }`}
     >
       <Text
         className={`text-xs font-medium ${
-          active ? "text-emerald-300" : "text-slate-300"
+          active ? "text-emerald-300" : "text-slate-700 dark:text-slate-300"
         }`}
       >
         {label}

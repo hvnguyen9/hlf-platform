@@ -13,13 +13,13 @@ export function KpiGrid({ items }: { items: KpiItem[] }) {
       {items.map((kpi, i) => (
         <View
           key={i}
-          className="rounded-xl border border-slate-800 bg-slate-900 p-3"
+          className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-3"
           style={{ width: "48%" }}
         >
           <Text className="text-[10px] uppercase tracking-wide text-slate-500">
             {kpi.label}
           </Text>
-          <Text className={`text-lg font-semibold mt-1 ${kpi.valueClass ?? "text-white"}`}>
+          <Text className={`text-lg font-semibold mt-1 ${kpi.valueClass ?? "text-slate-900 dark:text-white"}`}>
             {kpi.value}
           </Text>
           {kpi.sub ? (

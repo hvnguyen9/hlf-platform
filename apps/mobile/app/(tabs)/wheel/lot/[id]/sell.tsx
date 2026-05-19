@@ -25,7 +25,7 @@ export default function SellSharesScreen() {
 
   if (lot.isLoading) {
     return (
-      <View className="flex-1 items-center justify-center bg-slate-950">
+      <View className="flex-1 items-center justify-center bg-slate-100 dark:bg-slate-950">
         <ActivityIndicator color="#10b981" />
       </View>
     );
@@ -71,12 +71,12 @@ export default function SellSharesScreen() {
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === "ios" ? "padding" : undefined}
-      className="flex-1 bg-slate-950"
+      className="flex-1 bg-slate-100 dark:bg-slate-950"
     >
       <ScrollView keyboardShouldPersistTaps="handled">
         <View className="p-4 gap-4">
           <View>
-            <Text className="text-lg font-semibold text-white">
+            <Text className="text-lg font-semibold text-slate-900 dark:text-white">
               Sell {data.ticker}
             </Text>
             <Text className="text-xs text-slate-500 mt-1">
@@ -85,14 +85,14 @@ export default function SellSharesScreen() {
             </Text>
           </View>
 
-          <View className="rounded-lg border border-slate-800 bg-slate-900 p-3 gap-1">
+          <View className="rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-3 gap-1">
             <View className="flex-row justify-between">
               <Text className="text-xs text-slate-500">Total shares</Text>
-              <Text className="text-sm text-slate-200">{data.shares}</Text>
+              <Text className="text-sm text-slate-800 dark:text-slate-200">{data.shares}</Text>
             </View>
             <View className="flex-row justify-between">
               <Text className="text-xs text-slate-500">Covered by open CCs</Text>
-              <Text className="text-sm text-slate-200">{coveredShares}</Text>
+              <Text className="text-sm text-slate-800 dark:text-slate-200">{coveredShares}</Text>
             </View>
             <View className="flex-row justify-between">
               <Text className="text-xs text-slate-500">Sellable now</Text>

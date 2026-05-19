@@ -117,7 +117,7 @@ export default function NewTradeScreen() {
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === "ios" ? "padding" : undefined}
-      className="flex-1 bg-slate-950"
+      className="flex-1 bg-slate-100 dark:bg-slate-950"
     >
       <ScrollView keyboardShouldPersistTaps="handled">
         <View className="p-4 gap-4">
@@ -145,10 +145,10 @@ export default function NewTradeScreen() {
                   className={`rounded-lg border px-3 py-3 ${
                     portfolioId === p.id
                       ? "border-emerald-500 bg-emerald-500/10"
-                      : "border-slate-700 bg-slate-900"
+                      : "border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900"
                   }`}
                 >
-                  <Text className="text-sm text-slate-200">{p.name}</Text>
+                  <Text className="text-sm text-slate-800 dark:text-slate-200">{p.name}</Text>
                 </Pressable>
               ))}
               {portfolios.data?.length === 0 ? (
@@ -234,11 +234,11 @@ export default function NewTradeScreen() {
                       className={`rounded-lg border px-3 py-3 ${
                         stockLotId === lot.id
                           ? "border-emerald-500 bg-emerald-500/10"
-                          : "border-slate-700 bg-slate-900"
+                          : "border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900"
                       }`}
                     >
                       <View className="flex-row justify-between">
-                        <Text className="text-sm text-slate-200">
+                        <Text className="text-sm text-slate-800 dark:text-slate-200">
                           {lot.shares} sh @ ${lot.avgCost.toFixed(2)}
                         </Text>
                         <Text className="text-xs text-slate-500">

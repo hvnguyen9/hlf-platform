@@ -19,7 +19,7 @@ export function ExpiringSoon() {
   return (
     <View>
       <View className="flex-row items-baseline justify-between mb-2">
-        <Text className="text-sm font-semibold text-slate-300">
+        <Text className="text-sm font-semibold text-slate-700 dark:text-slate-300">
           Expiring soon
         </Text>
         <Text className="text-xs text-slate-500">
@@ -33,16 +33,16 @@ export function ExpiringSoon() {
               ? "text-rose-400"
               : days <= 2
                 ? "text-amber-400"
-                : "text-slate-300";
+                : "text-slate-700 dark:text-slate-300";
           return (
             <Pressable
               key={t.id}
               onPress={() => router.push(`/wheel/trade/${t.id}`)}
-              className="rounded-xl border border-slate-800 bg-slate-900 p-3 active:bg-slate-800/80"
+              className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-3 active:bg-slate-300/80 dark:active:bg-slate-800/80"
             >
               <View className="flex-row items-center justify-between">
                 <View className="flex-row items-center gap-2">
-                  <Text className="text-sm font-semibold text-white">
+                  <Text className="text-sm font-semibold text-slate-900 dark:text-white">
                     {t.ticker}
                   </Text>
                   <TypeBadge type={t.type} />

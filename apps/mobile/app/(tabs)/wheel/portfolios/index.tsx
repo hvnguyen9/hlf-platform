@@ -15,24 +15,24 @@ export default function PortfoliosListScreen() {
 
   if (portfolios.isLoading) {
     return (
-      <View className="flex-1 items-center justify-center bg-slate-950">
+      <View className="flex-1 items-center justify-center bg-slate-100 dark:bg-slate-950">
         <ActivityIndicator color="#10b981" />
       </View>
     );
   }
   if (portfolios.error) {
     return (
-      <View className="flex-1 bg-slate-950 p-4">
+      <View className="flex-1 bg-slate-100 dark:bg-slate-950 p-4">
         <QueryError error={portfolios.error} />
       </View>
     );
   }
 
   return (
-    <ScrollView className="flex-1 bg-slate-950">
+    <ScrollView className="flex-1 bg-slate-100 dark:bg-slate-950">
       <View className="p-4 gap-3">
         {portfolios.data?.length === 0 ? (
-          <View className="rounded-xl border border-slate-800 bg-slate-900/40 p-6 items-center">
+          <View className="rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-100/40 dark:bg-slate-900/40 p-6 items-center">
             <Text className="text-sm text-slate-500 text-center">
               No portfolios yet. Create one in the web app.
             </Text>
@@ -49,14 +49,14 @@ export default function PortfoliosListScreen() {
             <Pressable
               key={p.id}
               onPress={() => router.push(`/wheel/portfolios/${p.id}`)}
-              className="rounded-xl border border-slate-800 bg-slate-900 p-4 active:bg-slate-800/80"
+              className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 active:bg-slate-300/80 dark:active:bg-slate-800/80"
             >
               <View className="flex-row items-baseline justify-between">
-                <Text className="text-base font-semibold text-white">
+                <Text className="text-base font-semibold text-slate-900 dark:text-white">
                   {p.name}
                 </Text>
                 {p.startingCapital != null ? (
-                  <Text className="text-sm text-slate-400">
+                  <Text className="text-sm text-slate-600 dark:text-slate-400">
                     {money(p.startingCapital, true)}
                   </Text>
                 ) : null}

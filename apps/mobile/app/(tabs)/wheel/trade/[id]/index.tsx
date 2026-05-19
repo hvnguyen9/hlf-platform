@@ -28,9 +28,9 @@ import { TypeBadge } from "@/features/wheel/components/TypeBadge";
 
 function Row({ label, value, valueClass }: { label: string; value: string; valueClass?: string }) {
   return (
-    <View className="flex-row items-baseline justify-between py-2 border-b border-slate-800/60">
+    <View className="flex-row items-baseline justify-between py-2 border-b border-slate-200/60 dark:border-slate-800/60">
       <Text className="text-xs uppercase tracking-wide text-slate-500">{label}</Text>
-      <Text className={`text-sm ${valueClass ?? "text-slate-200"}`}>{value}</Text>
+      <Text className={`text-sm ${valueClass ?? "text-slate-800 dark:text-slate-200"}`}>{value}</Text>
     </View>
   );
 }
@@ -50,7 +50,7 @@ export default function TradeDetail() {
 
   if (trade.isLoading) {
     return (
-      <View className="flex-1 bg-slate-950 p-4 gap-4">
+      <View className="flex-1 bg-slate-100 dark:bg-slate-950 p-4 gap-4">
         <DetailHeaderSkeleton />
         <CardGroupSkeleton rows={6} />
       </View>
@@ -58,7 +58,7 @@ export default function TradeDetail() {
   }
   if (trade.error) {
     return (
-      <View className="flex-1 bg-slate-950 p-4">
+      <View className="flex-1 bg-slate-100 dark:bg-slate-950 p-4">
         <QueryError error={trade.error} />
       </View>
     );
@@ -73,7 +73,7 @@ export default function TradeDetail() {
 
   return (
     <ScrollView
-      className="flex-1 bg-slate-950"
+      className="flex-1 bg-slate-100 dark:bg-slate-950"
       refreshControl={
         <RefreshControl
           refreshing={refreshing}
@@ -85,14 +85,14 @@ export default function TradeDetail() {
       <View className="p-4 gap-4">
         <View>
           <View className="flex-row items-center gap-2 flex-wrap">
-            <Text className="text-3xl font-bold text-white">{t.ticker}</Text>
+            <Text className="text-3xl font-bold text-slate-900 dark:text-white">{t.ticker}</Text>
             <TypeBadge type={t.type} />
             <StatusBadge status={t.status} reason={t.closeReason} />
           </View>
-          <Text className="text-sm text-slate-400 mt-1">{portfolioName}</Text>
+          <Text className="text-sm text-slate-600 dark:text-slate-400 mt-1">{portfolioName}</Text>
         </View>
 
-        <View className="rounded-xl border border-slate-800 bg-slate-900 px-4">
+        <View className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-4">
           <Row label="Strike" value={`$${t.strikePrice}`} />
           <Row label="Expiration" value={shortDate(t.expirationDate)} />
           {isOpen ? (
@@ -104,7 +104,7 @@ export default function TradeDetail() {
                   ? "text-rose-400"
                   : days <= 7
                     ? "text-amber-400"
-                    : "text-slate-200"
+                    : "text-slate-800 dark:text-slate-200"
               }
             />
           ) : null}
@@ -126,7 +126,7 @@ export default function TradeDetail() {
         </View>
 
         {!isOpen ? (
-          <View className="rounded-xl border border-slate-800 bg-slate-900 px-4">
+          <View className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-4">
             {t.closingPrice != null ? (
               <Row
                 label="Closing price"
@@ -155,16 +155,16 @@ export default function TradeDetail() {
               onPress={() => router.push(`/wheel/trade/${t.id}/close`)}
               className="rounded-xl bg-emerald-500 py-3 active:bg-emerald-600"
             >
-              <Text className="text-center font-semibold text-white">
+              <Text className="text-center font-semibold text-slate-900 dark:text-white">
                 Close trade
               </Text>
             </Pressable>
             <View className="flex-row gap-2">
               <Pressable
                 onPress={() => router.push(`/wheel/trade/${t.id}/add`)}
-                className="flex-1 rounded-xl border border-slate-700 bg-slate-900 py-3 active:bg-slate-800"
+                className="flex-1 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 py-3 active:bg-slate-300 dark:active:bg-slate-800"
               >
-                <Text className="text-center font-medium text-slate-200">
+                <Text className="text-center font-medium text-slate-800 dark:text-slate-200">
                   Add contracts
                 </Text>
               </Pressable>
@@ -172,17 +172,17 @@ export default function TradeDetail() {
                 onPress={() =>
                   router.push(`/wheel/alerts/new?tradeId=${t.id}`)
                 }
-                className="flex-1 rounded-xl border border-slate-700 bg-slate-900 py-3 active:bg-slate-800"
+                className="flex-1 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 py-3 active:bg-slate-300 dark:active:bg-slate-800"
               >
-                <Text className="text-center font-medium text-slate-200">
+                <Text className="text-center font-medium text-slate-800 dark:text-slate-200">
                   Add alert
                 </Text>
               </Pressable>
               <Pressable
                 onPress={() => router.push(`/wheel/trade/${t.id}/notes`)}
-                className="flex-1 rounded-xl border border-slate-700 bg-slate-900 py-3 active:bg-slate-800"
+                className="flex-1 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 py-3 active:bg-slate-300 dark:active:bg-slate-800"
               >
-                <Text className="text-center font-medium text-slate-200">
+                <Text className="text-center font-medium text-slate-800 dark:text-slate-200">
                   Notes
                 </Text>
               </Pressable>
@@ -191,9 +191,9 @@ export default function TradeDetail() {
         ) : (
           <Pressable
             onPress={() => router.push(`/wheel/trade/${t.id}/notes`)}
-            className="rounded-xl border border-slate-700 bg-slate-900 py-3 active:bg-slate-800"
+            className="rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 py-3 active:bg-slate-300 dark:active:bg-slate-800"
           >
-            <Text className="text-center font-medium text-slate-200">
+            <Text className="text-center font-medium text-slate-800 dark:text-slate-200">
               Edit notes
             </Text>
           </Pressable>

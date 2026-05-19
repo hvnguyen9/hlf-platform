@@ -43,11 +43,11 @@ function ClosedRow({ item }: { item: ClosedHistoryItem }) {
     return (
       <Pressable
         onPress={() => router.push(`/wheel/trade/${item.id}`)}
-        className="rounded-xl border border-slate-800 bg-slate-900 p-3 active:bg-slate-800/80"
+        className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-3 active:bg-slate-300/80 dark:active:bg-slate-800/80"
       >
         <View className="flex-row items-center justify-between">
           <View className="flex-row items-center gap-2">
-            <Text className="text-sm font-semibold text-white">
+            <Text className="text-sm font-semibold text-slate-900 dark:text-white">
               {item.ticker}
             </Text>
             <TypeBadge type={item.type} />
@@ -66,11 +66,11 @@ function ClosedRow({ item }: { item: ClosedHistoryItem }) {
   return (
     <Pressable
       onPress={() => router.push(`/wheel/lot/${item.id}`)}
-      className="rounded-xl border border-slate-800 bg-slate-900 p-3 active:bg-slate-800/80"
+      className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-3 active:bg-slate-300/80 dark:active:bg-slate-800/80"
     >
       <View className="flex-row items-baseline justify-between">
         <View className="flex-row items-baseline gap-2">
-          <Text className="text-sm font-semibold text-white">{item.ticker}</Text>
+          <Text className="text-sm font-semibold text-slate-900 dark:text-white">{item.ticker}</Text>
           <Text className="text-xs text-slate-500">{item.shares} sh</Text>
         </View>
         <Text
@@ -110,7 +110,7 @@ export default function PortfolioDetailScreen() {
 
   return (
     <ScrollView
-      className="flex-1 bg-slate-950"
+      className="flex-1 bg-slate-100 dark:bg-slate-950"
       refreshControl={
         <RefreshControl
           refreshing={refreshing}
@@ -135,7 +135,7 @@ export default function PortfolioDetailScreen() {
       />
       <View className="p-4 gap-4">
         <View>
-          <Text className="text-2xl font-bold text-white">
+          <Text className="text-2xl font-bold text-slate-900 dark:text-white">
             {portfolio?.name ?? "Portfolio"}
           </Text>
           {portfolio?.startingCapital != null ? (
@@ -217,16 +217,16 @@ export default function PortfolioDetailScreen() {
                       <Pressable
                         key={t.id}
                         onPress={() => router.push(`/wheel/trade/${t.id}`)}
-                        className="rounded-xl border border-slate-800 bg-slate-900 p-3 active:bg-slate-800/80"
+                        className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-3 active:bg-slate-300/80 dark:active:bg-slate-800/80"
                       >
                         <View className="flex-row items-center justify-between">
                           <View className="flex-row items-center gap-2">
-                            <Text className="text-sm font-semibold text-white">
+                            <Text className="text-sm font-semibold text-slate-900 dark:text-white">
                               {t.ticker}
                             </Text>
                             <TypeBadge type={t.type} />
                           </View>
-                          <Text className="text-xs text-slate-400">
+                          <Text className="text-xs text-slate-600 dark:text-slate-400">
                             {days < 0 ? `${-days}d past` : `${days}d`}
                           </Text>
                         </View>
@@ -253,13 +253,13 @@ export default function PortfolioDetailScreen() {
                     <Pressable
                       key={lot.id}
                       onPress={() => router.push(`/wheel/lot/${lot.id}`)}
-                      className="rounded-xl border border-slate-800 bg-slate-900 p-3 active:bg-slate-800/80"
+                      className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-3 active:bg-slate-300/80 dark:active:bg-slate-800/80"
                     >
                       <View className="flex-row items-baseline justify-between">
-                        <Text className="text-sm font-semibold text-white">
+                        <Text className="text-sm font-semibold text-slate-900 dark:text-white">
                           {lot.ticker}
                         </Text>
-                        <Text className="text-xs text-slate-300">
+                        <Text className="text-xs text-slate-700 dark:text-slate-300">
                           {lot.shares} sh
                         </Text>
                       </View>
@@ -285,7 +285,7 @@ export default function PortfolioDetailScreen() {
               <View className="gap-3">
                 {closed.data.total > 0 ? (
                   <View className="flex-row gap-3">
-                    <View className="flex-1 rounded-xl border border-slate-800 bg-slate-900 p-3">
+                    <View className="flex-1 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-3">
                       <Text className="text-[10px] uppercase tracking-wide text-slate-500">
                         Premium
                       </Text>
@@ -295,11 +295,11 @@ export default function PortfolioDetailScreen() {
                         {signedMoney(closed.data.totalPremium)}
                       </Text>
                     </View>
-                    <View className="flex-1 rounded-xl border border-slate-800 bg-slate-900 p-3">
+                    <View className="flex-1 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-3">
                       <Text className="text-[10px] uppercase tracking-wide text-slate-500">
                         Avg % P/L
                       </Text>
-                      <Text className="text-lg font-semibold text-white mt-1">
+                      <Text className="text-lg font-semibold text-slate-900 dark:text-white mt-1">
                         {closed.data.avgPercentPL != null
                           ? `${closed.data.avgPercentPL.toFixed(1)}%`
                           : "—"}

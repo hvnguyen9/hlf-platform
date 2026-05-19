@@ -1,11 +1,14 @@
 import { Stack } from "expo-router";
+import { useColorScheme } from "nativewind";
 
 export default function WheelLayout() {
+  const { colorScheme } = useColorScheme();
+  const isDark = colorScheme === "dark";
   return (
     <Stack
       screenOptions={{
-        headerStyle: { backgroundColor: "#0f172a" },
-        headerTintColor: "#f8fafc",
+        headerStyle: { backgroundColor: isDark ? "#0f172a" : "#ffffff" },
+        headerTintColor: isDark ? "#f8fafc" : "#0f172a",
         headerShadowVisible: false,
       }}
     >

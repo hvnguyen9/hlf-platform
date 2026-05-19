@@ -36,11 +36,11 @@ function StatCard({
   valueClass?: string;
 }) {
   return (
-    <View className="flex-1 rounded-xl border border-slate-800 bg-slate-900 p-3">
+    <View className="flex-1 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-3">
       <Text className="text-[10px] uppercase tracking-wide text-slate-500">
         {label}
       </Text>
-      <Text className={`text-lg font-semibold mt-1 ${valueClass ?? "text-white"}`}>
+      <Text className={`text-lg font-semibold mt-1 ${valueClass ?? "text-slate-900 dark:text-white"}`}>
         {value}
       </Text>
       {sub ? <Text className="text-[10px] text-slate-500 mt-1">{sub}</Text> : null}
@@ -59,16 +59,16 @@ export default function JournalScreen() {
     : [];
 
   return (
-    <ScrollView className="flex-1 bg-slate-950">
+    <ScrollView className="flex-1 bg-slate-100 dark:bg-slate-950">
       <View className="p-4 gap-4">
-        <View className="flex-row items-center justify-between rounded-xl border border-slate-800 bg-slate-900 p-3">
+        <View className="flex-row items-center justify-between rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-3">
           <Pressable
             onPress={() => setYearMonth(shiftMonth(yearMonth, -1))}
             className="p-2 active:opacity-60"
           >
             <ChevronLeft color="#94a3b8" size={20} />
           </Pressable>
-          <Text className="text-base font-semibold text-white">
+          <Text className="text-base font-semibold text-slate-900 dark:text-white">
             {monthLabel(yearMonth)}
           </Text>
           <Pressable
@@ -136,22 +136,22 @@ export default function JournalScreen() {
             </View>
 
             {journal.data.notes ? (
-              <View className="rounded-xl border border-slate-800 bg-slate-900/60 p-4">
+              <View className="rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-100/60 dark:bg-slate-900/60 p-4">
                 <Text className="text-xs uppercase tracking-wide text-slate-500 mb-1">
                   Notes
                 </Text>
-                <Text className="text-sm text-slate-200">
+                <Text className="text-sm text-slate-800 dark:text-slate-200">
                   {journal.data.notes}
                 </Text>
               </View>
             ) : null}
 
             <View>
-              <Text className="text-sm font-semibold text-slate-300 mb-2">
+              <Text className="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">
                 Days with activity
               </Text>
               {days.length === 0 ? (
-                <View className="rounded-xl border border-slate-800 bg-slate-900/40 p-6 items-center">
+                <View className="rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-100/40 dark:bg-slate-900/40 p-6 items-center">
                   <Text className="text-sm text-slate-500">
                     No trades closed this month.
                   </Text>
@@ -161,10 +161,10 @@ export default function JournalScreen() {
                   {days.map(([date, day]) => (
                     <View
                       key={date}
-                      className="rounded-xl border border-slate-800 bg-slate-900 p-3"
+                      className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-3"
                     >
                       <View className="flex-row items-baseline justify-between">
-                        <Text className="text-sm font-medium text-slate-200">
+                        <Text className="text-sm font-medium text-slate-800 dark:text-slate-200">
                           {shortDate(date)}
                         </Text>
                         <Text

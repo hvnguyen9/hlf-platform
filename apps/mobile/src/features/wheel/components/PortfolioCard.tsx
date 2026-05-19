@@ -31,10 +31,10 @@ export function PortfolioCard({
   return (
     <Pressable
       onPress={() => router.push(`/wheel/portfolios/${portfolio.id}`)}
-      className="rounded-xl border border-slate-800 bg-slate-900 p-4 active:bg-slate-800/80 gap-2"
+      className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 active:bg-slate-300/80 dark:active:bg-slate-800/80 gap-2"
     >
       <View className="flex-row items-baseline justify-between">
-        <Text className="text-base font-semibold text-white">
+        <Text className="text-base font-semibold text-slate-900 dark:text-white">
           {portfolio.name}
         </Text>
         {openPremium > 0 ? (
@@ -66,7 +66,7 @@ export function PortfolioCard({
           {metrics.winRate != null ? (
             <Text className="text-xs text-slate-500">
               Win{" "}
-              <Text className="font-medium text-slate-300">
+              <Text className="font-medium text-slate-700 dark:text-slate-300">
                 {(metrics.winRate * 100).toFixed(0)}%
               </Text>
             </Text>

@@ -66,7 +66,7 @@ function ConfigRow({ config }: { config: AlertConfig }) {
 
   return (
     <View
-      className={`rounded-xl border border-slate-800 bg-slate-900 p-3 ${
+      className={`rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-3 ${
         config.enabled ? "" : "opacity-60"
       }`}
     >
@@ -74,14 +74,14 @@ function ConfigRow({ config }: { config: AlertConfig }) {
         <View className="flex-row items-start justify-between gap-3">
           <View className="flex-1">
             <View className="flex-row items-center gap-2">
-              <Text className="text-sm font-semibold text-white">
+              <Text className="text-sm font-semibold text-slate-900 dark:text-white">
                 {describeBinding(config)}
               </Text>
               <Text className="text-[10px] uppercase tracking-wider text-slate-500">
                 {TYPE_LABEL[config.type]}
               </Text>
             </View>
-            <Text className="text-xs text-slate-400 mt-1">
+            <Text className="text-xs text-slate-600 dark:text-slate-400 mt-1">
               {describeConfig(config)}
             </Text>
             {config.lastFiredAt ? (
@@ -131,7 +131,7 @@ function EventRow({ event }: { event: AlertEvent }) {
   return (
     <Pressable
       onPress={handleTap}
-      className="rounded-lg border border-slate-800 bg-slate-900/60 p-3 active:bg-slate-800/60"
+      className="rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-100/60 dark:bg-slate-900/60 p-3 active:bg-slate-300/60 dark:active:bg-slate-800/60"
     >
       <View className="flex-row items-baseline justify-between">
         <Text className="text-[10px] uppercase tracking-wider text-amber-300">
@@ -139,7 +139,7 @@ function EventRow({ event }: { event: AlertEvent }) {
         </Text>
         <Text className="text-[10px] text-slate-500">{when}</Text>
       </View>
-      <Text className="text-sm text-slate-200 mt-1">{event.message}</Text>
+      <Text className="text-sm text-slate-800 dark:text-slate-200 mt-1">{event.message}</Text>
     </Pressable>
   );
 }
@@ -161,7 +161,7 @@ export default function AlertsScreen() {
 
   return (
     <ScrollView
-      className="flex-1 bg-slate-950"
+      className="flex-1 bg-slate-100 dark:bg-slate-950"
       refreshControl={
         <RefreshControl
           refreshing={refreshing}
@@ -172,15 +172,15 @@ export default function AlertsScreen() {
     >
       <View className="p-4 gap-4">
         <View>
-          <Text className="text-2xl font-bold text-white">Alerts</Text>
-          <Text className="text-slate-400 mt-1">
+          <Text className="text-2xl font-bold text-slate-900 dark:text-white">Alerts</Text>
+          <Text className="text-slate-600 dark:text-slate-400 mt-1">
             {activeCount} active of {totalCount} configured ·{" "}
             {events.data?.length ?? 0} recent fires
           </Text>
         </View>
 
         <View>
-          <Text className="text-sm font-semibold text-slate-300 mb-2">
+          <Text className="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">
             Active triggers
           </Text>
           {configs.isLoading ? (
@@ -199,7 +199,7 @@ export default function AlertsScreen() {
         </View>
 
         <View>
-          <Text className="text-sm font-semibold text-slate-300 mb-2">
+          <Text className="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">
             Recent fires
           </Text>
           {events.isLoading ? (

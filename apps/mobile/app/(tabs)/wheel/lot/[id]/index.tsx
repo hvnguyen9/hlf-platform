@@ -20,9 +20,9 @@ import { TypeBadge } from "@/features/wheel/components/TypeBadge";
 
 function Row({ label, value, valueClass }: { label: string; value: string; valueClass?: string }) {
   return (
-    <View className="flex-row items-baseline justify-between py-2 border-b border-slate-800/60">
+    <View className="flex-row items-baseline justify-between py-2 border-b border-slate-200/60 dark:border-slate-800/60">
       <Text className="text-xs uppercase tracking-wide text-slate-500">{label}</Text>
-      <Text className={`text-sm ${valueClass ?? "text-slate-200"}`}>{value}</Text>
+      <Text className={`text-sm ${valueClass ?? "text-slate-800 dark:text-slate-200"}`}>{value}</Text>
     </View>
   );
 }
@@ -45,7 +45,7 @@ export default function LotDetail() {
 
   if (lot.isLoading) {
     return (
-      <View className="flex-1 bg-slate-950 p-4 gap-4">
+      <View className="flex-1 bg-slate-100 dark:bg-slate-950 p-4 gap-4">
         <DetailHeaderSkeleton />
         <CardGroupSkeleton rows={5} />
       </View>
@@ -53,7 +53,7 @@ export default function LotDetail() {
   }
   if (lot.error) {
     return (
-      <View className="flex-1 bg-slate-950 p-4">
+      <View className="flex-1 bg-slate-100 dark:bg-slate-950 p-4">
         <QueryError error={lot.error} />
       </View>
     );
@@ -69,7 +69,7 @@ export default function LotDetail() {
 
   return (
     <ScrollView
-      className="flex-1 bg-slate-950"
+      className="flex-1 bg-slate-100 dark:bg-slate-950"
       refreshControl={
         <RefreshControl
           refreshing={refreshing}
@@ -81,13 +81,13 @@ export default function LotDetail() {
       <View className="p-4 gap-4">
         <View>
           <View className="flex-row items-baseline gap-3">
-            <Text className="text-3xl font-bold text-white">{data.ticker}</Text>
+            <Text className="text-3xl font-bold text-slate-900 dark:text-white">{data.ticker}</Text>
             <StatusBadge status={data.status} />
           </View>
-          <Text className="text-sm text-slate-400 mt-1">{portfolioName}</Text>
+          <Text className="text-sm text-slate-600 dark:text-slate-400 mt-1">{portfolioName}</Text>
         </View>
 
-        <View className="rounded-xl border border-slate-800 bg-slate-900 px-4">
+        <View className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-4">
           <Row label="Shares" value={String(data.shares)} />
           <Row label="Avg cost" value={`$${data.avgCost.toFixed(2)}`} />
           {data.effectiveBasis &&
@@ -126,16 +126,16 @@ export default function LotDetail() {
               onPress={() => router.push(`/wheel/lot/${data.id}/sell`)}
               className="rounded-xl bg-emerald-500 py-3 active:bg-emerald-600"
             >
-              <Text className="text-center font-semibold text-white">
+              <Text className="text-center font-semibold text-slate-900 dark:text-white">
                 Sell shares
               </Text>
             </Pressable>
             <View className="flex-row gap-2">
               <Pressable
                 onPress={() => router.push(`/wheel/lot/${data.id}/add`)}
-                className="flex-1 rounded-xl border border-slate-700 bg-slate-900 py-3 active:bg-slate-800"
+                className="flex-1 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 py-3 active:bg-slate-300 dark:active:bg-slate-800"
               >
-                <Text className="text-center font-medium text-slate-200">
+                <Text className="text-center font-medium text-slate-800 dark:text-slate-200">
                   Add shares
                 </Text>
               </Pressable>
@@ -143,17 +143,17 @@ export default function LotDetail() {
                 onPress={() =>
                   router.push(`/wheel/alerts/new?stockLotId=${data.id}`)
                 }
-                className="flex-1 rounded-xl border border-slate-700 bg-slate-900 py-3 active:bg-slate-800"
+                className="flex-1 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 py-3 active:bg-slate-300 dark:active:bg-slate-800"
               >
-                <Text className="text-center font-medium text-slate-200">
+                <Text className="text-center font-medium text-slate-800 dark:text-slate-200">
                   Add alert
                 </Text>
               </Pressable>
               <Pressable
                 onPress={() => router.push(`/wheel/lot/${data.id}/notes`)}
-                className="flex-1 rounded-xl border border-slate-700 bg-slate-900 py-3 active:bg-slate-800"
+                className="flex-1 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 py-3 active:bg-slate-300 dark:active:bg-slate-800"
               >
-                <Text className="text-center font-medium text-slate-200">
+                <Text className="text-center font-medium text-slate-800 dark:text-slate-200">
                   Notes
                 </Text>
               </Pressable>
@@ -162,9 +162,9 @@ export default function LotDetail() {
         ) : (
           <Pressable
             onPress={() => router.push(`/wheel/lot/${data.id}/notes`)}
-            className="rounded-xl border border-slate-700 bg-slate-900 py-3 active:bg-slate-800"
+            className="rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 py-3 active:bg-slate-300 dark:active:bg-slate-800"
           >
-            <Text className="text-center font-medium text-slate-200">
+            <Text className="text-center font-medium text-slate-800 dark:text-slate-200">
               Edit notes
             </Text>
           </Pressable>
@@ -172,19 +172,19 @@ export default function LotDetail() {
 
         {data.trades && data.trades.length > 0 ? (
           <View>
-            <Text className="text-sm font-semibold text-slate-300 mb-2">
+            <Text className="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">
               Linked trades ({data.trades.length})
             </Text>
             <View className="gap-2">
               {data.trades.map((t) => (
                 <View
                   key={t.id}
-                  className="rounded-lg border border-slate-800 bg-slate-900/60 p-3"
+                  className="rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-100/60 dark:bg-slate-900/60 p-3"
                 >
                   <View className="flex-row items-center justify-between">
                     <View className="flex-row items-center gap-2">
                       <TypeBadge type={t.type} />
-                      <Text className="text-sm text-slate-200">
+                      <Text className="text-sm text-slate-800 dark:text-slate-200">
                         ${t.strikePrice}
                       </Text>
                     </View>
@@ -214,11 +214,11 @@ export default function LotDetail() {
         ) : null}
 
         {data.notes ? (
-          <View className="rounded-xl border border-slate-800 bg-slate-900/60 p-4">
+          <View className="rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-100/60 dark:bg-slate-900/60 p-4">
             <Text className="text-xs uppercase tracking-wide text-slate-500 mb-1">
               Notes
             </Text>
-            <Text className="text-sm text-slate-200">{data.notes}</Text>
+            <Text className="text-sm text-slate-800 dark:text-slate-200">{data.notes}</Text>
           </View>
         ) : null}
       </View>

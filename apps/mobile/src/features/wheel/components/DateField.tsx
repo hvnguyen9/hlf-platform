@@ -46,9 +46,9 @@ export function DateField({ label, value, onChange, error }: Props) {
       </Text>
       <Pressable
         onPress={() => setOpen(true)}
-        className="rounded-lg border border-slate-700 bg-slate-900 px-3 py-3 active:bg-slate-800"
+        className="rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-3 active:bg-slate-300 dark:active:bg-slate-800"
       >
-        <Text className={value ? "text-white" : "text-slate-500"}>
+        <Text className={value ? "text-slate-900 dark:text-white" : "text-slate-500"}>
           {fmtDisplay(value)}
         </Text>
       </Pressable>
@@ -76,7 +76,7 @@ export function DateField({ label, value, onChange, error }: Props) {
             onPress={() => setOpen(false)}
             className="flex-1 justify-end bg-black/50"
           >
-            <View className="bg-slate-900 p-4">
+            <View className="bg-white dark:bg-slate-900 p-4">
               <DateTimePicker
                 value={valueDate}
                 mode="date"
@@ -88,7 +88,7 @@ export function DateField({ label, value, onChange, error }: Props) {
                 onPress={() => setOpen(false)}
                 className="mt-2 rounded-lg bg-emerald-500 py-2"
               >
-                <Text className="text-center font-medium text-white">Done</Text>
+                <Text className="text-center font-medium text-slate-900 dark:text-white">Done</Text>
               </Pressable>
             </View>
           </Pressable>

@@ -23,7 +23,7 @@ export function Skeleton({ className = "" }: { className?: string }) {
   const animatedStyle = useAnimatedStyle(() => ({ opacity: opacity.value }));
   return (
     <Animated.View
-      className={`rounded-lg bg-slate-800 ${className}`}
+      className={`rounded-lg bg-slate-200 dark:bg-slate-800 ${className}`}
       style={animatedStyle}
     />
   );
@@ -31,7 +31,7 @@ export function Skeleton({ className = "" }: { className?: string }) {
 
 export function KpiSkeleton() {
   return (
-    <Animated.View className="flex-1 rounded-xl border border-slate-800 bg-slate-900 p-3 gap-2">
+    <Animated.View className="flex-1 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-3 gap-2">
       <Skeleton className="h-3 w-20" />
       <Skeleton className="h-7 w-24" />
       <Skeleton className="h-3 w-16" />
@@ -55,7 +55,7 @@ export function KpiGridSkeleton({ count = 4 }: { count?: number }) {
 
 export function RowSkeleton() {
   return (
-    <Animated.View className="rounded-xl border border-slate-800 bg-slate-900 p-3 gap-2">
+    <Animated.View className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-3 gap-2">
       <Animated.View className="flex-row items-center justify-between">
         <Skeleton className="h-4 w-24" />
         <Skeleton className="h-4 w-16" />
@@ -86,7 +86,7 @@ export function DetailHeaderSkeleton() {
 
 export function CardGroupSkeleton({ rows = 5 }: { rows?: number }) {
   return (
-    <Animated.View className="rounded-xl border border-slate-800 bg-slate-900 px-4 py-2 gap-3">
+    <Animated.View className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-4 py-2 gap-3">
       {Array.from({ length: rows }, (_, i) => (
         <Animated.View
           key={i}
