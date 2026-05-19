@@ -1,11 +1,5 @@
 import { useState } from "react";
-import {
-  ActivityIndicator,
-  Pressable,
-  ScrollView,
-  Text,
-  View,
-} from "react-native";
+import { Pressable, ScrollView, Text, View } from "react-native";
 import { ChevronLeft, ChevronRight } from "lucide-react-native";
 import { useJournal } from "@/features/wheel/queries";
 import {
@@ -18,6 +12,10 @@ import {
   yearMonthOf,
 } from "@/features/wheel/format";
 import { QueryError } from "@/features/wheel/components/QueryError";
+import {
+  KpiGridSkeleton,
+  RowSkeletonList,
+} from "@/features/wheel/components/Skeleton";
 
 function shiftMonth(yearMonth: string, delta: number): string {
   const [y, m] = yearMonth.split("-").map(Number);
@@ -82,9 +80,10 @@ export default function JournalScreen() {
         </View>
 
         {journal.isLoading ? (
-          <View className="py-8 items-center">
-            <ActivityIndicator color="#10b981" />
-          </View>
+          <>
+            <KpiGridSkeleton count={4} />
+            <RowSkeletonList count={3} />
+          </>
         ) : journal.error ? (
           <QueryError error={journal.error} />
         ) : journal.data ? (

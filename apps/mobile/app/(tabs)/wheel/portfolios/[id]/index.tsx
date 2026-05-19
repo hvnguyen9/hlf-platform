@@ -1,6 +1,5 @@
 import { useState } from "react";
 import {
-  ActivityIndicator,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -29,6 +28,10 @@ import { Segmented } from "@/features/wheel/components/Segmented";
 import { KpiGrid } from "@/features/wheel/components/KpiGrid";
 import { EmptyState } from "@/features/wheel/components/EmptyState";
 import { QueryError } from "@/features/wheel/components/QueryError";
+import {
+  KpiGridSkeleton,
+  RowSkeletonList,
+} from "@/features/wheel/components/Skeleton";
 import { TypeBadge } from "@/features/wheel/components/TypeBadge";
 import type { ClosedHistoryItem } from "@/features/wheel/types";
 
@@ -143,9 +146,7 @@ export default function PortfolioDetailScreen() {
         </View>
 
         {metrics.isLoading ? (
-          <View className="py-6 items-center">
-            <ActivityIndicator color="#10b981" />
-          </View>
+          <KpiGridSkeleton count={6} />
         ) : metrics.error ? (
           <QueryError error={metrics.error} />
         ) : metrics.data ? (
@@ -277,9 +278,7 @@ export default function PortfolioDetailScreen() {
         {segment === "closed" ? (
           <View>
             {closed.isLoading ? (
-              <View className="py-6 items-center">
-                <ActivityIndicator color="#10b981" />
-              </View>
+              <RowSkeletonList count={4} />
             ) : closed.error ? (
               <QueryError error={closed.error} />
             ) : closed.data ? (

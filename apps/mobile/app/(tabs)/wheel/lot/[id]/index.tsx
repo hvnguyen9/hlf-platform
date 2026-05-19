@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { router, useLocalSearchParams } from "expo-router";
 import {
-  ActivityIndicator,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -12,6 +11,10 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useStockLot, usePortfolios, useQuotes } from "@/features/wheel/queries";
 import { money, pnlColor, shortDate, signedMoney } from "@/features/wheel/format";
 import { QueryError } from "@/features/wheel/components/QueryError";
+import {
+  CardGroupSkeleton,
+  DetailHeaderSkeleton,
+} from "@/features/wheel/components/Skeleton";
 import { StatusBadge } from "@/features/wheel/components/StatusBadge";
 import { TypeBadge } from "@/features/wheel/components/TypeBadge";
 
@@ -42,8 +45,9 @@ export default function LotDetail() {
 
   if (lot.isLoading) {
     return (
-      <View className="flex-1 items-center justify-center bg-slate-950">
-        <ActivityIndicator color="#10b981" />
+      <View className="flex-1 bg-slate-950 p-4 gap-4">
+        <DetailHeaderSkeleton />
+        <CardGroupSkeleton rows={5} />
       </View>
     );
   }

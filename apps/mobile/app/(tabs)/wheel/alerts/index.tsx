@@ -1,6 +1,5 @@
 import { useState } from "react";
 import {
-  ActivityIndicator,
   Alert,
   Pressable,
   RefreshControl,
@@ -22,6 +21,7 @@ import { describeConfig, TYPE_LABEL } from "@/features/alerts/types";
 import type { AlertConfig, AlertEvent } from "@/features/alerts/types";
 import { EmptyState } from "@/features/wheel/components/EmptyState";
 import { QueryError } from "@/features/wheel/components/QueryError";
+import { RowSkeletonList } from "@/features/wheel/components/Skeleton";
 import { tradeTypeLabel } from "@/features/wheel/format";
 
 function describeBinding(c: AlertConfig): string {
@@ -184,9 +184,7 @@ export default function AlertsScreen() {
             Active triggers
           </Text>
           {configs.isLoading ? (
-            <View className="py-6 items-center">
-              <ActivityIndicator color="#10b981" />
-            </View>
+            <RowSkeletonList count={3} />
           ) : configs.error ? (
             <QueryError error={configs.error} />
           ) : !configs.data || configs.data.length === 0 ? (
@@ -205,9 +203,7 @@ export default function AlertsScreen() {
             Recent fires
           </Text>
           {events.isLoading ? (
-            <View className="py-6 items-center">
-              <ActivityIndicator color="#10b981" />
-            </View>
+            <RowSkeletonList count={3} />
           ) : events.error ? (
             <QueryError error={events.error} />
           ) : !events.data || events.data.length === 0 ? (

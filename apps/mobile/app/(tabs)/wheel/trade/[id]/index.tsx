@@ -19,6 +19,10 @@ import {
   tradeTypeLabel,
 } from "@/features/wheel/format";
 import { QueryError } from "@/features/wheel/components/QueryError";
+import {
+  CardGroupSkeleton,
+  DetailHeaderSkeleton,
+} from "@/features/wheel/components/Skeleton";
 import { StatusBadge } from "@/features/wheel/components/StatusBadge";
 import { TypeBadge } from "@/features/wheel/components/TypeBadge";
 
@@ -46,8 +50,9 @@ export default function TradeDetail() {
 
   if (trade.isLoading) {
     return (
-      <View className="flex-1 items-center justify-center bg-slate-950">
-        <ActivityIndicator color="#10b981" />
+      <View className="flex-1 bg-slate-950 p-4 gap-4">
+        <DetailHeaderSkeleton />
+        <CardGroupSkeleton rows={6} />
       </View>
     );
   }

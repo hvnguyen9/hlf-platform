@@ -74,3 +74,28 @@ export function RowSkeletonList({ count = 3 }: { count?: number }) {
     </Animated.View>
   );
 }
+
+export function DetailHeaderSkeleton() {
+  return (
+    <Animated.View className="gap-2">
+      <Skeleton className="h-9 w-40" />
+      <Skeleton className="h-4 w-28" />
+    </Animated.View>
+  );
+}
+
+export function CardGroupSkeleton({ rows = 5 }: { rows?: number }) {
+  return (
+    <Animated.View className="rounded-xl border border-slate-800 bg-slate-900 px-4 py-2 gap-3">
+      {Array.from({ length: rows }, (_, i) => (
+        <Animated.View
+          key={i}
+          className="flex-row items-center justify-between py-1"
+        >
+          <Skeleton className="h-3 w-20" />
+          <Skeleton className="h-4 w-24" />
+        </Animated.View>
+      ))}
+    </Animated.View>
+  );
+}
