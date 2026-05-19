@@ -23,8 +23,11 @@ const DEV_PORTS = {
 export type AppKey = keyof typeof DEV_PORTS;
 
 function getDevHost(): string | null {
-  const hostUri =
-    Constants.expoConfig?.hostUri ?? Constants.expoGoConfig?.hostUri;
+  // expo-constants' ExpoGoConfig type stopped exposing hostUri publicly
+  // but it's still present at runtime in Expo Go. Cast to unknown→shape
+  // to avoid the type error without losing the runtime fallback.
+  const goConfig = Constants.expoGoConfig as { hostUri?: string } | null;
+  const hostUri = Constants.expoConfig?.hostUri ?? goConfig?.hostUri;
   if (!hostUri) return null;
   const host = hostUri.split(":")[0];
   return host ?? null;
