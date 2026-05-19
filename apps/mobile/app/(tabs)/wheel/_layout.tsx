@@ -9,8 +9,9 @@ export default function WheelLayout() {
         headerShadowVisible: false,
       }}
     >
-      <Stack.Screen name="index" options={{ title: "Wheel" }} />
+      <Stack.Screen name="index" options={{ title: "Wheel Tracker" }} />
       <Stack.Screen name="journal" options={{ title: "Journal" }} />
+      <Stack.Screen name="watchlist" options={{ title: "Watchlist" }} />
       <Stack.Screen name="portfolios/index" options={{ title: "Portfolios" }} />
       <Stack.Screen
         name="portfolios/[id]/index"

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { RefreshControl, ScrollView, Text, View } from "react-native";
+import { RefreshControl, ScrollView, View } from "react-native";
 import { useQueryClient } from "@tanstack/react-query";
 import { WatchlistView } from "@/features/wheel/components/WatchlistView";
 
@@ -27,11 +27,7 @@ export default function WatchlistScreen() {
         />
       }
     >
-      <View className="p-4 gap-3">
-        <Text className="text-2xl font-bold text-white">Watchlist</Text>
-        <Text className="text-slate-400 text-sm">
-          Live quotes for tickers you watch and your auto-derived positions.
-        </Text>
+      <View className="p-4">
         <WatchlistView />
       </View>
     </ScrollView>

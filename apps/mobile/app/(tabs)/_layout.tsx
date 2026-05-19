@@ -1,5 +1,5 @@
 import { Tabs } from "expo-router";
-import { BookOpen, Eye, Home, TrendingUp, User, Wallet } from "lucide-react-native";
+import { BookOpen, Home, TrendingUp, User, Wallet } from "lucide-react-native";
 
 export default function TabsLayout() {
   return (
@@ -21,17 +21,12 @@ export default function TabsLayout() {
         }}
       />
       <Tabs.Screen
-        name="watchlist"
-        options={{
-          title: "Watchlist",
-          tabBarLabel: "Watch",
-          tabBarIcon: ({ color, size }) => <Eye color={color} size={size} />,
-        }}
-      />
-      <Tabs.Screen
         name="wheel"
         options={{
-          title: "Wheel Tracker",
+          // The nested wheel Stack owns its own headers; hiding the outer
+          // Tabs header here prevents a double-title stack on every wheel
+          // screen.
+          headerShown: false,
           tabBarLabel: "Wheel",
           tabBarIcon: ({ color, size }) => (
             <TrendingUp color={color} size={size} />
