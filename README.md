@@ -3,7 +3,9 @@
 The HLF suite — apps built for options traders and personal finance,
 developed by HL Financial Strategies. Everything lives in this monorepo
 and shares a common UI component library, a single sign-on across
-subdomains, a unified design system, and a native mobile companion.
+subdomains, and a unified design system. All apps are fully mobile-
+responsive web — one codebase per app, one experience across desktop
+and phone.
 
 ---
 
@@ -74,37 +76,6 @@ others together.
 - Profile editing (writes through to `@hlf/auth-db` so changes propagate
   instantly across every subdomain)
 - Admin panel: user management + role toggle + password reset
-- Aggregated `/api/portal/summary` endpoint that the mobile app reads on
-  its Home tab
-- Mints the mobile bearer-JWT session via `/api/auth/mobile/session`
-
----
-
-### Mobile
-`apps/mobile`
-
-Native mobile companion focused on the Wheel Tracker. Expo + React Native
-+ NativeWind. Single Android + iOS codebase. See
-[`apps/mobile/README.md`](./apps/mobile/README.md) for the full stack,
-folder structure, and release walkthrough.
-
-- Home tab: cross-app financial snapshot (P&L / business expenses /
-  personal expenses / net)
-- Wheel tab: portfolio cards with per-portfolio MTD + % deployed,
-  expiring-soon section, drill into individual portfolios for trades,
-  lots, closed history
-- Full write surface: create CSP/CC, close (incl. assignment → stock lot),
-  sell shares, add contracts/shares, edit notes
-- Alerts: list active configs, recent fires, create inline from any
-  trade / lot / watchlist row, in-app toast on new fires (15s background
-  poll)
-- Watchlist with live quotes + add/remove
-- Journal with month picker, day-by-day P&L
-- Dark / light theme toggle persisted across launches
-
-Authentication is bearer-JWT signed with the same `NEXTAUTH_SECRET` every
-web app already has, so mobile and web hit the same API routes via a
-shared `requireAuth` helper.
 
 ---
 
@@ -112,8 +83,7 @@ shared `requireAuth` helper.
 
 - **`@hlf/ui`** — shadcn/ui component library used by all four web apps
 - **`@hlf/auth-db`** — single User table across the suite; one HLF account,
-  SSO across all four subdomains in production; also exports
-  `mintMobileToken` / `verifyMobileToken` for the mobile bearer flow
+  SSO across all four subdomains in production
 - **`@hlf/eslint-config`** — shared ESLint rules
 - **`@hlf/typescript-config`** — shared TypeScript config bases
 
@@ -133,7 +103,6 @@ pnpm --filter wheel-strat-tracker dev    # port 3000
 pnpm --filter hlf-bookkeeping dev        # port 3001
 pnpm --filter hlf-budgettracker dev      # port 3002
 pnpm --filter hlf-portal dev             # port 3004
-pnpm --filter hlf-mobile dev             # Expo Metro on 8081
 ```
 
 Each web app needs a `.env.local` with:
@@ -158,12 +127,6 @@ ALPACA_SECRET_KEY=
 ALERTS_SCAN_SECRET=      # bearer the GitHub Actions cron sends
 ```
 
-The mobile app's dev base URL derives from Metro's LAN host and per-app
-port automatically — no `.env` needed in dev. In production builds, set
-`EXPO_PUBLIC_PORTAL_URL`, `EXPO_PUBLIC_WHEEL_URL`,
-`EXPO_PUBLIC_BOOKS_URL`, `EXPO_PUBLIC_BUDGET_URL` in EAS env. See
-[`apps/mobile/README.md`](./apps/mobile/README.md) for the release path.
-
 ---
 
 ## Git workflow
@@ -179,8 +142,7 @@ git push -u origin feature/my-change
 
 Web apps deploy to Vercel; each app is a separate Vercel project pointing
 at this repo with its own root directory, so only changed apps redeploy
-on each push to `main`. The mobile app ships via EAS Build (separate
-release flow — see the mobile README).
+on each push to `main`.
 
 ---
 

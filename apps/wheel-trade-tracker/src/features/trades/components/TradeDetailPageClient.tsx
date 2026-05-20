@@ -272,19 +272,23 @@ export default function TradeDetailPageClient({ portfolioId, tradeId }: Props) {
   const closeReason = formatCloseReason(trade.closeReason);
 
   return (
-    <div className="max-w-3xl mx-auto py-10 space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between gap-4">
-        <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-          <Link href="/summary" className="hover:text-foreground transition-colors">All Accounts</Link>
-          <ChevronRight className="h-3 w-3 opacity-50" />
-          <Link href={`/portfolios/${portfolioId}`} className="hover:text-foreground transition-colors">
+    <div className="max-w-3xl mx-auto py-6 sm:py-10 px-4 sm:px-6 space-y-6">
+      {/* Header — stacks on mobile so breadcrumb + actions never collide */}
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
+        <div className="flex items-center gap-1.5 text-xs text-muted-foreground min-w-0">
+          <Link href="/summary" className="hover:text-foreground transition-colors shrink-0">All Accounts</Link>
+          <ChevronRight className="h-3 w-3 opacity-50 shrink-0" />
+          <Link
+            href={`/portfolios/${portfolioId}`}
+            className="hover:text-foreground transition-colors truncate"
+            title={portfolio?.name ?? "Portfolio"}
+          >
             {portfolio?.name ?? "Portfolio"}
           </Link>
-          <ChevronRight className="h-3 w-3 opacity-50" />
-          <span className="text-foreground">{trade?.ticker ?? "Trade"}</span>
+          <ChevronRight className="h-3 w-3 opacity-50 shrink-0" />
+          <span className="text-foreground shrink-0">{trade?.ticker ?? "Trade"}</span>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2 sm:justify-end">
           {isAdmin && (
             <Button
               variant="outline"
@@ -298,10 +302,10 @@ export default function TradeDetailPageClient({ portfolioId, tradeId }: Props) {
           )}
           {isOpen && (
             <>
-              <Button variant="outline" size="sm" onClick={() => setCloseModalOpen(true)}>
+              <Button variant="outline" size="sm" className="flex-1 sm:flex-none" onClick={() => setCloseModalOpen(true)}>
                 Close Position
               </Button>
-              <Button size="sm" onClick={() => setAddModalOpen(true)}>
+              <Button size="sm" className="flex-1 sm:flex-none" onClick={() => setAddModalOpen(true)}>
                 Add to Position
               </Button>
             </>

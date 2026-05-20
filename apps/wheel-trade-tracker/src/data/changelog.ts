@@ -6,6 +6,20 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    date: "2026-05-20",
+    version: "v2.19.0",
+    highlights: [
+      "Big mobile pass — the app now looks and works like it was built for a phone first.",
+      "Stock Lots and Reports now have proper phone card layouts instead of horizontal-scrolling tables. You can see ticker, P/L, and key details without swiping sideways.",
+      "Every modal — Add Trade, Close Trade, Add Stock, Close Stock, Add Shares — now stays within the screen on a phone, scrolls cleanly if a form is long, and uses tighter padding so more of the form is visible.",
+      "Save and Cancel buttons in long forms now stick to the bottom of the modal as you scroll, so you never have to hunt for them on a phone.",
+      "Trade detail and Stock detail header now stacks cleanly on mobile — breadcrumb on top, action buttons below as full-width pills, instead of squishing everything into one row.",
+      "Reports date filter wraps better on phones — the date range stays together as a unit, and the Portfolio filter spans full width below.",
+      "Bigger tap targets on the Watchlist — the grip handle and remove (×) buttons each have proper padding around them, no more fat-fingering the wrong row.",
+      "Ticker fields across the app now show the shift-locked keyboard on iOS / Android, so symbols like AAPL come out uppercase without having to fight the keyboard.",
+    ],
+  },
+  {
     date: "2026-05-15",
     version: "v2.18.1",
     highlights: [

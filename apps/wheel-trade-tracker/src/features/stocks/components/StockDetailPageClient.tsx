@@ -464,20 +464,24 @@ export default function StockDetailPageClient(props: {
   const realizedPnl = safeNumber(s.realizedPnl);
 
   return (
-    <div className="mx-auto max-w-6xl px-4 py-8 space-y-6">
-      {/* Page header */}
-      <div className="flex items-center justify-between gap-4">
-        <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-          <Link href="/summary" className="hover:text-foreground transition-colors">All Accounts</Link>
-          <ChevronRight className="h-3 w-3 opacity-50" />
-          <Link href={`/portfolios/${portfolioId}`} className="hover:text-foreground transition-colors">
+    <div className="mx-auto max-w-6xl px-4 py-6 sm:py-8 space-y-6">
+      {/* Page header — stacks on mobile so breadcrumb + actions don't collide */}
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
+        <div className="flex items-center gap-1.5 text-xs text-muted-foreground min-w-0">
+          <Link href="/summary" className="hover:text-foreground transition-colors shrink-0">All Accounts</Link>
+          <ChevronRight className="h-3 w-3 opacity-50 shrink-0" />
+          <Link
+            href={`/portfolios/${portfolioId}`}
+            className="hover:text-foreground transition-colors truncate"
+            title={portfolioData?.name ?? "Portfolio"}
+          >
             {portfolioData?.name ?? "Portfolio"}
           </Link>
-          <ChevronRight className="h-3 w-3 opacity-50" />
-          <span className="text-foreground">{stockLot?.ticker ?? "Stock"}</span>
+          <ChevronRight className="h-3 w-3 opacity-50 shrink-0" />
+          <span className="text-foreground shrink-0">{stockLot?.ticker ?? "Stock"}</span>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2 sm:justify-end">
           {isAdmin && (
             <Button
               variant="outline"
@@ -493,7 +497,7 @@ export default function StockDetailPageClient(props: {
             <Button
               variant="outline"
               size="sm"
-              className="gap-1.5"
+              className="gap-1.5 flex-1 sm:flex-none"
               onClick={() => setAddSharesOpen(true)}
             >
               <Plus className="h-3.5 w-3.5" />
@@ -503,7 +507,7 @@ export default function StockDetailPageClient(props: {
           {!isClosed && availableContracts >= 1 ? (
             <AddTradeModal
               portfolioId={portfolioId}
-              trigger={<Button variant="outline" size="sm">Sell Covered Call</Button>}
+              trigger={<Button variant="outline" size="sm" className="flex-1 sm:flex-none">Sell Covered Call</Button>}
               prefill={{
                 ticker: s.ticker,
                 type: "CoveredCall",
@@ -515,7 +519,7 @@ export default function StockDetailPageClient(props: {
             />
           ) : null}
           {!isClosed ? (
-            <Button size="sm" onClick={() => setCloseOpen(true)}>Sell Shares</Button>
+            <Button size="sm" className="flex-1 sm:flex-none" onClick={() => setCloseOpen(true)}>Sell Shares</Button>
           ) : null}
         </div>
       </div>

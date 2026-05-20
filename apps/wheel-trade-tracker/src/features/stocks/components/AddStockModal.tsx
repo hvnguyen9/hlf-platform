@@ -122,6 +122,10 @@ export function AddStockModal({ portfolioId, open, onOpenChange }: Props) {
                 onChange={(e) => setTicker(e.target.value.toUpperCase())}
                 placeholder="NVDA"
                 autoComplete="off"
+                inputMode="text"
+                autoCapitalize="characters"
+                autoCorrect="off"
+                spellCheck={false}
               />
             </div>
 
