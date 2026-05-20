@@ -285,6 +285,10 @@ export function AddTradeModal({
                 placeholder="e.g. META"
                 value={ticker}
                 disabled={lockPrefill && !!prefill?.ticker}
+                inputMode="text"
+                autoCapitalize="characters"
+                autoCorrect="off"
+                spellCheck={false}
                 onChange={(e) => {
                   if (lockPrefill && prefill?.ticker) return;
                   setTicker(e.target.value.toUpperCase());

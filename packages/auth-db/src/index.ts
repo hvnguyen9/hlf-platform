@@ -11,9 +11,3 @@ if (process.env.NODE_ENV !== "production") {
 
 export type { User } from "./generated/prisma";
 export { sharedCookieConfig } from "./cookies";
-export {
-  mintMobileToken,
-  verifyMobileToken,
-  type MobileUser,
-  type MobileTokenPayload,
-} from "./mobile-token";

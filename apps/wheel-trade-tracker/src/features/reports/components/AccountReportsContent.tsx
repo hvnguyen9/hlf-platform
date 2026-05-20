@@ -276,8 +276,90 @@ function ReportTable({
         </a>
       </div>
 
-      {/* Table */}
-      <div className="overflow-x-auto rounded-xl border border-border">
+      {/* Mobile cards (shown on <md) */}
+      <div className="md:hidden space-y-2">
+        {sorted.length === 0 ? (
+          <div className="rounded-xl border bg-card p-6 text-center text-sm text-muted-foreground">
+            No closed trades in this range.
+          </div>
+        ) : (
+          sorted.map((r) => {
+            const pl = calcTotalPL(r);
+            const pct = calcPctReturn(r);
+            const isStock = r.type === "STOCK_LOT";
+            const pos = pl >= 0;
+            return (
+              <div
+                key={r.id}
+                className="rounded-xl border bg-card p-3"
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="font-semibold text-foreground">{r.ticker}</span>
+                      <TypeBadge type={r.type ?? ""} />
+                      <CloseReasonBadge reason={r.closeReason} />
+                    </div>
+                    {showPortfolio && (
+                      <div className="text-xs text-muted-foreground mt-1 truncate">
+                        {r.portfolioName}
+                      </div>
+                    )}
+                  </div>
+                  <div className="text-right shrink-0">
+                    <div className={`text-base font-semibold tabular-nums ${pos ? "text-emerald-600 dark:text-emerald-400" : "text-red-500 dark:text-red-400"}`}>
+                      {pos ? "+" : ""}{fmtUSD(pl)}
+                    </div>
+                    <div className={`text-xs tabular-nums ${pos ? "text-emerald-600/70 dark:text-emerald-400/70" : "text-red-400/70"}`}>
+                      {(pct * 100).toFixed(1)}%
+                    </div>
+                  </div>
+                </div>
+                <div className="mt-2 grid grid-cols-3 gap-x-3 gap-y-1.5 text-xs">
+                  <div>
+                    <div className="text-muted-foreground">Closed</div>
+                    <div className="text-foreground">{fmtDateCompact(r.closedAt ?? undefined)}</div>
+                  </div>
+                  <div>
+                    <div className="text-muted-foreground">{isStock ? "Entry" : "Strike"}</div>
+                    <div className="tabular-nums text-foreground">
+                      {isStock
+                        ? (r.entryPrice != null ? `$${Number(r.entryPrice).toFixed(2)}` : "—")
+                        : (r.strikePrice ? `$${Number(r.strikePrice).toFixed(0)}` : "—")}
+                    </div>
+                  </div>
+                  <div>
+                    <div className="text-muted-foreground">Qty</div>
+                    <div className="tabular-nums text-foreground">
+                      {isStock
+                        ? `${r.sharesClosed ?? 0} sh`
+                        : `${r.contractsClosed ?? r.contractsInitial ?? 0}x`}
+                    </div>
+                  </div>
+                  {!isStock && (
+                    <div>
+                      <div className="text-muted-foreground">Expiry</div>
+                      <div className="text-foreground">{fmtDateCompact(typeof r.expirationDate === "string" ? r.expirationDate : undefined)}</div>
+                    </div>
+                  )}
+                  <div>
+                    <div className="text-muted-foreground">Held</div>
+                    <div className="tabular-nums text-foreground">{r.holdingDays > 0 ? `${r.holdingDays}d` : "—"}</div>
+                  </div>
+                </div>
+                {r.notes && (
+                  <div className="mt-2 pt-2 border-t border-border/40 text-xs text-muted-foreground line-clamp-2">
+                    {r.notes}
+                  </div>
+                )}
+              </div>
+            );
+          })
+        )}
+      </div>
+
+      {/* Desktop table (shown on md+) */}
+      <div className="hidden md:block overflow-x-auto rounded-xl border border-border">
         <table className="w-full text-sm text-left">
           <thead className="border-b border-border bg-muted/50">
             <tr className="[&>th]:px-3 [&>th]:py-2.5 [&>th]:text-[11px] [&>th]:font-semibold [&>th]:text-muted-foreground [&>th]:uppercase [&>th]:tracking-wide [&>th]:whitespace-nowrap">
@@ -382,52 +464,56 @@ function DateFilterBar({
   useEffect(() => { setFromLocal(start); setToLocal(end); }, [start, end]);
 
   return (
-    <div className="flex flex-wrap items-center gap-2">
-      {/* From */}
-      <Popover>
-        <PopoverTrigger asChild>
-          <Button variant="outline" size="sm" className="gap-2 h-8 text-xs font-normal">
-            <CalendarIcon className="h-3.5 w-3.5" />
-            {mounted ? format(fromLocal, "MMM d, yyyy") : "—"}
-          </Button>
-        </PopoverTrigger>
-        <PopoverContent className="w-auto p-0" align="start">
-          <Calendar mode="single" selected={fromLocal} onSelect={(d) => d && setFromLocal(startOfDay(d))} disabled={{ after: new Date() }} initialFocus />
-        </PopoverContent>
-      </Popover>
+    <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
+      {/* Date range row — keeps from / arrow / to / apply together on every viewport */}
+      <div className="flex flex-wrap items-center gap-2">
+        {/* From */}
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button variant="outline" size="sm" className="gap-2 h-8 text-xs font-normal">
+              <CalendarIcon className="h-3.5 w-3.5" />
+              {mounted ? format(fromLocal, "MMM d, yyyy") : "—"}
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-auto p-0" align="start">
+            <Calendar mode="single" selected={fromLocal} onSelect={(d) => d && setFromLocal(startOfDay(d))} disabled={{ after: new Date() }} initialFocus />
+          </PopoverContent>
+        </Popover>
 
-      <span className="text-muted-foreground text-xs">→</span>
+        <span className="text-muted-foreground text-xs">→</span>
 
-      {/* To */}
-      <Popover>
-        <PopoverTrigger asChild>
-          <Button variant="outline" size="sm" className="gap-2 h-8 text-xs font-normal">
-            <CalendarIcon className="h-3.5 w-3.5" />
-            {mounted ? format(toLocal, "MMM d, yyyy") : "—"}
-          </Button>
-        </PopoverTrigger>
-        <PopoverContent className="w-auto p-0" align="start">
-          <Calendar mode="single" selected={toLocal} onSelect={(d) => d && setToLocal(endOfDay(d))} disabled={{ after: new Date() }} initialFocus />
-        </PopoverContent>
-      </Popover>
+        {/* To */}
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button variant="outline" size="sm" className="gap-2 h-8 text-xs font-normal">
+              <CalendarIcon className="h-3.5 w-3.5" />
+              {mounted ? format(toLocal, "MMM d, yyyy") : "—"}
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-auto p-0" align="start">
+            <Calendar mode="single" selected={toLocal} onSelect={(d) => d && setToLocal(endOfDay(d))} disabled={{ after: new Date() }} initialFocus />
+          </PopoverContent>
+        </Popover>
 
-      <Button
-        size="sm"
-        className="h-8 text-xs"
-        onClick={() => {
-          if (fromLocal && toLocal && !isAfter(startOfDay(fromLocal), endOfDay(toLocal))) {
-            onApply({ from: startOfDay(fromLocal), to: endOfDay(toLocal) });
-          }
-        }}
-        disabled={!fromLocal || !toLocal || isAfter(startOfDay(fromLocal), endOfDay(toLocal))}
-      >
-        Apply
-      </Button>
+        <Button
+          size="sm"
+          className="h-8 text-xs"
+          onClick={() => {
+            if (fromLocal && toLocal && !isAfter(startOfDay(fromLocal), endOfDay(toLocal))) {
+              onApply({ from: startOfDay(fromLocal), to: endOfDay(toLocal) });
+            }
+          }}
+          disabled={!fromLocal || !toLocal || isAfter(startOfDay(fromLocal), endOfDay(toLocal))}
+        >
+          Apply
+        </Button>
+      </div>
 
-      {/* Portfolio filter — hidden when embedded */}
+      {/* Portfolio filter — hidden when embedded. Full width on mobile so it
+          doesn't sit awkwardly with `ml-auto` after wrapping. */}
       {!embedded && (
         <select
-          className="ml-auto border border-input bg-background text-foreground rounded-md px-2 py-1 text-sm"
+          className="w-full sm:w-auto sm:ml-auto border border-input bg-background text-foreground rounded-md px-2 py-1.5 text-sm"
           value={selectedPortfolioId}
           onChange={(e) => setSelectedPortfolioId(e.target.value)}
           disabled={portfoliosLoading || !!portfoliosError}
