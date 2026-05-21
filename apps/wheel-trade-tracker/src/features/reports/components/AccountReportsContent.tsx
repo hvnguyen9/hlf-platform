@@ -2,18 +2,42 @@
 
 import { useEffect, useMemo, useState } from "react";
 import useSWR from "swr";
-import { format, startOfDay, endOfDay, isAfter } from "date-fns";
+import {
+  format,
+  startOfDay,
+  endOfDay,
+  isAfter,
+  addDays,
+  startOfMonth,
+  startOfYear,
+} from "date-fns";
 import type { Trade } from "@/types";
 import { Button } from "@/components/ui/button";
-import { CalendarIcon, Download, TrendingUp, TrendingDown } from "lucide-react";
+import {
+  CalendarIcon,
+  Download,
+  TrendingUp,
+  TrendingDown,
+  ArrowUp,
+  ArrowDown,
+} from "lucide-react";
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { TypeBadge } from "@/features/trades/components/TypeBadge";
 import { cn } from "@/lib/utils";
+import { ReportCharts } from "./ReportCharts";
+import { MultiSelect } from "./MultiSelect";
 
 type PortfolioBasic = { id: string; name: string };
 const fetchPortfolios = async (): Promise<PortfolioBasic[]> => {
@@ -83,6 +107,54 @@ function fmtUSDExact(value: number): string {
   return value.toLocaleString(undefined, { style: "currency", currency: "USD" });
 }
 
+// ── Date presets ────────────────────────────────────────────────────────
+// User's workflow:
+//   1D  = today
+//   1W  = last 7 days
+//   1M  = month-to-date
+//   1Y  = year-to-date
+//   ALL = all history
+type DatePreset = "1D" | "1W" | "1M" | "1Y" | "ALL";
+const DATE_PRESETS: { key: DatePreset; label: string }[] = [
+  { key: "1D", label: "1D" },
+  { key: "1W", label: "1W" },
+  { key: "1M", label: "1M" },
+  { key: "1Y", label: "1Y" },
+  { key: "ALL", label: "All" },
+];
+// Effectively "all history" for the wheel-tracker (predates any real trades).
+const ALL_PRESET_FROM = new Date(2015, 0, 1);
+
+function rangeForPreset(preset: DatePreset): { from: Date; to: Date } {
+  const now = endOfDay(new Date());
+  switch (preset) {
+    case "1D":
+      return { from: startOfDay(new Date()), to: now };
+    case "1W":
+      return { from: startOfDay(addDays(now, -6)), to: now };
+    case "1M":
+      return { from: startOfMonth(now), to: now };
+    case "1Y":
+      return { from: startOfYear(now), to: now };
+    case "ALL":
+      return { from: ALL_PRESET_FROM, to: now };
+  }
+}
+
+function detectActivePreset(start: Date, end: Date): DatePreset | null {
+  for (const { key } of DATE_PRESETS) {
+    const r = rangeForPreset(key);
+    // 60s tolerance — the "to" recomputes to endOfDay every render.
+    if (
+      Math.abs(r.from.getTime() - start.getTime()) < 60_000 &&
+      Math.abs(r.to.getTime() - end.getTime()) < 60_000
+    ) {
+      return key;
+    }
+  }
+  return null;
+}
+
 const CLOSE_REASON_LABELS: Record<string, string> = {
   expiredWorthless: "Expired",
   assigned: "Assigned",
@@ -119,22 +191,88 @@ function PLCell({ value, pct }: { value: number; pct: number }) {
   );
 }
 
-// ── Stats summary ───────────────────────────────────────────────────────
-function Stats({ rows }: { rows: ReportRow[] }) {
+// Aggregate the headline metrics so we can compute the same set for the prior
+// period and diff them.
+function rollUp(rows: ReportRow[]) {
   const totalPL = rows.reduce((s, r) => s + calcTotalPL(r), 0);
-  const wins = rows.filter((r) => calcTotalPL(r) > 0);
-  const losses = rows.filter((r) => calcTotalPL(r) < 0);
-  const winRate = rows.length > 0 ? wins.length / rows.length : null;
+  const wins = rows.filter((r) => calcTotalPL(r) > 0).length;
+  const losses = rows.filter((r) => calcTotalPL(r) < 0).length;
+  const winRate = rows.length > 0 ? wins / rows.length : null;
   const avgPct = rows.length > 0
     ? rows.reduce((s, r) => s + calcPctReturn(r), 0) / rows.length
     : 0;
-  const plValues = rows.map((r) => calcTotalPL(r));
-  const best = plValues.length > 0 ? Math.max(...plValues) : null;
-  const worst = plValues.length > 0 ? Math.min(...plValues) : null;
   const holdDays = rows
     .map((r) => (typeof r.holdingDays === "number" && r.holdingDays >= 0 ? r.holdingDays : null))
     .filter((d): d is number => d !== null);
   const avgHold = holdDays.length > 0 ? holdDays.reduce((s, d) => s + d, 0) / holdDays.length : null;
+  return { totalPL, wins, losses, winRate, avgPct, avgHold, count: rows.length };
+}
+
+// Tiny pill rendered under each KPI value when prior-period data is available.
+function DeltaBadge({
+  value,
+  format,
+  tone = "auto",
+}: {
+  value: number | null;
+  format: "usd" | "pp" | "days";
+  // "auto" = positive is good (green); "muted" = no sign coloring (used for hold time)
+  tone?: "auto" | "muted";
+}) {
+  if (value === null || !Number.isFinite(value) || Math.abs(value) < 0.005) {
+    return (
+      <div className="text-[10px] text-muted-foreground/60 mt-1">— vs prior</div>
+    );
+  }
+  const pos = value > 0;
+  const Arrow = pos ? ArrowUp : ArrowDown;
+  const text = (() => {
+    if (format === "usd") return `${pos ? "+" : ""}${fmtUSD(value)}`;
+    if (format === "pp") return `${pos ? "+" : ""}${value.toFixed(1)}pp`;
+    return `${pos ? "+" : ""}${value.toFixed(1)}d`;
+  })();
+  const colorCls =
+    tone === "muted"
+      ? "text-muted-foreground"
+      : pos
+        ? "text-emerald-600 dark:text-emerald-400"
+        : "text-red-500 dark:text-red-400";
+  return (
+    <div className={`text-[10px] mt-1 flex items-center gap-0.5 tabular-nums ${colorCls}`}>
+      <Arrow className="h-2.5 w-2.5" />
+      {text}
+      <span className="text-muted-foreground/70 ml-0.5">vs prior</span>
+    </div>
+  );
+}
+
+// ── Stats summary ───────────────────────────────────────────────────────
+function Stats({ rows, priorRows }: { rows: ReportRow[]; priorRows: ReportRow[] | null }) {
+  const cur = rollUp(rows);
+  const prior = priorRows ? rollUp(priorRows) : null;
+  const hasPrior = prior !== null && prior.count > 0;
+
+  const totalPL = cur.totalPL;
+  const winRate = cur.winRate;
+  const avgPct = cur.avgPct;
+  const avgHold = cur.avgHold;
+
+  // Period-over-period deltas
+  const dPL = hasPrior ? totalPL - prior.totalPL : null;
+  const dWinRate =
+    hasPrior && winRate !== null && prior.winRate !== null
+      ? (winRate - prior.winRate) * 100 // percentage points
+      : null;
+  const dAvgPct =
+    hasPrior ? (avgPct - prior.avgPct) * 100 : null; // percentage points
+  const dAvgHold =
+    hasPrior && avgHold !== null && prior.avgHold !== null
+      ? avgHold - prior.avgHold
+      : null;
+
+  const plValues = rows.map((r) => calcTotalPL(r));
+  const best = plValues.length > 0 ? Math.max(...plValues) : null;
+  const worst = plValues.length > 0 ? Math.min(...plValues) : null;
 
   const reasonCounts = rows.reduce<Record<string, { count: number; pl: number }>>((acc, r) => {
     const reason = r.closeReason ?? "manual";
@@ -156,6 +294,7 @@ function Stats({ rows }: { rows: ReportRow[] }) {
             {plPos ? "+" : ""}{fmtUSD(totalPL)}
           </p>
           <p className="text-[11px] text-muted-foreground mt-0.5">{rows.length} trade{rows.length !== 1 ? "s" : ""}</p>
+          {hasPrior && <DeltaBadge value={dPL} format="usd" />}
         </div>
 
         {/* Win Rate */}
@@ -165,8 +304,9 @@ function Stats({ rows }: { rows: ReportRow[] }) {
             {winRate != null ? `${(winRate * 100).toFixed(0)}%` : "—"}
           </p>
           <p className="text-[11px] text-muted-foreground mt-0.5">
-            {wins.length}W · {losses.length}L
+            {cur.wins}W · {cur.losses}L
           </p>
+          {hasPrior && <DeltaBadge value={dWinRate} format="pp" />}
         </div>
 
         {/* Avg Return */}
@@ -176,6 +316,7 @@ function Stats({ rows }: { rows: ReportRow[] }) {
             {avgPct >= 0 ? "+" : ""}{(avgPct * 100).toFixed(1)}%
           </p>
           <p className="text-[11px] text-muted-foreground mt-0.5">per position</p>
+          {hasPrior && <DeltaBadge value={dAvgPct} format="pp" />}
         </div>
 
         {/* Avg Hold */}
@@ -185,6 +326,7 @@ function Stats({ rows }: { rows: ReportRow[] }) {
             {avgHold != null ? `${avgHold.toFixed(1)}d` : "—"}
           </p>
           <p className="text-[11px] text-muted-foreground mt-0.5">days in trade</p>
+          {hasPrior && <DeltaBadge value={dAvgHold} format="days" tone="muted" />}
         </div>
       </div>
 
@@ -222,51 +364,60 @@ function ReportTable({
   rows,
   csvHref,
   showPortfolio,
-  selectedTicker,
-  setSelectedTicker,
+  selectedTickers,
+  setSelectedTickers,
   tickers,
-  selectedType,
-  setSelectedType,
+  selectedTypes,
+  setSelectedTypes,
   types,
-  selectedCloseReason,
-  setSelectedCloseReason,
+  selectedCloseReasons,
+  setSelectedCloseReasons,
 }: {
   rows: ReportRow[];
   csvHref: string;
   showPortfolio: boolean;
-  selectedTicker: string;
-  setSelectedTicker: (t: string) => void;
+  selectedTickers: string[];
+  setSelectedTickers: (t: string[]) => void;
   tickers: string[];
-  selectedType: string;
-  setSelectedType: (t: string) => void;
+  selectedTypes: string[];
+  setSelectedTypes: (t: string[]) => void;
   types: string[];
-  selectedCloseReason: string;
-  setSelectedCloseReason: (r: string) => void;
+  selectedCloseReasons: string[];
+  setSelectedCloseReasons: (r: string[]) => void;
 }) {
   const sorted = useMemo(
     () => [...rows].sort((a, b) => new Date(b.closedAt ?? b.createdAt).getTime() - new Date(a.closedAt ?? a.createdAt).getTime()),
     [rows],
   );
 
-  const selectCls = "border border-input bg-background text-foreground rounded-md px-2 py-1 text-sm w-full sm:w-auto";
-
   return (
     <div className="space-y-3">
       {/* Filter + Export row */}
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex flex-wrap items-center gap-2">
-          <select className={selectCls} value={selectedType} onChange={(e) => setSelectedType(e.target.value)} disabled={types.length === 0}>
-            <option value="all">All types</option>
-            {types.map((t) => <option key={t} value={t}>{t}</option>)}
-          </select>
-          <select className={selectCls} value={selectedTicker} onChange={(e) => setSelectedTicker(e.target.value)} disabled={tickers.length === 0}>
-            <option value="all">All tickers</option>
-            {tickers.map((t) => <option key={t} value={t}>{t}</option>)}
-          </select>
-          <select className={selectCls} value={selectedCloseReason} onChange={(e) => setSelectedCloseReason(e.target.value)}>
-            <option value="all">All reasons</option>
-            {Object.entries(CLOSE_REASON_LABELS).map(([val, label]) => <option key={val} value={val}>{label}</option>)}
-          </select>
+          <MultiSelect
+            placeholder="All types"
+            options={types.map((t) => ({ value: t, label: t }))}
+            selected={selectedTypes}
+            onChange={setSelectedTypes}
+            disabled={types.length === 0}
+            triggerClassName="w-full sm:w-[150px]"
+          />
+          <MultiSelect
+            placeholder="All tickers"
+            options={tickers.map((t) => ({ value: t, label: t }))}
+            selected={selectedTickers}
+            onChange={setSelectedTickers}
+            disabled={tickers.length === 0}
+            triggerClassName="w-full sm:w-[140px]"
+          />
+          <MultiSelect
+            placeholder="All reasons"
+            options={Object.entries(CLOSE_REASON_LABELS).map(([value, label]) => ({ value, label }))}
+            selected={selectedCloseReasons}
+            onChange={setSelectedCloseReasons}
+            triggerClassName="w-full sm:w-[140px]"
+          />
         </div>
         <a href={csvHref}>
           <Button variant="outline" size="sm" className="gap-2 w-full sm:w-auto">
@@ -460,12 +611,58 @@ function DateFilterBar({
 }) {
   const [fromLocal, setFromLocal] = useState<Date>(start);
   const [toLocal, setToLocal] = useState<Date>(end);
+  const [customExpanded, setCustomExpanded] = useState(false);
 
   useEffect(() => { setFromLocal(start); setToLocal(end); }, [start, end]);
 
+  const detected = mounted ? detectActivePreset(start, end) : null;
+  // Custom mode is active when no preset matches, or when the user explicitly
+  // expanded it to fine-tune the dates.
+  const isCustom = customExpanded || detected === null;
+
+  function applyPreset(key: DatePreset) {
+    setCustomExpanded(false);
+    onApply(rangeForPreset(key));
+  }
+
+  const segItemCls = (active: boolean) =>
+    cn(
+      "h-7 px-2.5 text-[11px] font-medium rounded-sm transition-colors",
+      active
+        ? "bg-background text-foreground shadow-sm"
+        : "text-muted-foreground hover:text-foreground",
+    );
+
   return (
     <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
-      {/* Date range row — keeps from / arrow / to / apply together on every viewport */}
+      {/* Segmented timeframe control */}
+      <div className="inline-flex rounded-md border bg-muted/40 p-0.5">
+        {DATE_PRESETS.map(({ key, label }) => {
+          const active = !customExpanded && detected === key;
+          return (
+            <button
+              key={key}
+              type="button"
+              onClick={() => applyPreset(key)}
+              className={segItemCls(active)}
+            >
+              {label}
+            </button>
+          );
+        })}
+        <button
+          type="button"
+          onClick={() => setCustomExpanded(true)}
+          className={segItemCls(isCustom)}
+        >
+          {isCustom && mounted
+            ? `${format(start, "MMM d")} – ${format(end, "MMM d")}`
+            : "Custom"}
+        </button>
+      </div>
+
+      {/* Custom date range — From / To / Apply, only when Custom is active */}
+      {isCustom && (
       <div className="flex flex-wrap items-center gap-2">
         {/* From */}
         <Popover>
@@ -508,19 +705,24 @@ function DateFilterBar({
           Apply
         </Button>
       </div>
+      )}
 
-      {/* Portfolio filter — hidden when embedded. Full width on mobile so it
-          doesn't sit awkwardly with `ml-auto` after wrapping. */}
+      {/* Portfolio filter — hidden when embedded. Pinned to the far right on
+          desktop so it stays put when the custom range expands inline. */}
       {!embedded && (
-        <select
-          className="w-full sm:w-auto sm:ml-auto border border-input bg-background text-foreground rounded-md px-2 py-1.5 text-sm"
+        <Select
           value={selectedPortfolioId}
-          onChange={(e) => setSelectedPortfolioId(e.target.value)}
+          onValueChange={setSelectedPortfolioId}
           disabled={portfoliosLoading || !!portfoliosError}
         >
-          <option value="all">All portfolios</option>
-          {(portfolios ?? []).map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
-        </select>
+          <SelectTrigger className="h-8 w-full sm:w-[180px] sm:ml-auto text-xs">
+            <SelectValue placeholder="All portfolios" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All portfolios</SelectItem>
+            {(portfolios ?? []).map((p) => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
+          </SelectContent>
+        </Select>
       )}
     </div>
   );
@@ -534,15 +736,15 @@ export function AccountsReportContent({
   defaultPortfolioId?: string;
   embedded?: boolean;
 } = {}) {
-  const [start, setStart] = useState<Date>(() => startOfDay(new Date()));
-  const [end, setEnd] = useState<Date>(() => new Date());
+  const [start, setStart] = useState<Date>(() => rangeForPreset("1M").from);
+  const [end, setEnd] = useState<Date>(() => rangeForPreset("1M").to);
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
 
   const [selectedPortfolioId, setSelectedPortfolioId] = useState<string>(defaultPortfolioId ?? "all");
-  const [selectedTicker, setSelectedTicker] = useState("all");
-  const [selectedType, setSelectedType] = useState("all");
-  const [selectedCloseReason, setSelectedCloseReason] = useState("all");
+  const [selectedTickers, setSelectedTickers] = useState<string[]>([]);
+  const [selectedTypes, setSelectedTypes] = useState<string[]>([]);
+  const [selectedCloseReasons, setSelectedCloseReasons] = useState<string[]>([]);
 
   const { data: portfolios, error: portfoliosError, isLoading: portfoliosLoading } = useSWR("/api/portfolios", fetchPortfolios, { revalidateOnFocus: false });
 
@@ -556,6 +758,33 @@ export function AccountsReportContent({
   }, [selectedPortfolioId, start, end]);
 
   const { data, error, isLoading } = useSWR(`/api/reports/closed?${qs}`, fetcher, { revalidateOnFocus: false });
+
+  // Prior period — same length as the current range, shifted back. Skipped
+  // when range >= ~3 years (ALL preset) since the comparison stops being meaningful.
+  const priorRange = useMemo(() => {
+    const rangeMs = end.getTime() - start.getTime();
+    const THREE_YEARS_MS = 1000 * 60 * 60 * 24 * 365 * 3;
+    if (rangeMs <= 0 || rangeMs > THREE_YEARS_MS) return null;
+    const priorEnd = new Date(start.getTime() - 1);
+    const priorStart = new Date(priorEnd.getTime() - rangeMs);
+    return { start: priorStart, end: priorEnd };
+  }, [start, end]);
+
+  const priorQs = useMemo(() => {
+    if (!priorRange) return null;
+    const p = new URLSearchParams();
+    p.set("start", priorRange.start.toISOString());
+    p.set("end", priorRange.end.toISOString());
+    p.set("format", "json");
+    if (selectedPortfolioId) p.set("portfolioId", selectedPortfolioId);
+    return p.toString();
+  }, [priorRange, selectedPortfolioId]);
+
+  const { data: priorData } = useSWR(
+    priorQs ? `/api/reports/closed?${priorQs}` : null,
+    fetcher,
+    { revalidateOnFocus: false },
+  );
 
   const csvUrl = useMemo(() => {
     const p = new URLSearchParams();
@@ -578,22 +807,40 @@ export function AccountsReportContent({
     return Array.from(uniq).sort();
   }, [data?.rows]);
 
-  const filteredRows = useMemo(() => {
-    const rows = data?.rows ?? [];
-    return rows.filter((r) => {
-      const okTicker = selectedTicker === "all" || (r.ticker ?? "").toUpperCase() === selectedTicker;
-      const okType = selectedType === "all" || (r.type ?? "") === selectedType;
-      const okReason = selectedCloseReason === "all" || (r.closeReason ?? "manual") === selectedCloseReason;
+  const applyFilters = (rows: ReportRow[]) =>
+    rows.filter((r) => {
+      const okTicker = selectedTickers.length === 0 || selectedTickers.includes((r.ticker ?? "").toUpperCase());
+      const okType = selectedTypes.length === 0 || selectedTypes.includes(r.type ?? "");
+      const okReason = selectedCloseReasons.length === 0 || selectedCloseReasons.includes(r.closeReason ?? "manual");
       return okTicker && okType && okReason;
     });
-  }, [data?.rows, selectedTicker, selectedType, selectedCloseReason]);
 
-  // Reset stale filters when data changes
+  const filteredRows = useMemo(
+    () => applyFilters(data?.rows ?? []),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [data?.rows, selectedTickers, selectedTypes, selectedCloseReasons],
+  );
+
+  const filteredPriorRows = useMemo(
+    () => (priorData ? applyFilters(priorData.rows ?? []) : null),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [priorData, selectedTickers, selectedTypes, selectedCloseReasons],
+  );
+
+  // Drop stale selections when the available options change (e.g. new date range).
   useEffect(() => {
     if (!data) return;
-    if (selectedTicker !== "all" && !availableTickers.includes(selectedTicker)) setSelectedTicker("all");
-    if (selectedType !== "all" && !availableTypes.includes(selectedType)) setSelectedType("all");
-  }, [availableTickers, availableTypes, data, selectedTicker, selectedType]);
+    const tickerSet = new Set(availableTickers);
+    const typeSet = new Set(availableTypes);
+    setSelectedTickers((prev) => {
+      const next = prev.filter((t) => tickerSet.has(t));
+      return next.length === prev.length ? prev : next;
+    });
+    setSelectedTypes((prev) => {
+      const next = prev.filter((t) => typeSet.has(t));
+      return next.length === prev.length ? prev : next;
+    });
+  }, [availableTickers, availableTypes, data]);
 
   const showPortfolio = selectedPortfolioId === "all";
 
@@ -624,19 +871,20 @@ export function AccountsReportContent({
 
       {data && (
         <div className="space-y-5">
-          <Stats rows={filteredRows} />
+          <Stats rows={filteredRows} priorRows={filteredPriorRows} />
+          <ReportCharts rows={filteredRows} />
           <ReportTable
             rows={filteredRows}
             csvHref={csvUrl}
             showPortfolio={showPortfolio}
-            selectedTicker={selectedTicker}
-            setSelectedTicker={setSelectedTicker}
+            selectedTickers={selectedTickers}
+            setSelectedTickers={setSelectedTickers}
             tickers={availableTickers}
-            selectedType={selectedType}
-            setSelectedType={setSelectedType}
+            selectedTypes={selectedTypes}
+            setSelectedTypes={setSelectedTypes}
             types={availableTypes}
-            selectedCloseReason={selectedCloseReason}
-            setSelectedCloseReason={setSelectedCloseReason}
+            selectedCloseReasons={selectedCloseReasons}
+            setSelectedCloseReasons={setSelectedCloseReasons}
           />
         </div>
       )}

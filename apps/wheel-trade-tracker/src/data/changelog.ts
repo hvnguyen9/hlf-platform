@@ -19,6 +19,9 @@ export const changelog: ChangelogEntry[] = [
       "Stock Lots table now shows Original and Effective per share instead of just one Avg Cost. Original is what you actually paid (tax basis); Effective is your running sell-floor after all CC and CSP premiums collected against the lot. The old single column was misleading because it only reflected CC reductions, not CSPs.",
       "Alerts no longer take up a whole section on trade and stock-lot detail pages. They're now a compact button in the header action row — 'Add Alert' when none, 'Alerts · 2' with an emerald dot when configured. Click it to view, toggle, add, or remove without leaving the page.",
       "Admin Edit on trade and stock detail pages moved into a small kebab (⋮) menu at the end of the action row. Frees up space so the primary actions (alerts, close, add) stay on one line, and admin tools stay out of the way when you're not using them.",
+      "Reports tab modernized with three charts above the table: cumulative P&L over the selected range, top tickers by P&L (top 10 horizontal bar), and a P&L-by-strategy donut breaking out CSPs / CCs / Long Calls / Long Puts / Stocks. Type, Ticker, and Close Reason filters are now multi-select — pick any combination to slice the report without flipping back and forth.",
+      "Reports now opens with a clean Fidelity-style timeframe control — 1D · 1W · 1M · 1Y · All · Custom — instead of a stack of date pickers. Pick a preset and the report applies immediately; pick Custom to expand the From/To pickers for specific-date targeting. Custom chip shows the selected range so you don't lose context. Default view is now month-to-date.",
+      "Each KPI tile on Reports (Total P/L, Win Rate, Avg Return, Avg Hold) now shows a 'vs prior' delta. It compares the current range against the same-length window right before it — so a 30D view is benchmarked against the prior 30D. Helps you spot whether your numbers are trending up or down.",
     ],
   },
   {
