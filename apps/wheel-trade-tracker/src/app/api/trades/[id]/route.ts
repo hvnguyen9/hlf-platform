@@ -57,6 +57,7 @@ export async function PATCH(
     premiumCaptured?: number;
     percentPL?: number;
     closeReason?: CloseReason | string;
+    portfolioId?: string;
   };
   const body = (await req.json().catch(() => ({}))) as PatchBody;
 
@@ -91,6 +92,38 @@ export async function PATCH(
       (Object.values(CloseReason) as string[]).includes(body.closeReason)
     ) {
       updates.closeReason = body.closeReason as CloseReason;
+    }
+    if (typeof body.portfolioId === "string" && body.portfolioId.trim()) {
+      const targetId = body.portfolioId.trim();
+      const current = await prisma.trade.findUnique({
+        where: { id },
+        select: { portfolioId: true, stockLotId: true, portfolio: { select: { userId: true } } },
+      });
+      if (!current) {
+        return NextResponse.json({ error: "Trade not found" }, { status: 404 });
+      }
+      if (targetId !== current.portfolioId) {
+        const target = await prisma.portfolio.findUnique({
+          where: { id: targetId },
+          select: { id: true, userId: true },
+        });
+        if (!target || target.userId !== current.portfolio.userId) {
+          return NextResponse.json(
+            { error: "Target portfolio must belong to the same user" },
+            { status: 400 },
+          );
+        }
+        if (current.stockLotId) {
+          return NextResponse.json(
+            {
+              error:
+                "Trade is linked to a stock lot — move or unlink the lot first.",
+            },
+            { status: 400 },
+          );
+        }
+        updates.portfolio = { connect: { id: targetId } };
+      }
     }
   }
 

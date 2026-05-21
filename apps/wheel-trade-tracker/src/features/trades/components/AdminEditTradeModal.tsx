@@ -1,6 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
+import { useRouter } from "next/navigation";
+import useSWR from "swr";
 import {
   Dialog,
   DialogContent,
@@ -29,7 +31,7 @@ import { CalendarIcon, Shield } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
-import type { Trade } from "@/types";
+import type { Portfolio, Trade } from "@/types";
 
 type Props = {
   trade: Trade;
@@ -51,6 +53,7 @@ type FormState = {
   premiumCaptured: string;
   percentPL: string;
   closeReason: string;
+  portfolioId: string;
 };
 
 function toForm(t: Trade): FormState {
@@ -69,6 +72,7 @@ function toForm(t: Trade): FormState {
     premiumCaptured: t.premiumCaptured != null ? String(t.premiumCaptured) : "",
     percentPL: t.percentPL != null ? String(t.percentPL) : "",
     closeReason: t.closeReason ?? "",
+    portfolioId: t.portfolioId,
   };
 }
 
@@ -91,6 +95,7 @@ function DatePicker({
   placeholder?: string;
 }) {
   const parsed = value ? new Date(value + "T12:00:00") : undefined;
+  const { startMonth, endMonth, defaultMonth } = useCalendarBounds(parsed);
   return (
     <Popover>
       <PopoverTrigger asChild>
@@ -107,6 +112,10 @@ function DatePicker({
           mode="single"
           selected={parsed}
           onSelect={(d) => onChange(d ? format(d, "yyyy-MM-dd") : "")}
+          captionLayout="dropdown"
+          startMonth={startMonth}
+          endMonth={endMonth}
+          defaultMonth={defaultMonth}
           autoFocus
         />
       </PopoverContent>
@@ -114,10 +123,32 @@ function DatePicker({
   );
 }
 
+function useCalendarBounds(selected?: Date) {
+  return useMemo(() => {
+    const now = new Date();
+    const startYear = Math.min(now.getFullYear() - 5, selected?.getFullYear() ?? now.getFullYear());
+    const endYear = Math.max(now.getFullYear() + 5, selected?.getFullYear() ?? now.getFullYear());
+    return {
+      startMonth: new Date(startYear, 0, 1),
+      endMonth: new Date(endYear, 11, 31),
+      defaultMonth: selected ?? now,
+    };
+  }, [selected]);
+}
+
 export function AdminEditTradeModal({ trade, open, onClose, onSaved }: Props) {
+  const router = useRouter();
   const [form, setForm] = useState<FormState>(() => toForm(trade));
   const [saving, setSaving] = useState(false);
   const isClosed = trade.status === "closed";
+
+  const { data: portfolios } = useSWR<Portfolio[]>(
+    open ? "/api/portfolios" : null,
+    (url: string) => fetch(url).then((r) => r.json()),
+    { dedupingInterval: 60_000 },
+  );
+
+  const portfolioChanged = form.portfolioId !== trade.portfolioId;
 
   useEffect(() => {
     if (open) setForm(toForm(trade));
@@ -141,6 +172,7 @@ export function AdminEditTradeModal({ trade, open, onClose, onSaved }: Props) {
         contracts: parseInt(form.contractsOpen, 10),
       };
       if (form.entryPrice !== "") payload.entryPrice = parseFloat(form.entryPrice);
+      if (portfolioChanged) payload.portfolioId = form.portfolioId;
       if (isClosed) {
         if (form.closingPrice !== "") payload.closingPrice = parseFloat(form.closingPrice);
         if (form.premiumCaptured !== "") payload.premiumCaptured = parseFloat(form.premiumCaptured);
@@ -157,6 +189,9 @@ export function AdminEditTradeModal({ trade, open, onClose, onSaved }: Props) {
       toast.success("Trade updated");
       onSaved();
       onClose();
+      if (portfolioChanged) {
+        router.push(`/portfolios/${form.portfolioId}/trades/${trade.id}`);
+      }
     } catch (e) {
       toast.error((e as Error).message || "Failed to save trade");
     } finally {
@@ -182,6 +217,29 @@ export function AdminEditTradeModal({ trade, open, onClose, onSaved }: Props) {
             <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
               Trade Details
             </p>
+            <Field label="Portfolio">
+              <Select
+                value={form.portfolioId}
+                onValueChange={(v) => set("portfolioId", v)}
+                disabled={!portfolios}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select portfolio…" />
+                </SelectTrigger>
+                <SelectContent>
+                  {(portfolios ?? []).map((p) => (
+                    <SelectItem key={p.id} value={p.id}>
+                      {p.name ?? "Untitled"}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {portfolioChanged && (
+                <p className="text-[11px] text-amber-600 dark:text-amber-400 mt-1">
+                  Trade will move to the selected portfolio on save.
+                </p>
+              )}
+            </Field>
             <div className="grid grid-cols-2 gap-3">
               <Field label="Ticker">
                 <Input value={form.ticker} onChange={(e) => set("ticker", e.target.value)} className="uppercase" />

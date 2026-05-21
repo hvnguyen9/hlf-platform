@@ -236,8 +236,34 @@ function OpenPositionsCard({
   const expiringSoon = trades.filter((t) => dte(t.expirationDate) <= 14);
   const displayed = posTab === "expiring" ? expiringSoon : trades;
 
+  const norm = (type: string) => type.toLowerCase().replace(/\s/g, "");
+  const isShortPremium = (type: string) => {
+    const t = norm(type);
+    return t === "cashsecuredput" || t === "csp" || t === "coveredcall" || t === "cc";
+  };
+  const isLongOption = (type: string) => {
+    const t = norm(type);
+    return t === "put" || t === "call";
+  };
+  // Positive = OTM, negative = ITM. CSP & long Put share one direction;
+  // CC & long Call share the other.
+  const calcOtmPct = (type: string, strike: number, price: number): number | null => {
+    const t = norm(type);
+    if (t === "cashsecuredput" || t === "csp" || t === "put") {
+      return ((price - strike) / price) * 100;
+    }
+    if (t === "coveredcall" || t === "cc" || t === "call") {
+      return ((strike - price) / price) * 100;
+    }
+    return null;
+  };
+  // Shorts: OTM is favorable. Longs: ITM is favorable.
+  const isFavorableMoney = (type: string, otmPct: number) =>
+    isLongOption(type) ? otmPct < 0 : otmPct >= 0;
+
   const totalOpenPremium = trades.reduce(
-    (sum, t) => sum + t.contractsOpen * t.contractPrice * 100,
+    (sum, t) =>
+      sum + (isShortPremium(t.type) ? t.contractsOpen * t.contractPrice * 100 : 0),
     0,
   );
 
@@ -290,14 +316,9 @@ function OpenPositionsCard({
                 const q = quotes[t.ticker];
                 const price = q?.price ?? null;
                 const change = q?.changePct ?? null;
-                const isCSP = t.type.toLowerCase().replace(/\s/g, "") === "cashsecuredput" || t.type.toLowerCase() === "csp";
-                const isCC = t.type.toLowerCase().replace(/\s/g, "") === "coveredcall" || t.type.toLowerCase() === "cc";
-                let otmPct: number | null = null;
-                if (price != null) {
-                  if (isCSP) otmPct = ((price - t.strikePrice) / price) * 100;
-                  else if (isCC) otmPct = ((t.strikePrice - price) / price) * 100;
-                }
+                const otmPct = price != null ? calcOtmPct(t.type, t.strikePrice, price) : null;
                 const isITM = otmPct != null && otmPct < 0;
+                const favorable = otmPct != null && isFavorableMoney(t.type, otmPct);
                 return (
                   <div
                     key={t.id}
@@ -327,9 +348,13 @@ function OpenPositionsCard({
                       </div>
                       <div>
                         <p className="text-[10px] text-muted-foreground mb-0.5">Open Premium</p>
-                        <p className="text-xs font-medium text-emerald-700 dark:text-emerald-400 tabular-nums">
-                          {new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format(t.contractsOpen * t.contractPrice * 100)}
-                        </p>
+                        {isShortPremium(t.type) ? (
+                          <p className="text-xs font-medium text-emerald-700 dark:text-emerald-400 tabular-nums">
+                            {new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format(t.contractsOpen * t.contractPrice * 100)}
+                          </p>
+                        ) : (
+                          <p className="text-xs text-muted-foreground">—</p>
+                        )}
                       </div>
                     </div>
                     <div className="flex items-center justify-between pt-1.5 border-t border-border/30 text-xs">
@@ -351,7 +376,7 @@ function OpenPositionsCard({
                         ) : null}
                       </div>
                       {otmPct != null ? (
-                        <span className={`font-semibold tabular-nums ${isITM ? "text-red-500" : "text-emerald-600 dark:text-emerald-400"}`}>
+                        <span className={`font-semibold tabular-nums ${favorable ? "text-emerald-600 dark:text-emerald-400" : "text-red-500"}`}>
                           {isITM ? "ITM " : ""}{Math.abs(otmPct).toFixed(1)}%{!isITM ? " OTM" : ""}
                         </span>
                       ) : (
@@ -379,14 +404,9 @@ function OpenPositionsCard({
                     const q = quotes[t.ticker];
                     const price = q?.price ?? null;
                     const change = q?.changePct ?? null;
-                    const isCSP = t.type.toLowerCase().replace(/\s/g, "") === "cashsecuredput" || t.type.toLowerCase() === "csp";
-                    const isCC = t.type.toLowerCase().replace(/\s/g, "") === "coveredcall" || t.type.toLowerCase() === "cc";
-                    let otmPct: number | null = null;
-                    if (price != null) {
-                      if (isCSP) otmPct = ((price - t.strikePrice) / price) * 100;
-                      else if (isCC) otmPct = ((t.strikePrice - price) / price) * 100;
-                    }
+                    const otmPct = price != null ? calcOtmPct(t.type, t.strikePrice, price) : null;
                     const isITM = otmPct != null && otmPct < 0;
+                    const favorable = otmPct != null && isFavorableMoney(t.type, otmPct);
                     return (
                       <tr
                         key={t.id}
@@ -408,8 +428,14 @@ function OpenPositionsCard({
                           </div>
                         </td>
                         <td className="py-2.5 pr-4 tabular-nums text-foreground">{t.contractsOpen}</td>
-                        <td className="py-2.5 pr-4 tabular-nums text-emerald-700 dark:text-emerald-400 font-medium">
-                          {new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format(t.contractsOpen * t.contractPrice * 100)}
+                        <td className="py-2.5 pr-4 tabular-nums font-medium">
+                          {isShortPremium(t.type) ? (
+                            <span className="text-emerald-700 dark:text-emerald-400">
+                              {new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format(t.contractsOpen * t.contractPrice * 100)}
+                            </span>
+                          ) : (
+                            <span className="text-muted-foreground">—</span>
+                          )}
                         </td>
                         <td className="py-2.5 pr-4">
                           {quotesLoading && !price ? (
@@ -429,7 +455,7 @@ function OpenPositionsCard({
                         </td>
                         <td className="py-2.5">
                           {otmPct != null ? (
-                            <span className={`text-xs font-semibold tabular-nums ${isITM ? "text-red-500" : "text-emerald-600 dark:text-emerald-400"}`}>
+                            <span className={`text-xs font-semibold tabular-nums ${favorable ? "text-emerald-600 dark:text-emerald-400" : "text-red-500"}`}>
                               {isITM ? "ITM " : ""}{Math.abs(otmPct).toFixed(1)}%{!isITM ? " OTM" : ""}
                             </span>
                           ) : (

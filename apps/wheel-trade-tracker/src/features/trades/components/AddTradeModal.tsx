@@ -367,6 +367,10 @@ export function AddTradeModal({
                   mode="single"
                   selected={expirationDate}
                   onSelect={setExpirationDate}
+                  captionLayout="dropdown"
+                  startMonth={new Date(new Date().getFullYear() - 5, 0, 1)}
+                  endMonth={new Date(new Date().getFullYear() + 5, 11, 31)}
+                  defaultMonth={expirationDate ?? new Date()}
                   autoFocus
                 />
               </PopoverContent>

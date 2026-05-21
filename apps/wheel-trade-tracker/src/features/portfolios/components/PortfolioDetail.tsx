@@ -46,7 +46,7 @@ import { useDetailMetrics } from "@/features/portfolios/hooks/useDetailMetrics";
 import { PortfolioSettings } from "@/features/portfolios/components/PortfolioSettings";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { motion } from "framer-motion";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Settings, Plus, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
@@ -69,11 +69,14 @@ export function PortfolioDetail({ portfolio }: { portfolio: Portfolio }) {
   const { data: m } = useDetailMetrics(portfolio.id);
 
   const storageKey = `portfolio-tab-${portfolio.id}`;
-  const [activeTab, setActiveTab] = useState<Tab>(() => {
-    if (typeof window === "undefined") return "Overview";
+  const [activeTab, setActiveTab] = useState<Tab>("Overview");
+
+  useEffect(() => {
     const saved = sessionStorage.getItem(storageKey);
-    return TABS.includes(saved as Tab) ? (saved as Tab) : "Overview";
-  });
+    if (saved && TABS.includes(saved as Tab) && saved !== "Overview") {
+      setActiveTab(saved as Tab);
+    }
+  }, [storageKey]);
 
   function switchTab(tab: Tab) {
     setActiveTab(tab);
