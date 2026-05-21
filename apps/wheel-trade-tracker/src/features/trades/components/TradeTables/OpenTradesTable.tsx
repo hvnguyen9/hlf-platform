@@ -36,14 +36,6 @@ import {
   SelectItem,
 } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-  SheetTrigger,
-  SheetFooter,
-} from "@/components/ui/sheet";
 
 // ---------- Helpers ----------
 const formatUSD = (n: number) =>
@@ -71,13 +63,45 @@ const isCashSecuredPut = (type?: string) => {
 const isCoveredCall = (type?: string) =>
   !!type && type.toLowerCase().includes("covered") && type.toLowerCase().includes("call");
 
+const isLongOption = (type?: string) => {
+  const t = (type ?? "").toLowerCase().replaceAll(/\s+/g, "");
+  return t === "put" || t === "call";
+};
+
+const isLongCall = (type?: string) => {
+  const t = (type ?? "").toLowerCase().replaceAll(/\s+/g, "");
+  return t === "call";
+};
+
+const isLongPut = (type?: string) => {
+  const t = (type ?? "").toLowerCase().replaceAll(/\s+/g, "");
+  return t === "put";
+};
+
+/**
+ * OTM % from strike. Sign convention: positive = OTM, negative = ITM.
+ *   CSP  → (price − strike) / price   (price above strike = OTM = safe)
+ *   CC   → (strike − price) / price   (strike above price = OTM = safe)
+ *   Call → (strike − price) / price   (strike above price = OTM = no intrinsic)
+ *   Put  → (price − strike) / price   (price above strike = OTM = no intrinsic)
+ */
+const calcOtmPct = (type: string | undefined, strike: number, price: number) => {
+  if (isCashSecuredPut(type) || isLongPut(type)) return ((price - strike) / price) * 100;
+  if (isCoveredCall(type) || isLongCall(type)) return ((strike - price) / price) * 100;
+  return null;
+};
+
+// For shorts (CSP/CC), OTM is favorable. For longs, ITM is favorable.
+const isFavorableMoney = (type: string | undefined, otmPct: number) =>
+  isLongOption(type) ? otmPct < 0 : otmPct >= 0;
+
 const calcCapitalInUse = (t: Trade) => {
-  if (isCashSecuredPut(t.type)) {
-    return t.strikePrice * 100 * (t.contractsOpen ?? t.contracts ?? 0);
-  }
+  const contracts = t.contractsOpen ?? t.contracts ?? 0;
+  if (isCashSecuredPut(t.type)) return t.strikePrice * 100 * contracts;
   if (isCoveredCall(t.type) && t.entryPrice != null) {
-    return t.entryPrice * 100 * (t.contractsOpen ?? t.contracts ?? 0);
+    return t.entryPrice * 100 * contracts;
   }
+  if (isLongOption(t.type)) return (t.contractPrice ?? 0) * 100 * contracts;
   return 0;
 };
 
@@ -138,30 +162,6 @@ const buildTooltipContent = (t: Trade) => {
     )}
   </div>
   );
-};
-
-type Timeframe = "week" | "month" | "year" | "all";
-
-const toTimeframe = (v: string): Timeframe =>
-  v === "week" || v === "month" || v === "year" || v === "all" ? v : "all";
-
-const getStartDate = (tf: Timeframe) => {
-  const now = new Date();
-  const d = new Date(now);
-  if (tf === "week") d.setDate(d.getDate() - 7);
-  if (tf === "month") d.setMonth(d.getMonth() - 1);
-  if (tf === "year") d.setFullYear(d.getFullYear() - 1);
-  return tf === "all" ? null : d;
-};
-
-const getTradeOpenDate = (t: Trade): Date | undefined => {
-  // Prefer createdAt for open trades; fallback to updatedAt if needed
-  const toDate = (val: unknown): Date | undefined => {
-    if (val == null) return undefined;
-    const d = new Date(val as string | number | Date);
-    return Number.isNaN(d.getTime()) ? undefined : d;
-  };
-  return toDate(t.createdAt);
 };
 
 const makeInfoColumn = (): ColumnDef<Trade> => ({
@@ -268,21 +268,18 @@ const makeOtmColumn = (quotes: QuoteMap): ColumnDef<Trade> => ({
   accessorFn: (row) => {
     const price = quotes[row.ticker]?.price ?? null;
     if (!price) return -999;
-    if (isCashSecuredPut(row.type)) return ((price - row.strikePrice) / price) * 100;
-    if (isCoveredCall(row.type)) return ((row.strikePrice - price) / price) * 100;
-    return -999;
+    return calcOtmPct(row.type, row.strikePrice, price) ?? -999;
   },
   cell: ({ row }) => {
     const t = row.original;
     const price = quotes[t.ticker]?.price ?? null;
     if (!price) return <span className="text-muted-foreground">—</span>;
-    let otmPct: number | null = null;
-    if (isCashSecuredPut(t.type)) otmPct = ((price - t.strikePrice) / price) * 100;
-    else if (isCoveredCall(t.type)) otmPct = ((t.strikePrice - price) / price) * 100;
+    const otmPct = calcOtmPct(t.type, t.strikePrice, price);
     if (otmPct == null) return <span className="text-muted-foreground">—</span>;
     const isITM = otmPct < 0;
+    const favorable = isFavorableMoney(t.type, otmPct);
     return (
-      <span className={`text-xs font-semibold tabular-nums ${isITM ? "text-red-500 dark:text-red-400" : "text-emerald-600 dark:text-emerald-400"}`}>
+      <span className={`text-xs font-semibold tabular-nums ${favorable ? "text-emerald-600 dark:text-emerald-400" : "text-red-500 dark:text-red-400"}`}>
         {isITM ? "ITM " : ""}{Math.abs(otmPct).toFixed(1)}%{!isITM ? " OTM" : ""}
       </span>
     );
@@ -322,29 +319,13 @@ export function OpenTradesTable({
   );
   const quotes: QuoteMap = quoteData ?? {};
 
-  // Mobile filters sheet
-  const [filtersOpen, setFiltersOpen] = useState(false);
-
-  // Pagination & Filters
-  const [timeframe, setTimeframe] = useState<Timeframe>("all");
+  // Pagination
   const [pageSize, setPageSize] = useState<number>(10);
   const [pageIndex, setPageIndex] = useState<number>(0);
 
-  // No longer need responsive column visibility logic (Option 1 removed)
-
-  const filteredTrades = useMemo(() => {
-    const start = getStartDate(timeframe);
-    if (!start) return trades;
-    return trades.filter((t) => {
-      const opened = getTradeOpenDate(t);
-      if (!opened) return true;
-      return opened >= start;
-    });
-  }, [trades, timeframe]);
-
   useEffect(() => {
     setPageIndex(0);
-  }, [timeframe, pageSize]);
+  }, [pageSize]);
 
   const columns = useMemo(() => {
     const base = makeOpenColumns() as ColumnDef<Trade, unknown>[];
@@ -359,7 +340,7 @@ export function OpenTradesTable({
   }, [totalCapital, quotes, quotesLoading]);
 
   const table = useReactTable({
-    data: filteredTrades,
+    data: trades,
     columns,
     state: { sorting },
     initialState: {
@@ -380,72 +361,9 @@ export function OpenTradesTable({
 
   return (
     <div className="w-full overflow-x-auto">
-      {/* Mobile toolbar: Filters + Pagination */}
-      <div className="mb-3 md:hidden px-4 pt-4 flex items-center justify-between">
-        <Sheet open={filtersOpen} onOpenChange={setFiltersOpen}>
-          <SheetTrigger asChild>
-            <Button variant="outline" size="sm">
-              Filters
-            </Button>
-          </SheetTrigger>
-          <SheetContent side="bottom" className="p-4">
-            <SheetHeader>
-              <SheetTitle>Open Trades Filters</SheetTitle>
-            </SheetHeader>
-            <div className="mt-3 space-y-3">
-              <div className="flex items-center justify-between gap-3">
-                <Label htmlFor="ot-timeframe-mobile" className="text-sm">
-                  Timeframe
-                </Label>
-                <Select
-                  value={timeframe}
-                  onValueChange={(v) => setTimeframe(toTimeframe(v))}
-                >
-                  <SelectTrigger id="ot-timeframe-mobile" className="w-40">
-                    <SelectValue placeholder="Select timeframe" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="week">Last 7 days</SelectItem>
-                    <SelectItem value="month">Last 30 days</SelectItem>
-                    <SelectItem value="year">Last 12 months</SelectItem>
-                    <SelectItem value="all">All time</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="flex items-center justify-between gap-3">
-                <Label htmlFor="ot-pagesize-mobile" className="text-sm">
-                  Rows
-                </Label>
-                <Select
-                  value={String(pageSize)}
-                  onValueChange={(v) => setPageSize(Number(v))}
-                >
-                  <SelectTrigger id="ot-pagesize-mobile" className="w-28">
-                    <SelectValue placeholder="Rows" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="10">10</SelectItem>
-                    <SelectItem value="25">25</SelectItem>
-                    <SelectItem value="50">50</SelectItem>
-                    <SelectItem value="100">100</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-            <SheetFooter className="mt-4 flex items-center justify-end gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setFiltersOpen(false)}
-              >
-                Close
-              </Button>
-            </SheetFooter>
-          </SheetContent>
-        </Sheet>
-
-        {/* Compact mobile pagination */}
-        <div className="flex items-center gap-2">
+      {/* Mobile pagination */}
+      {pageCount > 1 && (
+        <div className="mb-3 md:hidden px-4 pt-4 flex items-center justify-end gap-2">
           <Button
             variant="outline"
             size="sm"
@@ -466,30 +384,10 @@ export function OpenTradesTable({
             Next ›
           </Button>
         </div>
-      </div>
-      {/* Controls & Metrics */}
-      <div className="mb-3 px-4 pt-4 hidden md:flex md:flex-row md:items-center md:justify-between">
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2">
-            <Label htmlFor="ot-timeframe" className="text-sm">
-              Timeframe
-            </Label>
-            <Select
-              value={timeframe}
-              onValueChange={(v) => setTimeframe(toTimeframe(v))}
-            >
-              <SelectTrigger id="ot-timeframe" className="w-44">
-                <SelectValue placeholder="Select timeframe" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="week">Last 7 days</SelectItem>
-                <SelectItem value="month">Last 30 days</SelectItem>
-                <SelectItem value="year">Last 12 months</SelectItem>
-                <SelectItem value="all">All time</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
+      )}
+      {/* Desktop rows-per-page control (only show when more than one page) */}
+      {pageCount > 1 && (
+        <div className="mb-3 px-4 pt-4 hidden md:flex md:flex-row md:items-center md:justify-end">
           <div className="flex items-center gap-2">
             <Label htmlFor="ot-pagesize" className="text-sm">
               Rows per page
@@ -510,8 +408,7 @@ export function OpenTradesTable({
             </Select>
           </div>
         </div>
-
-      </div>
+      )}
       {/* Mobile cards (shown on <md) */}
       <div className="md:hidden space-y-2">
         {pageRows.length === 0 ? (
@@ -583,10 +480,9 @@ export function OpenTradesTable({
                   {(() => {
                     const q = quotes[t.ticker];
                     if (!q?.price) return null;
-                    let otmPct: number | null = null;
-                    if (isCashSecuredPut(t.type)) otmPct = ((q.price - t.strikePrice) / q.price) * 100;
-                    else if (isCoveredCall(t.type)) otmPct = ((t.strikePrice - q.price) / q.price) * 100;
+                    const otmPct = calcOtmPct(t.type, t.strikePrice, q.price);
                     const isITM = otmPct != null && otmPct < 0;
+                    const favorable = otmPct != null && isFavorableMoney(t.type, otmPct);
                     return (
                       <>
                         <div>
@@ -601,7 +497,7 @@ export function OpenTradesTable({
                         {otmPct != null && (
                           <div>
                             <div className="text-xs text-muted-foreground">OTM %</div>
-                            <div className={`text-xs font-semibold tabular-nums ${isITM ? "text-red-500 dark:text-red-400" : "text-emerald-600 dark:text-emerald-400"}`}>
+                            <div className={`text-xs font-semibold tabular-nums ${favorable ? "text-emerald-600 dark:text-emerald-400" : "text-red-500 dark:text-red-400"}`}>
                               {isITM ? "ITM " : ""}{Math.abs(otmPct).toFixed(1)}%{!isITM ? " OTM" : ""}
                             </div>
                           </div>
@@ -728,46 +624,48 @@ export function OpenTradesTable({
         </TooltipProvider>
       </div>
       {/* Pagination footer */}
-      <div className="mt-3 px-4 pb-4 hidden md:flex items-center justify-between">
-        <div className="text-xs text-gray-600 dark:text-gray-400">
-          Page {Math.min(pageIndex + 1, pageCount)} of {pageCount} • {totalRows}{" "}
-          result{totalRows === 1 ? "" : "s"}
+      {pageCount > 1 && (
+        <div className="mt-3 px-4 pb-4 hidden md:flex items-center justify-between">
+          <div className="text-xs text-gray-600 dark:text-gray-400">
+            Page {Math.min(pageIndex + 1, pageCount)} of {pageCount} • {totalRows}{" "}
+            result{totalRows === 1 ? "" : "s"}
+          </div>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setPageIndex(0)}
+              disabled={pageIndex === 0}
+            >
+              « First
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setPageIndex((p) => Math.max(0, p - 1))}
+              disabled={pageIndex === 0}
+            >
+              ‹ Prev
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setPageIndex((p) => Math.min(pageCount - 1, p + 1))}
+              disabled={pageIndex >= pageCount - 1}
+            >
+              Next ›
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setPageIndex(pageCount - 1)}
+              disabled={pageIndex >= pageCount - 1}
+            >
+              Last »
+            </Button>
+          </div>
         </div>
-        <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setPageIndex(0)}
-            disabled={pageIndex === 0}
-          >
-            « First
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setPageIndex((p) => Math.max(0, p - 1))}
-            disabled={pageIndex === 0}
-          >
-            ‹ Prev
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setPageIndex((p) => Math.min(pageCount - 1, p + 1))}
-            disabled={pageIndex >= pageCount - 1}
-          >
-            Next ›
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setPageIndex(pageCount - 1)}
-            disabled={pageIndex >= pageCount - 1}
-          >
-            Last »
-          </Button>
-        </div>
-      </div>
+      )}
       {selectedTrade && (
         <CloseTradeModal
           id={selectedTrade.id}

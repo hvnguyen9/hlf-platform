@@ -21,8 +21,14 @@ import { AddSharesModal } from "./AddSharesModal";
 import { AddTradeModal } from "@/features/trades/components/AddTradeModal";
 import { AdminEditStockModal } from "./AdminEditStockModal";
 import { LotNotesCard } from "./LotNotesCard";
-import { LotAlertsCard } from "@/features/alerts/components/LotAlertsCard";
-import { ChevronRight, Plus, Shield } from "lucide-react";
+import { LotAlertsButton } from "@/features/alerts/components/LotAlertsCard";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { ChevronRight, MoreVertical, Plus, Shield } from "lucide-react";
 import { useSession } from "next-auth/react";
 
 type StockResponse = {
@@ -482,17 +488,9 @@ export default function StockDetailPageClient(props: {
         </div>
 
         <div className="flex flex-wrap items-center gap-2 sm:justify-end">
-          {isAdmin && (
-            <Button
-              variant="outline"
-              size="sm"
-              className="gap-1.5 text-muted-foreground"
-              onClick={() => setAdminEditOpen(true)}
-            >
-              <Shield className="h-3.5 w-3.5" />
-              Edit
-            </Button>
-          )}
+          {!isClosed ? (
+            <LotAlertsButton stockLotId={stockId} ticker={s.ticker} avgCost={avg} />
+          ) : null}
           {!isClosed ? (
             <Button
               variant="outline"
@@ -521,6 +519,26 @@ export default function StockDetailPageClient(props: {
           {!isClosed ? (
             <Button size="sm" className="flex-1 sm:flex-none" onClick={() => setCloseOpen(true)}>Sell Shares</Button>
           ) : null}
+          {isAdmin && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  className="h-8 w-8 text-muted-foreground"
+                  aria-label="Admin actions"
+                >
+                  <MoreVertical className="h-3.5 w-3.5" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={() => setAdminEditOpen(true)}>
+                  <Shield className="h-3.5 w-3.5 mr-2" />
+                  Admin Edit
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
         </div>
       </div>
 
@@ -695,10 +713,6 @@ export default function StockDetailPageClient(props: {
           )}
 
         </Card>
-      ) : null}
-
-      {!isClosed ? (
-        <LotAlertsCard stockLotId={stockId} ticker={s.ticker} avgCost={avg} />
       ) : null}
 
       <LotNotesCard stockId={stockId} notes={s.notes ?? null} canEdit={!isClosed} />

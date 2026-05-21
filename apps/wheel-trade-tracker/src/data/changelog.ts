@@ -6,6 +6,22 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    date: "2026-05-21",
+    version: "v2.19.1",
+    highlights: [
+      "Admin trade edit now lets you move a trade to a different portfolio — useful when you added it to the wrong account. Trades linked to a stock lot stay put (unlink first).",
+      "Expiration date picker now has clickable month and year dropdowns. Big help when adding LEAPS — no more clicking the next-month arrow 24 times.",
+      "Long calls and puts now show their capital allocation on the Open Positions table — the premium you paid is the capital at risk, and it shows up as a row like CSPs do.",
+      "Open Premium on the All Accounts overview no longer counts long calls or puts — that's premium you paid out, not collected. Only cash-secured puts and covered calls count, matching the per-portfolio number.",
+      "Open Positions tables (both per-portfolio and All Accounts) now show OTM/ITM for long calls and puts. Same calculation as CSPs/CCs but the meaning flips — ITM is green (intrinsic value), OTM is red. Handy for eyeballing whether your LEAPS still have a cushion.",
+      "Dropped the timeframe filter on the Open Trades table. It dated rows by created-at and would quietly hide an older position you forgot about. Pagination stays for huge accounts but only shows up when there's more than one page.",
+      "Fixed a hydration warning that flashed on the portfolio page when switching back to a saved tab. The tab now restores after first paint instead of mismatching the server render.",
+      "Stock Lots table now shows Original and Effective per share instead of just one Avg Cost. Original is what you actually paid (tax basis); Effective is your running sell-floor after all CC and CSP premiums collected against the lot. The old single column was misleading because it only reflected CC reductions, not CSPs.",
+      "Alerts no longer take up a whole section on trade and stock-lot detail pages. They're now a compact button in the header action row — 'Add Alert' when none, 'Alerts · 2' with an emerald dot when configured. Click it to view, toggle, add, or remove without leaving the page.",
+      "Admin Edit on trade and stock detail pages moved into a small kebab (⋮) menu at the end of the action row. Frees up space so the primary actions (alerts, close, add) stay on one line, and admin tools stay out of the way when you're not using them.",
+    ],
+  },
+  {
     date: "2026-05-20",
     version: "v2.19.0",
     highlights: [

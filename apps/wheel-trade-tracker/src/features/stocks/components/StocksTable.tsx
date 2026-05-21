@@ -81,6 +81,11 @@ export function StocksTable({ portfolioId, totalCapital }: Props) {
             {rows.map((r) => {
               const avg = toNumber(r.avgCost);
               const basis = avg * r.shares;
+              const ccPrem = r.ccPremiumCaptured ?? 0;
+              const cspPrem = r.cspPremiumDuringHold ?? 0;
+              const originalAvg = r.shares > 0 ? avg + ccPrem / r.shares : avg;
+              const effectiveAvg =
+                r.shares > 0 ? Math.max(0, avg - cspPrem / r.shares) : avg;
               const q = quotes[r.ticker];
               const price = q?.price ?? null;
               const unrealized = price != null ? (price - avg) * r.shares : null;
@@ -136,9 +141,15 @@ export function StocksTable({ portfolioId, totalCapital }: Props) {
                   </div>
                   <div className="mt-2 grid grid-cols-2 gap-x-3 gap-y-2 text-sm">
                     <div>
-                      <div className="text-xs text-muted-foreground">Avg Cost</div>
-                      <div className="tabular-nums font-medium">
-                        {formatCurrency(avg)}
+                      <div className="text-xs text-muted-foreground">Original</div>
+                      <div className="tabular-nums font-medium text-muted-foreground">
+                        {formatCurrency(originalAvg)}
+                      </div>
+                    </div>
+                    <div>
+                      <div className="text-xs text-muted-foreground">Effective</div>
+                      <div className="tabular-nums font-medium text-emerald-600 dark:text-emerald-400">
+                        {formatCurrency(effectiveAvg)}
                       </div>
                     </div>
                     <div>
@@ -205,7 +216,8 @@ export function StocksTable({ portfolioId, totalCapital }: Props) {
                 <tr>
                   <th className="px-2 sm:px-4 py-2.5 text-[11px] font-medium text-muted-foreground uppercase tracking-wide select-none">Ticker</th>
                   <th className="px-2 sm:px-4 py-2.5 text-[11px] font-medium text-muted-foreground uppercase tracking-wide select-none">Shares</th>
-                  <th className="px-2 sm:px-4 py-2.5 text-[11px] font-medium text-muted-foreground uppercase tracking-wide select-none">Avg Cost</th>
+                  <th className="px-2 sm:px-4 py-2.5 text-[11px] font-medium text-muted-foreground uppercase tracking-wide select-none">Original</th>
+                  <th className="px-2 sm:px-4 py-2.5 text-[11px] font-medium text-muted-foreground uppercase tracking-wide select-none">Effective</th>
                   <th className="px-2 sm:px-4 py-2.5 text-[11px] font-medium text-muted-foreground uppercase tracking-wide select-none">Cost Basis</th>
                   {showAllocation && (
                     <th className="px-2 sm:px-4 py-2.5 text-[11px] font-medium text-muted-foreground uppercase tracking-wide select-none text-right">Allocation</th>
@@ -218,6 +230,11 @@ export function StocksTable({ portfolioId, totalCapital }: Props) {
                 {rows.map((r) => {
                   const avg = toNumber(r.avgCost);
                   const basis = avg * r.shares;
+                  const ccPrem = r.ccPremiumCaptured ?? 0;
+                  const cspPrem = r.cspPremiumDuringHold ?? 0;
+                  const originalAvg = r.shares > 0 ? avg + ccPrem / r.shares : avg;
+                  const effectiveAvg =
+                    r.shares > 0 ? Math.max(0, avg - cspPrem / r.shares) : avg;
                   const q = quotes[r.ticker];
                   const price = q?.price ?? null;
                   const unrealized = price != null ? (price - avg) * r.shares : null;
@@ -239,7 +256,8 @@ export function StocksTable({ portfolioId, totalCapital }: Props) {
                     >
                       <td className="px-2 sm:px-4 py-2 font-semibold tracking-wide">{r.ticker}</td>
                       <td className="px-2 sm:px-4 py-2">{r.shares}</td>
-                      <td className="px-2 sm:px-4 py-2 tabular-nums">{formatCurrency(avg)}</td>
+                      <td className="px-2 sm:px-4 py-2 tabular-nums text-muted-foreground">{formatCurrency(originalAvg)}</td>
+                      <td className="px-2 sm:px-4 py-2 tabular-nums text-emerald-600 dark:text-emerald-400">{formatCurrency(effectiveAvg)}</td>
                       <td className="px-2 sm:px-4 py-2 tabular-nums">{formatCurrency(basis)}</td>
                       {showAllocation && (
                         <td className="px-2 sm:px-4 py-2 text-right">

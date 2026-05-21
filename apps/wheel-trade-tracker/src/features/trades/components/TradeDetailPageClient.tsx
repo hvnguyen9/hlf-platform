@@ -9,7 +9,13 @@ import Link from "next/link";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { ChevronRight, Shield } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { ChevronRight, MoreVertical, Shield } from "lucide-react";
 import type { Metrics } from "@/types";
 import {
   TradeNotesSimple,
@@ -18,7 +24,7 @@ import {
 import CloseTradeModal from "@/features/trades/components/CloseTradeModal";
 import AddToTradeModal from "@/features/trades/components/AddToTradeModal";
 import { AdminEditTradeModal } from "@/features/trades/components/AdminEditTradeModal";
-import { TradeAlertsCard } from "@/features/alerts/components/TradeAlertsCard";
+import { TradeAlertsButton } from "@/features/alerts/components/TradeAlertsCard";
 import { formatDateOnlyUTC, ensureUtcMidnight } from "@/lib/formatDateOnly";
 
 type Props = { portfolioId: string; tradeId: string };
@@ -289,19 +295,9 @@ export default function TradeDetailPageClient({ portfolioId, tradeId }: Props) {
           <span className="text-foreground shrink-0">{trade?.ticker ?? "Trade"}</span>
         </div>
         <div className="flex flex-wrap items-center gap-2 sm:justify-end">
-          {isAdmin && (
-            <Button
-              variant="outline"
-              size="sm"
-              className="gap-1.5 text-muted-foreground"
-              onClick={() => setAdminEditOpen(true)}
-            >
-              <Shield className="h-3.5 w-3.5" />
-              Edit
-            </Button>
-          )}
           {isOpen && (
             <>
+              <TradeAlertsButton tradeId={trade.id} />
               <Button variant="outline" size="sm" className="flex-1 sm:flex-none" onClick={() => setCloseModalOpen(true)}>
                 Close Position
               </Button>
@@ -309,6 +305,26 @@ export default function TradeDetailPageClient({ portfolioId, tradeId }: Props) {
                 Add to Position
               </Button>
             </>
+          )}
+          {isAdmin && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  className="h-8 w-8 text-muted-foreground"
+                  aria-label="Admin actions"
+                >
+                  <MoreVertical className="h-3.5 w-3.5" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={() => setAdminEditOpen(true)}>
+                  <Shield className="h-3.5 w-3.5 mr-2" />
+                  Admin Edit
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           )}
         </div>
       </div>
@@ -487,9 +503,6 @@ export default function TradeDetailPageClient({ portfolioId, tradeId }: Props) {
           onEditingChange={setNotesEditing}
         />
       </Card>
-
-      {/* Alerts card — Web Push triggers for this trade */}
-      {trade.status === "open" && <TradeAlertsCard tradeId={trade.id} />}
 
       {/* Modals */}
       {isAdmin && trade && (
