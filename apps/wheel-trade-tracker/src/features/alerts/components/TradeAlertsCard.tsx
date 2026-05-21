@@ -3,20 +3,17 @@
 import { useState } from "react";
 import useSWR from "swr";
 import { toast } from "sonner";
-import { Bell, Plus, Trash2 } from "lucide-react";
-import { Card } from "@/components/ui/card";
+import { Bell, BellPlus, Plus, Trash2, X } from "lucide-react";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
 import { NumberInput } from "@/components/ui/number-input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@hlf/ui/switch";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from "@/components/ui/dialog";
 import {
   Select,
   SelectContent,
@@ -38,13 +35,17 @@ interface AlertConfigRow {
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
 
-export function TradeAlertsCard({ tradeId }: { tradeId: string }) {
+export function TradeAlertsButton({ tradeId }: { tradeId: string }) {
   const { data, mutate, isLoading } = useSWR<{ configs: AlertConfigRow[] }>(
     `/api/alerts/configs?tradeId=${encodeURIComponent(tradeId)}`,
     fetcher,
   );
-  const [addOpen, setAddOpen] = useState(false);
   const configs = data?.configs ?? [];
+  const enabledCount = configs.filter((c) => c.enabled).length;
+  const total = configs.length;
+
+  const [open, setOpen] = useState(false);
+  const [adding, setAdding] = useState(false);
 
   async function toggleEnabled(c: AlertConfigRow) {
     const res = await fetch(`/api/alerts/configs/${c.id}`, {
@@ -63,74 +64,119 @@ export function TradeAlertsCard({ tradeId }: { tradeId: string }) {
   }
 
   return (
-    <Card className="p-4">
-      <div className="flex items-center justify-between mb-3">
-        <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-1.5">
-          <Bell className="h-3.5 w-3.5" />
-          Alerts
-        </div>
-        <Button size="sm" variant="outline" onClick={() => setAddOpen(true)}>
-          <Plus className="h-3.5 w-3.5 mr-1" />
-          Add alert
+    <Popover
+      open={open}
+      onOpenChange={(v) => {
+        setOpen(v);
+        if (!v) setAdding(false);
+      }}
+    >
+      <PopoverTrigger asChild>
+        <Button variant="outline" size="sm" className="gap-1.5 relative">
+          {total === 0 ? (
+            <>
+              <BellPlus className="h-3.5 w-3.5" />
+              Add Alert
+            </>
+          ) : (
+            <>
+              <Bell className="h-3.5 w-3.5" />
+              Alerts · {total}
+              {enabledCount > 0 && (
+                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" aria-hidden />
+              )}
+            </>
+          )}
         </Button>
-      </div>
+      </PopoverTrigger>
+      <PopoverContent align="end" className="w-[22rem] p-0">
+        <div className="p-3 border-b flex items-center justify-between">
+          <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-1.5">
+            <Bell className="h-3.5 w-3.5" />
+            Alerts
+          </div>
+          {!adding && (
+            <Button size="sm" variant="ghost" className="h-7 gap-1" onClick={() => setAdding(true)}>
+              <Plus className="h-3.5 w-3.5" />
+              Add
+            </Button>
+          )}
+        </div>
 
-      {isLoading ? (
-        <p className="text-sm text-muted-foreground">Loading…</p>
-      ) : configs.length === 0 ? (
-        <p className="text-sm text-muted-foreground">
-          No alerts on this trade. Add one to get a Web Push when a threshold fires.
-        </p>
-      ) : (
-        <ul className="space-y-2">
-          {configs.map((c) => (
-            <li
-              key={c.id}
-              className="flex items-center gap-3 py-1.5 px-2 -mx-2 rounded-md hover:bg-accent/40"
-            >
-              <Switch checked={c.enabled} onCheckedChange={() => toggleEnabled(c)} />
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2">
-                  <Badge variant="outline" className="text-[10px] px-1.5 py-0">
-                    {ALERT_TYPE_LABEL[c.type]}
-                  </Badge>
-                  <span className="text-sm text-muted-foreground truncate">
-                    {describeConfig(c.type, c.params)}
-                  </span>
-                </div>
-              </div>
+        <div className="p-3 max-h-[60vh] overflow-y-auto">
+          {isLoading ? (
+            <p className="text-sm text-muted-foreground">Loading…</p>
+          ) : configs.length === 0 && !adding ? (
+            <p className="text-sm text-muted-foreground">
+              No alerts on this trade yet. Add one to get a toast when a threshold fires.
+            </p>
+          ) : (
+            <ul className="space-y-1">
+              {configs.map((c) => (
+                <li
+                  key={c.id}
+                  className="flex items-center gap-3 py-1.5 px-2 -mx-2 rounded-md hover:bg-accent/40"
+                >
+                  <Switch checked={c.enabled} onCheckedChange={() => toggleEnabled(c)} />
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <Badge variant="outline" className="text-[10px] px-1.5 py-0">
+                        {ALERT_TYPE_LABEL[c.type]}
+                      </Badge>
+                      <span className="text-xs text-muted-foreground truncate">
+                        {describeConfig(c.type, c.params)}
+                      </span>
+                    </div>
+                  </div>
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    className="h-7 w-7"
+                    onClick={() => remove(c)}
+                    aria-label="Remove"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </Button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+
+        {adding && (
+          <div className="border-t p-3 bg-muted/30">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                New alert
+              </span>
               <Button
                 size="icon"
                 variant="ghost"
-                className="h-7 w-7"
-                onClick={() => remove(c)}
-                aria-label="Remove"
+                className="h-6 w-6"
+                onClick={() => setAdding(false)}
+                aria-label="Cancel"
               >
-                <Trash2 className="h-3.5 w-3.5" />
+                <X className="h-3.5 w-3.5" />
               </Button>
-            </li>
-          ))}
-        </ul>
-      )}
-
-      <AddTradeAlertDialog
-        open={addOpen}
-        onOpenChange={setAddOpen}
-        tradeId={tradeId}
-        onCreated={() => mutate()}
-      />
-    </Card>
+            </div>
+            <AddTradeAlertForm
+              tradeId={tradeId}
+              onCreated={() => {
+                mutate();
+                setAdding(false);
+              }}
+            />
+          </div>
+        )}
+      </PopoverContent>
+    </Popover>
   );
 }
 
-function AddTradeAlertDialog({
-  open,
-  onOpenChange,
+function AddTradeAlertForm({
   tradeId,
   onCreated,
 }: {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
   tradeId: string;
   onCreated: () => void;
 }) {
@@ -166,7 +212,6 @@ function AddTradeAlertDialog({
         return;
       }
       onCreated();
-      onOpenChange(false);
       toast.success("Alert added");
     } finally {
       setSaving(false);
@@ -174,107 +219,94 @@ function AddTradeAlertDialog({
   }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Add alert</DialogTitle>
-        </DialogHeader>
+    <div className="space-y-3">
+      <div>
+        <Label className="text-xs">Type</Label>
+        <Select value={type} onValueChange={(v) => setType(v as ConfigType)}>
+          <SelectTrigger className="mt-1 h-8 text-sm">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="PROFIT_TARGET">Profit target</SelectItem>
+            <SelectItem value="ASSIGNMENT_RISK">Assignment risk</SelectItem>
+            <SelectItem value="ROLL_OPPORTUNITY">Roll opportunity</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
 
-        <div className="space-y-4">
-          <div>
-            <Label className="text-xs">Type</Label>
-            <Select value={type} onValueChange={(v) => setType(v as ConfigType)}>
-              <SelectTrigger className="mt-1">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="PROFIT_TARGET">Profit target</SelectItem>
-                <SelectItem value="ASSIGNMENT_RISK">Assignment risk</SelectItem>
-                <SelectItem value="ROLL_OPPORTUNITY">Roll opportunity</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          {type === "PROFIT_TARGET" && (
-            <div>
-              <Label className="text-xs">Profit % to trigger at</Label>
-              <NumberInput
-                min={1}
-                max={99}
-                value={profitPct}
-                onValueChange={setProfitPct}
-                className="mt-1"
-              />
-              <p className="text-xs text-muted-foreground mt-1">
-                Estimated from time-decay; conservative for OTM positions.
-              </p>
-            </div>
-          )}
-
-          {type === "ASSIGNMENT_RISK" && (
-            <div className="space-y-3">
-              <div>
-                <Label className="text-xs">Trigger when price within (% of strike)</Label>
-                <NumberInput
-                  min={0}
-                  max={50}
-                  step={0.5}
-                  value={withinPctOfStrike}
-                  onValueChange={setWithinPctOfStrike}
-                  className="mt-1"
-                />
-              </div>
-              <div>
-                <Label className="text-xs">Only when DTE ≤</Label>
-                <NumberInput
-                  min={0}
-                  max={365}
-                  allowDecimal={false}
-                  value={riskMaxDte}
-                  onValueChange={setRiskMaxDte}
-                  className="mt-1"
-                />
-              </div>
-            </div>
-          )}
-
-          {type === "ROLL_OPPORTUNITY" && (
-            <div className="space-y-3">
-              <div>
-                <Label className="text-xs">When DTE ≤</Label>
-                <NumberInput
-                  min={0}
-                  max={60}
-                  allowDecimal={false}
-                  value={rollMaxDte}
-                  onValueChange={setRollMaxDte}
-                  className="mt-1"
-                />
-              </div>
-              <div>
-                <Label className="text-xs">And OTM ≥ (%)</Label>
-                <NumberInput
-                  min={0}
-                  max={50}
-                  step={0.5}
-                  value={minOtmPct}
-                  onValueChange={setMinOtmPct}
-                  className="mt-1"
-                />
-              </div>
-            </div>
-          )}
+      {type === "PROFIT_TARGET" && (
+        <div>
+          <Label className="text-xs">Profit % to trigger at</Label>
+          <NumberInput
+            min={1}
+            max={99}
+            value={profitPct}
+            onValueChange={setProfitPct}
+            className="mt-1 h-8"
+          />
+          <p className="text-[11px] text-muted-foreground mt-1">
+            Estimated from time-decay; conservative for OTM positions.
+          </p>
         </div>
+      )}
 
-        <DialogFooter>
-          <Button variant="ghost" onClick={() => onOpenChange(false)} disabled={saving}>
-            Cancel
-          </Button>
-          <Button onClick={handleSave} disabled={saving}>
-            {saving ? "Saving…" : "Add alert"}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+      {type === "ASSIGNMENT_RISK" && (
+        <>
+          <div>
+            <Label className="text-xs">Within (% of strike)</Label>
+            <NumberInput
+              min={0}
+              max={50}
+              step={0.5}
+              value={withinPctOfStrike}
+              onValueChange={setWithinPctOfStrike}
+              className="mt-1 h-8"
+            />
+          </div>
+          <div>
+            <Label className="text-xs">Only when DTE ≤</Label>
+            <NumberInput
+              min={0}
+              max={365}
+              allowDecimal={false}
+              value={riskMaxDte}
+              onValueChange={setRiskMaxDte}
+              className="mt-1 h-8"
+            />
+          </div>
+        </>
+      )}
+
+      {type === "ROLL_OPPORTUNITY" && (
+        <>
+          <div>
+            <Label className="text-xs">When DTE ≤</Label>
+            <NumberInput
+              min={0}
+              max={60}
+              allowDecimal={false}
+              value={rollMaxDte}
+              onValueChange={setRollMaxDte}
+              className="mt-1 h-8"
+            />
+          </div>
+          <div>
+            <Label className="text-xs">And OTM ≥ (%)</Label>
+            <NumberInput
+              min={0}
+              max={50}
+              step={0.5}
+              value={minOtmPct}
+              onValueChange={setMinOtmPct}
+              className="mt-1 h-8"
+            />
+          </div>
+        </>
+      )}
+
+      <Button size="sm" className="w-full" onClick={handleSave} disabled={saving}>
+        {saving ? "Saving…" : "Add alert"}
+      </Button>
+    </div>
   );
 }
