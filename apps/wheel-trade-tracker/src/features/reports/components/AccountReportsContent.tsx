@@ -736,8 +736,8 @@ export function AccountsReportContent({
   defaultPortfolioId?: string;
   embedded?: boolean;
 } = {}) {
-  const [start, setStart] = useState<Date>(() => rangeForPreset("1M").from);
-  const [end, setEnd] = useState<Date>(() => rangeForPreset("1M").to);
+  const [start, setStart] = useState<Date>(() => rangeForPreset("1D").from);
+  const [end, setEnd] = useState<Date>(() => rangeForPreset("1D").to);
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
 
