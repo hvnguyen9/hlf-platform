@@ -46,14 +46,16 @@ function formatAvgCost(v: string | number): string {
 }
 
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
+  ResponsiveModal as Dialog,
+  ResponsiveModalContent as DialogContent,
+  ResponsiveModalDescription as DialogDescription,
+  ResponsiveModalFooter as DialogFooter,
+  ResponsiveModalHeader as DialogHeader,
+  ResponsiveModalTitle as DialogTitle,
+} from "@hlf/ui/responsive-modal";
+// DialogTrigger lives inside the Radix Dialog primitive that both Sheet and
+// Dialog share, so it composes fine inside the ResponsiveModal wrapper.
+import { DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
