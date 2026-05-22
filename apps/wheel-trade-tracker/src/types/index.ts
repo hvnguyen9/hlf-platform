@@ -74,9 +74,11 @@ export type StockLot = {
   trades: Trade[];
   // Optional — only populated by the list endpoint to power Original/Effective
   // basis columns. CC premium is already baked into avgCost (add it back to
-  // recover the original purchase price); CSP premium is display-only.
+  // recover the original purchase price); CSP premium + long-option P&L during
+  // the hold window are display-only and never mutate avgCost.
   ccPremiumCaptured?: number;
   cspPremiumDuringHold?: number;
+  longOptionPnlDuringHold?: number;
 };
 
 export type StocksListResponse = {

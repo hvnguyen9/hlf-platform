@@ -6,6 +6,13 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    date: "2026-05-22",
+    version: "v2.19.2",
+    highlights: [
+      "Effective basis on stock lots now folds in closed long calls and puts on the same ticker during the lot's hold window. Winning LEAPs lower your effective sell-floor; losing ones raise it. Reflects the conviction model — if you own a stock and a LEAP on it, the LEAP's P&L is part of the overall position. Detail page shows it as a 'Long Options' cell in the Cost Basis via Premiums card.",
+    ],
+  },
+  {
     date: "2026-05-21",
     version: "v2.19.1",
     highlights: [

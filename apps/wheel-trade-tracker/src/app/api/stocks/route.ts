@@ -66,6 +66,11 @@ export async function GET(req: Request) {
     //   cspPremiumDuringHold: closed non-assigned CSPs on the same
     //     (portfolio, ticker) during the lot's open window — display-only,
     //     never mutates avgCost.
+    //   longOptionPnlDuringHold: net P&L from closed long Calls/Puts on the
+    //     same (portfolio, ticker) during the lot's open window. Treats long
+    //     options as "conviction P&L on the underlying" — wins lower the
+    //     effective sell-floor; losses raise it. Same hold-window constraint
+    //     as CSPs so unrelated activity outside the lot's life doesn't count.
     const lotIds = stockLots.map((l) => l.id);
     const ccAgg = lotIds.length
       ? await prisma.trade.groupBy({
@@ -86,22 +91,37 @@ export async function GET(req: Request) {
     }
 
     const cspByLot = new Map<string, number>();
+    const longByLot = new Map<string, number>();
     await Promise.all(
       stockLots.map(async (lot) => {
-        const agg = await prisma.trade.aggregate({
-          _sum: { premiumCaptured: true },
-          where: {
-            portfolioId: lot.portfolioId,
-            ticker: lot.ticker,
-            type: "CashSecuredPut",
-            status: "closed",
-            closeReason: { not: "assigned" },
-            closedAt: lot.closedAt
-              ? { gte: lot.openedAt, lte: lot.closedAt }
-              : { gte: lot.openedAt },
-          },
-        });
-        cspByLot.set(lot.id, Number(agg._sum.premiumCaptured ?? 0));
+        const closedAtFilter = lot.closedAt
+          ? { gte: lot.openedAt, lte: lot.closedAt }
+          : { gte: lot.openedAt };
+        const [cspAgg, longAgg] = await Promise.all([
+          prisma.trade.aggregate({
+            _sum: { premiumCaptured: true },
+            where: {
+              portfolioId: lot.portfolioId,
+              ticker: lot.ticker,
+              type: "CashSecuredPut",
+              status: "closed",
+              closeReason: { not: "assigned" },
+              closedAt: closedAtFilter,
+            },
+          }),
+          prisma.trade.aggregate({
+            _sum: { premiumCaptured: true },
+            where: {
+              portfolioId: lot.portfolioId,
+              ticker: lot.ticker,
+              type: { in: ["Call", "Put"] },
+              status: "closed",
+              closedAt: closedAtFilter,
+            },
+          }),
+        ]);
+        cspByLot.set(lot.id, Number(cspAgg._sum.premiumCaptured ?? 0));
+        longByLot.set(lot.id, Number(longAgg._sum.premiumCaptured ?? 0));
       }),
     );
 
@@ -109,6 +129,7 @@ export async function GET(req: Request) {
       ...lot,
       ccPremiumCaptured: ccByLot.get(lot.id) ?? 0,
       cspPremiumDuringHold: cspByLot.get(lot.id) ?? 0,
+      longOptionPnlDuringHold: longByLot.get(lot.id) ?? 0,
     }));
 
     return NextResponse.json({ stockLots: stockLotsWithBasis });

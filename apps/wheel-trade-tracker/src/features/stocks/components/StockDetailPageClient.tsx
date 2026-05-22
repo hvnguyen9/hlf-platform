@@ -36,6 +36,7 @@ type StockResponse = {
   effectiveBasis?: {
     cspPremiumDuringHold: number;
     cspPendingPremium: number;
+    longOptionPnlDuringHold: number;
     effectiveAvgCost: number;
   };
 };
@@ -381,8 +382,10 @@ export default function StockDetailPageClient(props: {
   const avg = toNumber(stockLot?.avgCost ?? 0);
   const cspPremiumDuringHold = data?.effectiveBasis?.cspPremiumDuringHold ?? 0;
   const cspPendingPremium = data?.effectiveBasis?.cspPendingPremium ?? 0;
+  const longOptionPnlDuringHold = data?.effectiveBasis?.longOptionPnlDuringHold ?? 0;
   const effectiveAvgCost = data?.effectiveBasis?.effectiveAvgCost ?? avg;
   const hasCspBoost = cspPremiumDuringHold > 0 && shares > 0;
+  const hasLongPnl = Math.abs(longOptionPnlDuringHold) > 0.005 && shares > 0;
 
   const { data: quoteData } = useSWR<Record<string, QuoteResult>>(
     stockLot?.ticker ? `/api/quotes?tickers=${stockLot.ticker}` : null,
@@ -600,10 +603,11 @@ export default function StockDetailPageClient(props: {
       </div>
 
       {/* Cost Basis via Premiums — Original Avg (tax basis) → Effective Basis
-          (mental sell-floor) with CC + CSP premium breakdown showing the
-          reduction. CC reductions are already baked into avgCost; CSP premiums
-          collected during the hold are display-only and never mutate avgCost. */}
-      {coveredCalls.length > 0 || hasCspBoost || cspPendingPremium > 0 ? (
+          (mental sell-floor) with CC + CSP + Long-option breakdown. CC
+          reductions are already baked into avgCost; CSP premiums and long
+          option P&L during the hold are display-only and never mutate
+          avgCost (long options treated as conviction P&L on the underlying). */}
+      {coveredCalls.length > 0 || hasCspBoost || cspPendingPremium > 0 || hasLongPnl ? (
         <Card className="p-5">
           <div className="flex items-center justify-between mb-4">
             <div>
@@ -621,12 +625,17 @@ export default function StockDetailPageClient(props: {
               {hasCspBoost ? (
                 <span>{money(cspPremiumDuringHold)} CSP captured</span>
               ) : null}
+              {hasLongPnl ? (
+                <span className={longOptionPnlDuringHold >= 0 ? "" : "text-red-500"}>
+                  {longOptionPnlDuringHold >= 0 ? "+" : ""}{money(longOptionPnlDuringHold)} long options
+                </span>
+              ) : null}
             </div>
           </div>
 
-          {totalCaptured === 0 && adjAvgIfAllCapture === null && !hasCspBoost ? (
+          {totalCaptured === 0 && adjAvgIfAllCapture === null && !hasCspBoost && !hasLongPnl ? (
             <p className="text-sm text-muted-foreground">
-              Close covered calls or sell CSPs on this ticker to see cost basis reduction here.
+              Close covered calls, sell CSPs, or close long options on this ticker to see cost basis reduction here.
             </p>
           ) : (
             (() => {
@@ -685,6 +694,26 @@ export default function StockDetailPageClient(props: {
                       </div>
                       <div className="text-xs text-muted-foreground mt-0.5">
                         -{moneyCompact(cspPremiumDuringHold / shares)}/share during hold
+                      </div>
+                    </div>
+                  ) : null}
+
+                  {hasLongPnl ? (
+                    <div>
+                      <div className="text-xs text-muted-foreground mb-1">Long Options</div>
+                      <div
+                        className={`text-xl font-bold tabular-nums ${
+                          longOptionPnlDuringHold >= 0
+                            ? "text-emerald-600 dark:text-emerald-400"
+                            : "text-red-500 dark:text-red-400"
+                        }`}
+                      >
+                        {longOptionPnlDuringHold >= 0 ? "+" : ""}
+                        {money(longOptionPnlDuringHold)}
+                      </div>
+                      <div className="text-xs text-muted-foreground mt-0.5">
+                        {longOptionPnlDuringHold >= 0 ? "-" : "+"}
+                        {moneyCompact(Math.abs(longOptionPnlDuringHold) / shares)}/share during hold
                       </div>
                     </div>
                   ) : null}

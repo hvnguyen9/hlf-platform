@@ -83,9 +83,10 @@ export function StocksTable({ portfolioId, totalCapital }: Props) {
               const basis = avg * r.shares;
               const ccPrem = r.ccPremiumCaptured ?? 0;
               const cspPrem = r.cspPremiumDuringHold ?? 0;
+              const longPnl = r.longOptionPnlDuringHold ?? 0;
               const originalAvg = r.shares > 0 ? avg + ccPrem / r.shares : avg;
               const effectiveAvg =
-                r.shares > 0 ? Math.max(0, avg - cspPrem / r.shares) : avg;
+                r.shares > 0 ? Math.max(0, avg - (cspPrem + longPnl) / r.shares) : avg;
               const q = quotes[r.ticker];
               const price = q?.price ?? null;
               const unrealized = price != null ? (price - avg) * r.shares : null;
@@ -232,9 +233,10 @@ export function StocksTable({ portfolioId, totalCapital }: Props) {
                   const basis = avg * r.shares;
                   const ccPrem = r.ccPremiumCaptured ?? 0;
                   const cspPrem = r.cspPremiumDuringHold ?? 0;
+                  const longPnl = r.longOptionPnlDuringHold ?? 0;
                   const originalAvg = r.shares > 0 ? avg + ccPrem / r.shares : avg;
                   const effectiveAvg =
-                    r.shares > 0 ? Math.max(0, avg - cspPrem / r.shares) : avg;
+                    r.shares > 0 ? Math.max(0, avg - (cspPrem + longPnl) / r.shares) : avg;
                   const q = quotes[r.ticker];
                   const price = q?.price ?? null;
                   const unrealized = price != null ? (price - avg) * r.shares : null;

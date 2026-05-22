@@ -41,8 +41,8 @@ export async function GET(
       return NextResponse.json({ error: "StockLot not found" }, { status: 404 });
     }
 
-    // CSP premium math for the "Cost Basis via Premiums" card. Two queries
-    // run in parallel — keeps the GET fast.
+    // Premium math for the "Cost Basis via Premiums" card. Queries run in
+    // parallel — keeps the GET fast.
     //
     //   cspPremiumDuringHold: closed CSPs on the same (portfolio, ticker)
     //     during this lot's open window, excluding assignments (their net
@@ -53,8 +53,17 @@ export async function GET(
     //     max premium still capturable if they all expire worthless. Used by
     //     the "If All Open Expire" projection alongside open-CC pending.
     //
-    // Both are display-only and never mutate avgCost.
-    const [cspClosedAgg, openCsps] = await Promise.all([
+    //   longOptionPnlDuringHold: net realized P&L from closed long Calls/Puts
+    //     on the same (portfolio, ticker) during this lot's hold window.
+    //     Folded into effective basis on the assumption that long options on
+    //     a ticker you own represent additional conviction — wins lower the
+    //     sell-floor, losses raise it.
+    //
+    // All three are display-only and never mutate avgCost.
+    const holdWindow = stockLot.closedAt
+      ? { gte: stockLot.openedAt, lte: stockLot.closedAt }
+      : { gte: stockLot.openedAt };
+    const [cspClosedAgg, openCsps, longAgg] = await Promise.all([
       prisma.trade.aggregate({
         _sum: { premiumCaptured: true },
         where: {
@@ -63,9 +72,7 @@ export async function GET(
           type: "CashSecuredPut",
           status: "closed",
           closeReason: { not: "assigned" },
-          closedAt: stockLot.closedAt
-            ? { gte: stockLot.openedAt, lte: stockLot.closedAt }
-            : { gte: stockLot.openedAt },
+          closedAt: holdWindow,
         },
       }),
       prisma.trade.findMany({
@@ -77,6 +84,16 @@ export async function GET(
         },
         select: { contractPrice: true, contractsOpen: true },
       }),
+      prisma.trade.aggregate({
+        _sum: { premiumCaptured: true },
+        where: {
+          portfolioId: stockLot.portfolioId,
+          ticker: stockLot.ticker,
+          type: { in: ["Call", "Put"] },
+          status: "closed",
+          closedAt: holdWindow,
+        },
+      }),
     ]);
 
     const cspPremiumDuringHold = Number(cspClosedAgg._sum.premiumCaptured ?? 0);
@@ -84,18 +101,22 @@ export async function GET(
       (sum, t) => sum + (Number(t.contractPrice) || 0) * (t.contractsOpen ?? 0) * 100,
       0,
     );
+    const longOptionPnlDuringHold = Number(longAgg._sum.premiumCaptured ?? 0);
     const sharesNum = Number(stockLot.shares);
     const avgCostNum = Number(stockLot.avgCost);
-    const effectiveAvgCost =
+    const totalReductionPerShare =
       sharesNum > 0
-        ? Math.max(0, avgCostNum - cspPremiumDuringHold / sharesNum)
-        : avgCostNum;
+        ? (cspPremiumDuringHold + longOptionPnlDuringHold) / sharesNum
+        : 0;
+    const effectiveAvgCost =
+      sharesNum > 0 ? Math.max(0, avgCostNum - totalReductionPerShare) : avgCostNum;
 
     return NextResponse.json({
       stockLot,
       effectiveBasis: {
         cspPremiumDuringHold,
         cspPendingPremium,
+        longOptionPnlDuringHold,
         effectiveAvgCost,
       },
     });
