@@ -72,7 +72,11 @@ export function ResponsiveModalContent({
       <SheetContent
         side="bottom"
         className={cn(
-          "rounded-t-2xl max-h-[92dvh] overflow-y-auto pb-[env(safe-area-inset-bottom)]",
+          // SheetContent ships with no inner padding — give it the same
+          // breathing room DialogContent has so headers don't touch the top
+          // edge. Extra top padding so the title clears the close (X) button
+          // at top-4 right-4.
+          "rounded-t-2xl max-h-[92dvh] overflow-y-auto px-4 pt-6 pb-[calc(env(safe-area-inset-bottom)+1rem)]",
           className,
           sheetClassName,
         )}
