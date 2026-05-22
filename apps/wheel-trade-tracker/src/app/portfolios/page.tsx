@@ -1,5 +1,5 @@
-import { redirect } from "next/navigation";
+import { PortfoliosLanding } from "@/features/portfolios/components/PortfoliosLanding";
 
 export default function PortfoliosPage() {
-  redirect("/summary");
+  return <PortfoliosLanding />;
 }

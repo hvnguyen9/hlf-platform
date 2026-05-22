@@ -10,6 +10,12 @@ export const changelog: ChangelogEntry[] = [
     version: "v2.19.2",
     highlights: [
       "Effective basis on stock lots now folds in closed long calls and puts on the same ticker during the lot's hold window. Winning LEAPs lower your effective sell-floor; losing ones raise it. Reflects the conviction model — if you own a stock and a LEAP on it, the LEAP's P&L is part of the overall position. Detail page shows it as a 'Long Options' cell in the Cost Basis via Premiums card.",
+      "Mobile navigation overhauled — replaced the hamburger drawer with a thumb-friendly bottom tab bar: Summary · Portfolios · Watchlist · Journal · More. The More sheet holds Alerts, Settings, Admin, theme toggle, and sign out. Top bar slimmed down to just the brand. Safe-area padding so the bar sits above the iOS home indicator.",
+      "Brought back the Portfolios landing page (you'll hit it from the new Portfolios tab on mobile, or navigate directly on desktop). Card per portfolio showing current capital, total P&L, percent return, deployed bar, and an expiring-soon badge. Tap a card to drill into its dashboard.",
+      "New Quick Add — a floating + button in the bottom-right corner on every page. Mobile gets a big-target bottom sheet; desktop gets a compact popover with list-row choices. Pick a portfolio (or it remembers the last one) and choose Add Stock Lot or Add Trade. Removed the duplicate inline Add buttons from the Positions tab since this covers them.",
+      "Portfolio detail tabs (Overview · Positions · Activity · Report) now stick to the top of the page while you scroll, so you never lose your spot. On mobile, swipe left/right across the tab content to jump between tabs — handy for one-handed use without reaching the top of the screen.",
+      "All Accounts page (/summary) now has the same sticky Overview / Report tab switcher.",
+      "Desktop sidebar tidied — moved Alerts out of the main nav and into the profile popover at the bottom, matching where it lives on mobile (in the More sheet). Alerts is a secondary destination now that day-to-day alert configs live inline on trades and lots.",
     ],
   },
   {

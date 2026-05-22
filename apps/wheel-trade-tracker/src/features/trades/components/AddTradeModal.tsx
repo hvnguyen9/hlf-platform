@@ -92,6 +92,9 @@ type AddTradeModalProps = {
   lockPrefill?: boolean;
   defaultContracts?: number;
   maxContracts?: number;
+  // When provided, the modal becomes externally controlled and renders no trigger.
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
 };
 
 export function AddTradeModal({
@@ -101,8 +104,16 @@ export function AddTradeModal({
   lockPrefill = false,
   defaultContracts,
   maxContracts,
+  open: controlledOpen,
+  onOpenChange: controlledOnOpenChange,
 }: AddTradeModalProps) {
-  const [open, setOpen] = useState(false);
+  const isControlled = controlledOpen !== undefined;
+  const [internalOpen, setInternalOpen] = useState(false);
+  const open = isControlled ? controlledOpen : internalOpen;
+  const setOpen = (next: boolean) => {
+    if (isControlled) controlledOnOpenChange?.(next);
+    else setInternalOpen(next);
+  };
   const [ticker, setTicker] = useState<string>(prefill?.ticker ?? "");
   const [strikePrice, setStrikePrice] = useState({ formatted: "", raw: 0 });
   const [expirationDate, setExpirationDate] = useState<Date | undefined>();
@@ -265,9 +276,11 @@ export function AddTradeModal({
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        {trigger ?? <Button variant="outline">+ Add Trade</Button>}
-      </DialogTrigger>
+      {!isControlled && (
+        <DialogTrigger asChild>
+          {trigger ?? <Button variant="outline">+ Add Trade</Button>}
+        </DialogTrigger>
+      )}
       <DialogContent className="sm:max-w-[480px]">
         <DialogHeader>
           <DialogTitle>Add New Trade</DialogTitle>

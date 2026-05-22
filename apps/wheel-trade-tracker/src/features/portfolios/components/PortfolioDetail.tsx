@@ -3,7 +3,6 @@
 import { AddTradeModal } from "@/features/trades/components/AddTradeModal";
 import { OpenTradesTable } from "@/features/trades/components/TradeTables/OpenTradesTable";
 import { StocksTable } from "@/features/stocks/components/StocksTable";
-import { AddStockModal } from "@/features/stocks/components/AddStockModal";
 import dynamic from "next/dynamic";
 const ClosedTradesTable = dynamic(
   () =>
@@ -46,8 +45,8 @@ import { useDetailMetrics } from "@/features/portfolios/hooks/useDetailMetrics";
 import { PortfolioSettings } from "@/features/portfolios/components/PortfolioSettings";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { motion } from "framer-motion";
-import { useEffect, useState } from "react";
-import { Settings, Plus, ChevronRight } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { Settings, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
@@ -63,6 +62,39 @@ function dollars(n: number | null | undefined) {
 
 const TABS = ["Overview", "Positions", "Activity", "Report"] as const;
 type Tab = (typeof TABS)[number];
+
+/**
+ * Horizontal swipe detector for the tab content panel. Only fires when the
+ * gesture is clearly horizontal, generous enough to ignore taps, and brisk
+ * enough to ignore slow drags (which usually mean the user is interacting
+ * with embedded content). Vertical scroll is unaffected.
+ */
+function useHorizontalSwipe(opts: {
+  onSwipeLeft: () => void;
+  onSwipeRight: () => void;
+  enabled?: boolean;
+}) {
+  const start = useRef<{ x: number; y: number; t: number } | null>(null);
+  if (opts.enabled === false) return {};
+  return {
+    onTouchStart(e: React.TouchEvent) {
+      const t = e.touches[0];
+      start.current = { x: t.clientX, y: t.clientY, t: Date.now() };
+    },
+    onTouchEnd(e: React.TouchEvent) {
+      if (!start.current) return;
+      const end = e.changedTouches[0];
+      const dx = end.clientX - start.current.x;
+      const dy = end.clientY - start.current.y;
+      const dt = Date.now() - start.current.t;
+      start.current = null;
+      if (Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(dy) * 1.5 && dt < 600) {
+        if (dx < 0) opts.onSwipeLeft();
+        else opts.onSwipeRight();
+      }
+    },
+  };
+}
 
 export function PortfolioDetail({ portfolio }: { portfolio: Portfolio }) {
   const { trades: openTrades, isLoading: loadingOpen } = useTrades(portfolio.id, "open");
@@ -83,7 +115,16 @@ export function PortfolioDetail({ portfolio }: { portfolio: Portfolio }) {
     sessionStorage.setItem(storageKey, tab);
   }
 
-  const [addStockOpen, setAddStockOpen] = useState(false);
+  const swipeHandlers = useHorizontalSwipe({
+    onSwipeLeft: () => {
+      const idx = TABS.indexOf(activeTab);
+      if (idx < TABS.length - 1) switchTab(TABS[idx + 1]);
+    },
+    onSwipeRight: () => {
+      const idx = TABS.indexOf(activeTab);
+      if (idx > 0) switchTab(TABS[idx - 1]);
+    },
+  });
 
   const starting = Number(portfolio.startingCapital ?? 0);
   const capitalBase = m?.capitalBase != null ? Number(m.capitalBase) : starting;
@@ -136,32 +177,36 @@ export function PortfolioDetail({ portfolio }: { portfolio: Portfolio }) {
 
       </motion.div>
 
-      {/* ── Pill tab switcher ── */}
-      <div className="flex gap-1 bg-muted p-1 rounded-lg w-fit overflow-x-auto">
-        {TABS.map((tab) => (
-          <button
-            key={tab}
-            type="button"
-            onClick={() => switchTab(tab)}
-            className={cn(
-              "flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-md transition-all whitespace-nowrap",
-              activeTab === tab
-                ? "bg-background text-foreground shadow-sm"
-                : "text-muted-foreground hover:text-foreground"
-            )}
-          >
-            {tab}
-            {tab === "Positions" && openTrades.length > 0 && (
-              <span className="text-[10px] font-semibold bg-muted text-muted-foreground rounded-full px-1.5 py-0.5 leading-none">
-                {openTrades.length}
-              </span>
-            )}
-          </button>
-        ))}
+      {/* ── Pill tab switcher — sticks to top of scroll container so it stays
+              reachable while scrolling through tab content. The bg + bottom
+              border give it a visible "stuck" appearance. ── */}
+      <div className="sticky top-0 z-30 -mx-4 sm:-mx-6 px-4 sm:px-6 py-2 bg-muted/95 dark:bg-gray-950/95 backdrop-blur supports-[backdrop-filter]:bg-muted/70 dark:supports-[backdrop-filter]:bg-gray-950/70 border-b border-border/40">
+        <div className="flex gap-1 bg-background/80 dark:bg-background/60 p-1 rounded-lg w-fit overflow-x-auto">
+          {TABS.map((tab) => (
+            <button
+              key={tab}
+              type="button"
+              onClick={() => switchTab(tab)}
+              className={cn(
+                "flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-md transition-all whitespace-nowrap",
+                activeTab === tab
+                  ? "bg-background text-foreground shadow-sm"
+                  : "text-muted-foreground hover:text-foreground"
+              )}
+            >
+              {tab}
+              {tab === "Positions" && openTrades.length > 0 && (
+                <span className="text-[10px] font-semibold bg-muted text-muted-foreground rounded-full px-1.5 py-0.5 leading-none">
+                  {openTrades.length}
+                </span>
+              )}
+            </button>
+          ))}
+        </div>
       </div>
 
-      {/* ── Tab content panel ── */}
-      <div className="rounded-xl border border-border bg-card overflow-hidden">
+      {/* ── Tab content panel — horizontal swipe switches between tabs ── */}
+      <div className="rounded-xl border border-border bg-card overflow-hidden" {...swipeHandlers}>
 
         {activeTab === "Overview" && (
           <div className="p-5 sm:p-6">
@@ -204,20 +249,15 @@ export function PortfolioDetail({ portfolio }: { portfolio: Portfolio }) {
 
             {/* ── Stock Lots ── */}
             <div className="rounded-xl border bg-card overflow-hidden">
-              <div className="flex items-center justify-between px-4 pt-4 pb-2.5">
+              <div className="flex items-center px-4 pt-4 pb-2.5">
                 <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-widest">Stock Lots</span>
-                <Button variant="outline" size="sm" className="h-7 text-xs gap-1.5" onClick={() => setAddStockOpen(true)}>
-                  <Plus className="h-3 w-3" />
-                  Add Stock
-                </Button>
               </div>
               <StocksTable portfolioId={portfolio.id} totalCapital={currentCapital} />
             </div>
-            <AddStockModal portfolioId={portfolio.id} open={addStockOpen} onOpenChange={setAddStockOpen} />
 
             {/* ── Open Trades ── */}
             <div>
-              <div className="flex items-center justify-between mb-2.5">
+              <div className="flex items-center mb-2.5">
                 <div className="flex items-center gap-2">
                   <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-widest">Open Trades</span>
                   {openTrades.length > 0 && (
@@ -231,7 +271,6 @@ export function PortfolioDetail({ portfolio }: { portfolio: Portfolio }) {
                     </span>
                   )}
                 </div>
-                <AddTradeModal portfolioId={portfolio.id} />
               </div>
               <div className="rounded-xl border bg-card overflow-hidden">
                 {loadingOpen ? (

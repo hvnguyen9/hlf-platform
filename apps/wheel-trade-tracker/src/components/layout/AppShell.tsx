@@ -4,6 +4,8 @@ import { usePathname } from "next/navigation";
 import { SessionProvider, useSession } from "next-auth/react";
 import { SWRConfig } from "swr";
 import { AppSidebar, MobileTopBar } from "@/components/layout/AppSidebar";
+import { MobileBottomNav } from "@/components/layout/MobileBottomNav";
+import { QuickAddFab } from "@/components/layout/QuickAdd";
 import { ImpersonationBanner } from "@/features/admin/components/ImpersonationBanner";
 import { AlertToastsListener } from "@/features/alerts/components/AlertToastsListener";
 
@@ -33,10 +35,20 @@ function InnerShell({ children }: { children: React.ReactNode }) {
               <MobileTopBar />
             </div>
             <ImpersonationBanner />
-            <main className="flex-1 overflow-y-auto bg-muted dark:bg-gray-950">
+            <main
+              className={
+                "flex-1 overflow-y-auto bg-muted dark:bg-gray-950 " +
+                // Leave room for the fixed mobile bottom nav (h-14 + safe-area).
+                "pb-[calc(theme(spacing.16)+env(safe-area-inset-bottom))] md:pb-0"
+              }
+            >
               {children}
             </main>
           </div>
+          {/* Mobile bottom nav — hidden on md+ */}
+          <MobileBottomNav />
+          {/* Global Quick Add — FAB on mobile, sidebar button on desktop */}
+          <QuickAddFab />
         </div>
       ) : (
         <div className="min-h-[100dvh] flex flex-col">

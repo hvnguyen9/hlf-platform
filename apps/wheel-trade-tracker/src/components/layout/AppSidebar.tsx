@@ -17,7 +17,6 @@ import {
   Moon,
   Sun,
   Plus,
-  Menu,
   PanelLeftClose,
   PanelLeftOpen,
   ChevronUp,
@@ -27,7 +26,6 @@ import { useTheme } from "next-themes";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
-import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import {
   Tooltip,
   TooltipContent,
@@ -249,6 +247,17 @@ function UserMenuPopover({
         {/* Nav links */}
         <div className="p-1 space-y-0.5">
           <Link
+            href="/alerts"
+            onClick={onNavigate}
+            className={cn(
+              "flex items-center gap-2.5 px-2.5 py-1.5 text-sm rounded-md transition-colors w-full",
+              pathname.startsWith("/alerts") ? "bg-accent text-accent-foreground" : "text-foreground hover:bg-accent"
+            )}
+          >
+            <Bell className="h-4 w-4 text-muted-foreground" />
+            Alerts
+          </Link>
+          <Link
             href="/settings"
             onClick={onNavigate}
             className={cn(
@@ -376,14 +385,6 @@ function NavContent({
           icon={Eye}
           label="Watchlist"
           active={pathname === "/watchlist"}
-          onClick={onNavigate}
-          collapsed={collapsed}
-        />
-        <NavItem
-          href="/alerts"
-          icon={Bell}
-          label="Alerts"
-          active={pathname === "/alerts" || pathname.startsWith("/alerts/")}
           onClick={onNavigate}
           collapsed={collapsed}
         />
@@ -532,10 +533,10 @@ export function AppSidebar() {
 }
 
 export function MobileTopBar() {
-  const [open, setOpen] = useState(false);
-
+  // Bottom nav handles all navigation on mobile — this bar is just brand chrome
+  // and a place for an optional page-specific action in the future.
   return (
-    <header className="flex items-center justify-between px-4 h-14 border-b border-border bg-background flex-shrink-0">
+    <header className="flex items-center justify-between px-4 h-12 border-b border-border bg-background flex-shrink-0">
       <Link href="/summary" className="flex items-center gap-2">
         <div className="w-7 h-7 rounded-lg bg-primary flex items-center justify-center flex-shrink-0">
           <TrendingUp className="w-4 h-4 text-primary-foreground" />
@@ -544,20 +545,6 @@ export function MobileTopBar() {
           Wheel Trade Tracker
         </span>
       </Link>
-      <Sheet open={open} onOpenChange={setOpen}>
-        <SheetTrigger asChild>
-          <Button variant="ghost" size="icon" aria-label="Open navigation">
-            <Menu className="h-5 w-5" />
-          </Button>
-        </SheetTrigger>
-        <SheetContent side="left" className="w-60 p-0">
-          <NavContent
-            onNavigate={() => setOpen(false)}
-            collapsed={false}
-            onToggleCollapse={() => {}}
-          />
-        </SheetContent>
-      </Sheet>
     </header>
   );
 }

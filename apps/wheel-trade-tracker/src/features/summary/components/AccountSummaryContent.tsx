@@ -964,25 +964,28 @@ export default function AccountSummaryContent({
         </motion.div>
       )}
 
-      {/* ── Account-level tab switcher (standalone page only) ── */}
+      {/* ── Account-level tab switcher — sticks to top of scroll container
+              so it stays reachable while scrolling. Standalone page only. ── */}
       {!embedded && (
         <>
-          <div className="flex gap-1 bg-muted p-1 rounded-lg w-fit">
-            {(["Overview", "Report"] as const).map((tab) => (
-              <button
-                key={tab}
-                type="button"
-                onClick={() => setAccountTab(tab)}
-                className={cn(
-                  "px-3 py-1.5 text-sm font-medium rounded-md transition-all",
-                  accountTab === tab
-                    ? "bg-background text-foreground shadow-sm"
-                    : "text-muted-foreground hover:text-foreground"
-                )}
-              >
-                {tab}
-              </button>
-            ))}
+          <div className="sticky top-0 z-30 -mx-4 sm:-mx-6 px-4 sm:px-6 py-2 bg-muted/95 dark:bg-gray-950/95 backdrop-blur supports-[backdrop-filter]:bg-muted/70 dark:supports-[backdrop-filter]:bg-gray-950/70 border-b border-border/40">
+            <div className="flex gap-1 bg-background/80 dark:bg-background/60 p-1 rounded-lg w-fit">
+              {(["Overview", "Report"] as const).map((tab) => (
+                <button
+                  key={tab}
+                  type="button"
+                  onClick={() => setAccountTab(tab)}
+                  className={cn(
+                    "px-3 py-1.5 text-sm font-medium rounded-md transition-all",
+                    accountTab === tab
+                      ? "bg-background text-foreground shadow-sm"
+                      : "text-muted-foreground hover:text-foreground"
+                  )}
+                >
+                  {tab}
+                </button>
+              ))}
+            </div>
           </div>
           {accountTab === "Report" && (
             <div className="rounded-xl border border-border bg-card overflow-hidden p-5 sm:p-6">
