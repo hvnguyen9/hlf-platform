@@ -3,12 +3,7 @@
 import { useState } from "react";
 import useSWR from "swr";
 import { toast } from "sonner";
-import { Bell, BellPlus, Plus, Trash2, X } from "lucide-react";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
+import { Plus, Trash2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { NumberInput } from "@/components/ui/number-input";
 import { Label } from "@/components/ui/label";
@@ -35,23 +30,29 @@ interface LotAlertConfigRow {
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
 
-export interface LotAlertsButtonProps {
+/**
+ * Container-agnostic stock-lot alerts UI: list of price-breach alerts with
+ * toggle + remove, plus an inline "add new" form. Mount inside whatever
+ * surface makes sense.
+ */
+export function LotAlertsManager({
+  stockLotId,
+  ticker,
+  avgCost,
+  defaultAdding = false,
+}: {
   stockLotId: string;
   ticker: string;
   avgCost: number;
-}
-
-export function LotAlertsButton({ stockLotId, ticker, avgCost }: LotAlertsButtonProps) {
+  /** Start with the add-form expanded. */
+  defaultAdding?: boolean;
+}) {
   const { data, mutate, isLoading } = useSWR<{ configs: LotAlertConfigRow[] }>(
     `/api/alerts/configs?stockLotId=${encodeURIComponent(stockLotId)}`,
     fetcher,
   );
   const configs = data?.configs ?? [];
-  const enabledCount = configs.filter((c) => c.enabled).length;
-  const total = configs.length;
-
-  const [open, setOpen] = useState(false);
-  const [adding, setAdding] = useState(false);
+  const [adding, setAdding] = useState(defaultAdding);
 
   async function toggleEnabled(c: LotAlertConfigRow) {
     const res = await fetch(`/api/alerts/configs/${c.id}`, {
@@ -70,52 +71,11 @@ export function LotAlertsButton({ stockLotId, ticker, avgCost }: LotAlertsButton
   }
 
   return (
-    <Popover
-      open={open}
-      onOpenChange={(v) => {
-        setOpen(v);
-        if (!v) setAdding(false);
-      }}
-    >
-      <PopoverTrigger asChild>
-        <Button variant="outline" size="sm" className="gap-1.5 relative">
-          {total === 0 ? (
-            <>
-              <BellPlus className="h-3.5 w-3.5" />
-              Add Alert
-            </>
-          ) : (
-            <>
-              <Bell className="h-3.5 w-3.5" />
-              Alerts · {total}
-              {enabledCount > 0 && (
-                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" aria-hidden />
-              )}
-            </>
-          )}
-        </Button>
-      </PopoverTrigger>
-      <PopoverContent align="end" className="w-[22rem] p-0">
-        <div className="p-3 border-b flex items-center justify-between">
-          <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-1.5">
-            <Bell className="h-3.5 w-3.5" />
-            Alerts · {ticker}
-          </div>
-          {!adding && (
-            <Button size="sm" variant="ghost" className="h-7 gap-1" onClick={() => setAdding(true)}>
-              <Plus className="h-3.5 w-3.5" />
-              Add
-            </Button>
-          )}
-        </div>
-
-        <div className="p-3 max-h-[60vh] overflow-y-auto">
+    <div className="flex flex-col gap-3">
+      {(isLoading || configs.length > 0) && (
+        <div className="max-h-[40vh] overflow-y-auto">
           {isLoading ? (
             <p className="text-sm text-muted-foreground">Loading…</p>
-          ) : configs.length === 0 && !adding ? (
-            <p className="text-sm text-muted-foreground">
-              No alerts on this lot yet. Add one to get a toast when {ticker} crosses a price you set.
-            </p>
           ) : (
             <ul className="space-y-1">
               {configs.map((c) => (
@@ -143,13 +103,22 @@ export function LotAlertsButton({ stockLotId, ticker, avgCost }: LotAlertsButton
             </ul>
           )}
         </div>
+      )}
 
-        {adding && (
-          <div className="border-t p-3 bg-muted/30">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                New alert
-              </span>
+      {!adding && configs.length > 0 && (
+        <Button size="sm" variant="outline" className="gap-1.5" onClick={() => setAdding(true)}>
+          <Plus className="h-3.5 w-3.5" />
+          Add another alert
+        </Button>
+      )}
+
+      {adding && (
+        <div className="rounded-lg border bg-muted/30 p-3">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              New alert
+            </span>
+            {configs.length > 0 && (
               <Button
                 size="icon"
                 variant="ghost"
@@ -159,20 +128,20 @@ export function LotAlertsButton({ stockLotId, ticker, avgCost }: LotAlertsButton
               >
                 <X className="h-3.5 w-3.5" />
               </Button>
-            </div>
-            <AddLotAlertForm
-              stockLotId={stockLotId}
-              ticker={ticker}
-              avgCost={avgCost}
-              onCreated={() => {
-                mutate();
-                setAdding(false);
-              }}
-            />
+            )}
           </div>
-        )}
-      </PopoverContent>
-    </Popover>
+          <AddLotAlertForm
+            stockLotId={stockLotId}
+            ticker={ticker}
+            avgCost={avgCost}
+            onCreated={() => {
+              mutate();
+              setAdding(false);
+            }}
+          />
+        </div>
+      )}
+    </div>
   );
 }
 

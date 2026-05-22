@@ -24,7 +24,6 @@ import {
 import CloseTradeModal from "@/features/trades/components/CloseTradeModal";
 import AddToTradeModal from "@/features/trades/components/AddToTradeModal";
 import { AdminEditTradeModal } from "@/features/trades/components/AdminEditTradeModal";
-import { TradeAlertsButton } from "@/features/alerts/components/TradeAlertsCard";
 import { formatDateOnlyUTC, ensureUtcMidnight } from "@/lib/formatDateOnly";
 
 type Props = { portfolioId: string; tradeId: string };
@@ -297,7 +296,6 @@ export default function TradeDetailPageClient({ portfolioId, tradeId }: Props) {
         <div className="flex flex-wrap items-center gap-2 sm:justify-end">
           {isOpen && (
             <>
-              <TradeAlertsButton tradeId={trade.id} />
               <Button variant="outline" size="sm" className="flex-1 sm:flex-none" onClick={() => setCloseModalOpen(true)}>
                 Close Position
               </Button>

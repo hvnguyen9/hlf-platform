@@ -4,11 +4,18 @@ import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import useSWR from "swr";
 import { useSession } from "next-auth/react";
-import { Briefcase, Layers, LineChart } from "lucide-react";
+import { BellPlus, Briefcase, Layers, LineChart } from "lucide-react";
 import {
   QuickAddFab as QuickAddFabPrimitive,
   type QuickAddAction,
 } from "@hlf/ui/quick-add-fab";
+import {
+  ResponsiveModal,
+  ResponsiveModalContent,
+  ResponsiveModalDescription,
+  ResponsiveModalHeader,
+  ResponsiveModalTitle,
+} from "@hlf/ui/responsive-modal";
 import {
   Select,
   SelectContent,
@@ -18,11 +25,15 @@ import {
 } from "@/components/ui/select";
 import { AddStockModal } from "@/features/stocks/components/AddStockModal";
 import { AddTradeModal } from "@/features/trades/components/AddTradeModal";
-import type { Portfolio } from "@/types";
+import { TradeAlertsManager } from "@/features/alerts/components/TradeAlertsCard";
+import { LotAlertsManager } from "@/features/alerts/components/LotAlertsCard";
+import type { Portfolio, StockLot } from "@/types";
 
 /**
  * Wheel-tracker config layer over @hlf/ui's QuickAddFab primitive. Wires up
- * the portfolio picker (wheel-specific context) and the two add modals.
+ * the portfolio picker (wheel-specific context) and the two add modals, plus
+ * a contextual "Add Alert" action that surfaces when the user is on a trade
+ * or stock-lot detail page.
  */
 
 const LAST_PORTFOLIO_KEY = "wheeltracker.quickadd.lastPortfolio";
@@ -37,6 +48,19 @@ function portfolioIdFromPath(pathname: string): string | null {
   return match ? match[1] : null;
 }
 
+function tradeIdFromPath(pathname: string): string | null {
+  const match = pathname.match(/^\/portfolios\/[^/]+\/trades\/([^/]+)/);
+  return match ? match[1] : null;
+}
+
+function stockIdFromPath(pathname: string): string | null {
+  const match = pathname.match(/^\/portfolios\/[^/]+\/stocks\/([^/]+)/);
+  return match ? match[1] : null;
+}
+
+const stockFetcher = (url: string) =>
+  fetch(url).then((r) => r.json()) as Promise<{ stockLot: StockLot }>;
+
 export function QuickAddFab() {
   const { data: session } = useSession();
   const pathname = usePathname();
@@ -44,7 +68,20 @@ export function QuickAddFab() {
 
   const [stockOpen, setStockOpen] = useState(false);
   const [tradeOpen, setTradeOpen] = useState(false);
+  const [alertOpen, setAlertOpen] = useState(false);
   const [pid, setPid] = useState<string>("");
+
+  // Context detection from URL.
+  const activeTradeId = tradeIdFromPath(pathname);
+  const activeStockId = stockIdFromPath(pathname);
+
+  // Fetch the stock lot when on a lot detail page — LotAlertsManager needs
+  // ticker + avgCost. SWR dedupes with StockDetailPageClient's identical fetch.
+  const { data: stockData } = useSWR(
+    activeStockId ? `/api/stocks/${activeStockId}` : null,
+    stockFetcher,
+  );
+  const activeLot = stockData?.stockLot ?? null;
 
   // Re-seed pid whenever the resolved default changes.
   const defaultPid = (() => {
@@ -64,11 +101,11 @@ export function QuickAddFab() {
   const hideOn = ["/", "/login", "/signup"];
   const hidden = !session || hideOn.includes(pathname);
 
-  const canPick = Boolean(pid);
+  const canPickPortfolio = Boolean(pid);
   const showPicker = portfolios.length > 1;
 
   function openModal(kind: "stock" | "trade") {
-    if (!canPick) return;
+    if (!canPickPortfolio) return;
     try {
       localStorage.setItem(LAST_PORTFOLIO_KEY, pid);
     } catch {}
@@ -76,14 +113,14 @@ export function QuickAddFab() {
     else setTradeOpen(true);
   }
 
-  // Wheel-specific actions.
+  // Base wheel actions.
   const actions: QuickAddAction[] = [
     {
       key: "stock",
       icon: Layers,
       label: "Add Stock Lot",
       description: "Track shares you own",
-      disabled: !canPick,
+      disabled: !canPickPortfolio,
       onSelect: () => openModal("stock"),
     },
     {
@@ -91,10 +128,29 @@ export function QuickAddFab() {
       icon: LineChart,
       label: "Add Trade",
       description: "CSP, CC, or long option",
-      disabled: !canPick,
+      disabled: !canPickPortfolio,
       onSelect: () => openModal("trade"),
     },
   ];
+
+  // Contextual: only show "Add Alert" when on a trade or stock-lot detail.
+  if (activeTradeId) {
+    actions.push({
+      key: "alert",
+      icon: BellPlus,
+      label: "Add Alert",
+      description: "Profit / assignment / roll triggers",
+      onSelect: () => setAlertOpen(true),
+    });
+  } else if (activeStockId && activeLot) {
+    actions.push({
+      key: "alert",
+      icon: BellPlus,
+      label: "Add Alert",
+      description: `Price breach on ${activeLot.ticker}`,
+      onSelect: () => setAlertOpen(true),
+    });
+  }
 
   // Header content — portfolio picker for multi-portfolio users, static label
   // for single-portfolio users. Empty when no portfolios exist.
@@ -143,7 +199,7 @@ export function QuickAddFab() {
         }
       />
 
-      {canPick && (
+      {canPickPortfolio && (
         <>
           <AddStockModal
             portfolioId={pid}
@@ -156,6 +212,45 @@ export function QuickAddFab() {
             onOpenChange={setTradeOpen}
           />
         </>
+      )}
+
+      {/* Alert manager — contextual to the page. Modal supplies the
+          shadcn-style Header/Title/Description so it matches the other Add
+          modals; the manager renders just the list + add form below. */}
+      {activeTradeId && (
+        <ResponsiveModal open={alertOpen} onOpenChange={setAlertOpen}>
+          <ResponsiveModalContent>
+            <ResponsiveModalHeader>
+              <ResponsiveModalTitle>Add Alert</ResponsiveModalTitle>
+              <ResponsiveModalDescription>
+                Profit target, assignment risk, or roll opportunity triggers on this trade.
+              </ResponsiveModalDescription>
+            </ResponsiveModalHeader>
+            <div className="mt-2">
+              <TradeAlertsManager tradeId={activeTradeId} defaultAdding />
+            </div>
+          </ResponsiveModalContent>
+        </ResponsiveModal>
+      )}
+      {activeStockId && activeLot && (
+        <ResponsiveModal open={alertOpen} onOpenChange={setAlertOpen}>
+          <ResponsiveModalContent>
+            <ResponsiveModalHeader>
+              <ResponsiveModalTitle>Add Alert</ResponsiveModalTitle>
+              <ResponsiveModalDescription>
+                Get a toast when {activeLot.ticker} crosses a price you set.
+              </ResponsiveModalDescription>
+            </ResponsiveModalHeader>
+            <div className="mt-2">
+              <LotAlertsManager
+                stockLotId={activeStockId}
+                ticker={activeLot.ticker}
+                avgCost={Number(activeLot.avgCost) || 0}
+                defaultAdding
+              />
+            </div>
+          </ResponsiveModalContent>
+        </ResponsiveModal>
       )}
     </>
   );

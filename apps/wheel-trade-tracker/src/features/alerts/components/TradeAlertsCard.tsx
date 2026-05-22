@@ -3,12 +3,7 @@
 import { useState } from "react";
 import useSWR from "swr";
 import { toast } from "sonner";
-import { Bell, BellPlus, Plus, Trash2, X } from "lucide-react";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
+import { Plus, Trash2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { NumberInput } from "@/components/ui/number-input";
 import { Label } from "@/components/ui/label";
@@ -35,17 +30,25 @@ interface AlertConfigRow {
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
 
-export function TradeAlertsButton({ tradeId }: { tradeId: string }) {
+/**
+ * Container-agnostic trade alerts UI: list of configured alerts with toggle
+ * + remove, plus an inline "add new" form. Mount inside whatever surface
+ * makes sense (popover, sheet, modal).
+ */
+export function TradeAlertsManager({
+  tradeId,
+  defaultAdding = false,
+}: {
+  tradeId: string;
+  /** Start with the add-form expanded. Useful when the entry point is "Add Alert". */
+  defaultAdding?: boolean;
+}) {
   const { data, mutate, isLoading } = useSWR<{ configs: AlertConfigRow[] }>(
     `/api/alerts/configs?tradeId=${encodeURIComponent(tradeId)}`,
     fetcher,
   );
   const configs = data?.configs ?? [];
-  const enabledCount = configs.filter((c) => c.enabled).length;
-  const total = configs.length;
-
-  const [open, setOpen] = useState(false);
-  const [adding, setAdding] = useState(false);
+  const [adding, setAdding] = useState(defaultAdding);
 
   async function toggleEnabled(c: AlertConfigRow) {
     const res = await fetch(`/api/alerts/configs/${c.id}`, {
@@ -64,52 +67,13 @@ export function TradeAlertsButton({ tradeId }: { tradeId: string }) {
   }
 
   return (
-    <Popover
-      open={open}
-      onOpenChange={(v) => {
-        setOpen(v);
-        if (!v) setAdding(false);
-      }}
-    >
-      <PopoverTrigger asChild>
-        <Button variant="outline" size="sm" className="gap-1.5 relative">
-          {total === 0 ? (
-            <>
-              <BellPlus className="h-3.5 w-3.5" />
-              Add Alert
-            </>
-          ) : (
-            <>
-              <Bell className="h-3.5 w-3.5" />
-              Alerts · {total}
-              {enabledCount > 0 && (
-                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" aria-hidden />
-              )}
-            </>
-          )}
-        </Button>
-      </PopoverTrigger>
-      <PopoverContent align="end" className="w-[22rem] p-0">
-        <div className="p-3 border-b flex items-center justify-between">
-          <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-1.5">
-            <Bell className="h-3.5 w-3.5" />
-            Alerts
-          </div>
-          {!adding && (
-            <Button size="sm" variant="ghost" className="h-7 gap-1" onClick={() => setAdding(true)}>
-              <Plus className="h-3.5 w-3.5" />
-              Add
-            </Button>
-          )}
-        </div>
-
-        <div className="p-3 max-h-[60vh] overflow-y-auto">
+    <div className="flex flex-col gap-3">
+      {/* Existing-configs list — only shown when there's something to show.
+          The host modal renders the title/description above. */}
+      {(isLoading || configs.length > 0) && (
+        <div className="max-h-[40vh] overflow-y-auto">
           {isLoading ? (
             <p className="text-sm text-muted-foreground">Loading…</p>
-          ) : configs.length === 0 && !adding ? (
-            <p className="text-sm text-muted-foreground">
-              No alerts on this trade yet. Add one to get a toast when a threshold fires.
-            </p>
           ) : (
             <ul className="space-y-1">
               {configs.map((c) => (
@@ -142,13 +106,28 @@ export function TradeAlertsButton({ tradeId }: { tradeId: string }) {
             </ul>
           )}
         </div>
+      )}
 
-        {adding && (
-          <div className="border-t p-3 bg-muted/30">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                New alert
-              </span>
+      {/* Add another button — only when we're already showing existing configs
+          and the form isn't visible. Empty state opens the form directly. */}
+      {!adding && configs.length > 0 && (
+        <Button size="sm" variant="outline" className="gap-1.5" onClick={() => setAdding(true)}>
+          <Plus className="h-3.5 w-3.5" />
+          Add another alert
+        </Button>
+      )}
+
+      {/* Inline add-form, expanded by default when entered from the FAB. */}
+      {adding && (
+        <div className="rounded-lg border bg-muted/30 p-3">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              New alert
+            </span>
+            {/* Only show cancel if there are existing alerts to fall back to.
+                When the list is empty, "cancel" leaves the user with nothing,
+                which is confusing in a one-shot "Add Alert" entry from the FAB. */}
+            {configs.length > 0 && (
               <Button
                 size="icon"
                 variant="ghost"
@@ -158,18 +137,18 @@ export function TradeAlertsButton({ tradeId }: { tradeId: string }) {
               >
                 <X className="h-3.5 w-3.5" />
               </Button>
-            </div>
-            <AddTradeAlertForm
-              tradeId={tradeId}
-              onCreated={() => {
-                mutate();
-                setAdding(false);
-              }}
-            />
+            )}
           </div>
-        )}
-      </PopoverContent>
-    </Popover>
+          <AddTradeAlertForm
+            tradeId={tradeId}
+            onCreated={() => {
+              mutate();
+              setAdding(false);
+            }}
+          />
+        </div>
+      )}
+    </div>
   );
 }
 

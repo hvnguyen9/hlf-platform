@@ -21,7 +21,6 @@ import { AddSharesModal } from "./AddSharesModal";
 import { AddTradeModal } from "@/features/trades/components/AddTradeModal";
 import { AdminEditStockModal } from "./AdminEditStockModal";
 import { LotNotesCard } from "./LotNotesCard";
-import { LotAlertsButton } from "@/features/alerts/components/LotAlertsCard";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -491,9 +490,6 @@ export default function StockDetailPageClient(props: {
         </div>
 
         <div className="flex flex-wrap items-center gap-2 sm:justify-end">
-          {!isClosed ? (
-            <LotAlertsButton stockLotId={stockId} ticker={s.ticker} avgCost={avg} />
-          ) : null}
           {!isClosed ? (
             <Button
               variant="outline"

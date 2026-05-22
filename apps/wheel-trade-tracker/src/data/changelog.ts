@@ -16,6 +16,7 @@ export const changelog: ChangelogEntry[] = [
       "Portfolio detail tabs (Overview · Positions · Activity · Report) now stick to the top of the page while you scroll, so you never lose your spot. On mobile, swipe left/right across the tab content to jump between tabs — handy for one-handed use without reaching the top of the screen.",
       "All Accounts page (/summary) now has the same sticky Overview / Report tab switcher.",
       "Desktop sidebar tidied — moved Alerts out of the main nav and into the profile popover at the bottom, matching where it lives on mobile (in the More sheet). Alerts is a secondary destination now that day-to-day alert configs live inline on trades and lots.",
+      "Quick Add now surfaces an 'Add Alert' option when you're inside a trade or stock-lot detail page. Tap it and the alerts manager opens — bottom sheet on mobile, popover on desktop — pre-expanded to the new-alert form. Removed the inline alerts button from the action row since the FAB covers it.",
     ],
   },
   {
