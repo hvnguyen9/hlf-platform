@@ -18,72 +18,17 @@ import {
   Sun,
 } from "lucide-react";
 import { useTheme } from "next-themes";
-import { cn } from "@/lib/utils";
 import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-  SheetTrigger,
-} from "@/components/ui/sheet";
+  MobileBottomNav as MobileBottomNavPrimitive,
+  type BottomNavTab,
+} from "@hlf/ui/mobile-bottom-nav";
+import { cn } from "@/lib/utils";
 
-type TabKey = "summary" | "portfolios" | "watchlist" | "journal" | "more";
-
-function tabForPath(pathname: string): TabKey | null {
-  if (pathname === "/summary") return "summary";
-  if (pathname.startsWith("/portfolios")) return "portfolios";
-  if (pathname === "/watchlist") return "watchlist";
-  if (pathname.startsWith("/journal")) return "journal";
-  if (
-    pathname.startsWith("/alerts") ||
-    pathname.startsWith("/settings") ||
-    pathname.startsWith("/admin")
-  ) {
-    return "more";
-  }
-  return null;
-}
-
-function TabButton({
-  href,
-  icon: Icon,
-  label,
-  active,
-  onClick,
-}: {
-  href?: string;
-  icon: React.ElementType;
-  label: string;
-  active: boolean;
-  onClick?: () => void;
-}) {
-  const cls = cn(
-    "flex flex-1 flex-col items-center justify-center gap-0.5 py-1.5 transition-colors",
-    active
-      ? "text-primary"
-      : "text-muted-foreground hover:text-foreground",
-  );
-
-  const inner = (
-    <>
-      <Icon className="h-5 w-5" strokeWidth={active ? 2.4 : 2} />
-      <span className="text-[10px] font-medium leading-none">{label}</span>
-    </>
-  );
-
-  if (href) {
-    return (
-      <Link href={href} className={cls} aria-current={active ? "page" : undefined}>
-        {inner}
-      </Link>
-    );
-  }
-  return (
-    <button type="button" className={cls} onClick={onClick} aria-current={active ? "page" : undefined}>
-      {inner}
-    </button>
-  );
-}
+/**
+ * Wheel-tracker config layer over @hlf/ui's MobileBottomNav primitive.
+ * Defines the per-app tabs (Summary / Portfolios / Watchlist / Journal / More)
+ * and the contents of the More sheet (Alerts, Settings, Admin, theme, sign out).
+ */
 
 function MoreSheetContent({ onNavigate }: { onNavigate: () => void }) {
   const pathname = usePathname();
@@ -116,7 +61,6 @@ function MoreSheetContent({ onNavigate }: { onNavigate: () => void }) {
 
   return (
     <div className="flex flex-col gap-1 pb-[env(safe-area-inset-bottom)]">
-      {/* User header */}
       {user && (
         <div className="flex items-center gap-3 px-3 pb-3 border-b border-border">
           {user.image ? (
@@ -138,7 +82,6 @@ function MoreSheetContent({ onNavigate }: { onNavigate: () => void }) {
         </div>
       )}
 
-      {/* Secondary nav */}
       <div className="space-y-0.5 pt-2">
         <Link href="/alerts" onClick={onNavigate} className={linkCls(pathname.startsWith("/alerts"))}>
           <Bell className="h-4 w-4 text-muted-foreground" />
@@ -158,14 +101,11 @@ function MoreSheetContent({ onNavigate }: { onNavigate: () => void }) {
 
       <div className="mx-3 my-2 h-px bg-border" />
 
-      {/* Theme + sign out */}
       <div className="space-y-0.5">
         {mounted && (
           <button
             type="button"
-            onClick={() => {
-              toggleTheme();
-            }}
+            onClick={() => toggleTheme()}
             className={linkCls(false) + " w-full text-left"}
           >
             {isDark ? <Sun className="h-4 w-4 text-muted-foreground" /> : <Moon className="h-4 w-4 text-muted-foreground" />}
@@ -187,65 +127,44 @@ function MoreSheetContent({ onNavigate }: { onNavigate: () => void }) {
 
 export function MobileBottomNav() {
   const pathname = usePathname();
-  const active = tabForPath(pathname);
-  const [moreOpen, setMoreOpen] = useState(false);
+
+  const tabs: BottomNavTab[] = [
+    { key: "summary", label: "Summary", icon: LayoutDashboard, href: "/summary" },
+    {
+      key: "portfolios",
+      label: "Portfolios",
+      icon: Briefcase,
+      href: "/portfolios",
+      match: (p) => p.startsWith("/portfolios"),
+    },
+    { key: "watchlist", label: "Watchlist", icon: Eye, href: "/watchlist" },
+    {
+      key: "journal",
+      label: "Journal",
+      icon: BookOpen,
+      href: "/journal",
+      match: (p) => p.startsWith("/journal"),
+    },
+    {
+      key: "more",
+      label: "More",
+      icon: MoreHorizontal,
+      match: (p) =>
+        p.startsWith("/alerts") ||
+        p.startsWith("/settings") ||
+        p.startsWith("/admin"),
+      sheet: {
+        title: "More",
+        content: (close) => <MoreSheetContent onNavigate={close} />,
+      },
+    },
+  ];
 
   return (
-    <nav
-      className={cn(
-        "md:hidden fixed inset-x-0 bottom-0 z-40 border-t border-border bg-background/95 backdrop-blur",
-        "pb-[env(safe-area-inset-bottom)]",
-      )}
-    >
-      <div className="flex items-stretch h-14">
-        <TabButton
-          href="/summary"
-          icon={LayoutDashboard}
-          label="Summary"
-          active={active === "summary"}
-        />
-        <TabButton
-          href="/portfolios"
-          icon={Briefcase}
-          label="Portfolios"
-          active={active === "portfolios"}
-        />
-        <TabButton
-          href="/watchlist"
-          icon={Eye}
-          label="Watchlist"
-          active={active === "watchlist"}
-        />
-        <TabButton
-          href="/journal"
-          icon={BookOpen}
-          label="Journal"
-          active={active === "journal"}
-        />
-        <Sheet open={moreOpen} onOpenChange={setMoreOpen}>
-          <SheetTrigger asChild>
-            <button
-              type="button"
-              className={cn(
-                "flex flex-1 flex-col items-center justify-center gap-0.5 py-1.5 transition-colors",
-                active === "more"
-                  ? "text-primary"
-                  : "text-muted-foreground hover:text-foreground",
-              )}
-              aria-current={active === "more" ? "page" : undefined}
-            >
-              <MoreHorizontal className="h-5 w-5" strokeWidth={active === "more" ? 2.4 : 2} />
-              <span className="text-[10px] font-medium leading-none">More</span>
-            </button>
-          </SheetTrigger>
-          <SheetContent side="bottom" className="rounded-t-2xl pb-0">
-            <SheetHeader className="pb-2">
-              <SheetTitle className="text-base">More</SheetTitle>
-            </SheetHeader>
-            <MoreSheetContent onNavigate={() => setMoreOpen(false)} />
-          </SheetContent>
-        </Sheet>
-      </div>
-    </nav>
+    <MobileBottomNavPrimitive
+      tabs={tabs}
+      currentPath={pathname}
+      LinkComponent={Link}
+    />
   );
 }

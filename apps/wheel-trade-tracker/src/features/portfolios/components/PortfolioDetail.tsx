@@ -45,7 +45,8 @@ import { useDetailMetrics } from "@/features/portfolios/hooks/useDetailMetrics";
 import { PortfolioSettings } from "@/features/portfolios/components/PortfolioSettings";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { motion } from "framer-motion";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
+import { useHorizontalSwipe } from "@hlf/ui/use-horizontal-swipe";
 import { Settings, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
@@ -62,39 +63,6 @@ function dollars(n: number | null | undefined) {
 
 const TABS = ["Overview", "Positions", "Activity", "Report"] as const;
 type Tab = (typeof TABS)[number];
-
-/**
- * Horizontal swipe detector for the tab content panel. Only fires when the
- * gesture is clearly horizontal, generous enough to ignore taps, and brisk
- * enough to ignore slow drags (which usually mean the user is interacting
- * with embedded content). Vertical scroll is unaffected.
- */
-function useHorizontalSwipe(opts: {
-  onSwipeLeft: () => void;
-  onSwipeRight: () => void;
-  enabled?: boolean;
-}) {
-  const start = useRef<{ x: number; y: number; t: number } | null>(null);
-  if (opts.enabled === false) return {};
-  return {
-    onTouchStart(e: React.TouchEvent) {
-      const t = e.touches[0];
-      start.current = { x: t.clientX, y: t.clientY, t: Date.now() };
-    },
-    onTouchEnd(e: React.TouchEvent) {
-      if (!start.current) return;
-      const end = e.changedTouches[0];
-      const dx = end.clientX - start.current.x;
-      const dy = end.clientY - start.current.y;
-      const dt = Date.now() - start.current.t;
-      start.current = null;
-      if (Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(dy) * 1.5 && dt < 600) {
-        if (dx < 0) opts.onSwipeLeft();
-        else opts.onSwipeRight();
-      }
-    },
-  };
-}
 
 export function PortfolioDetail({ portfolio }: { portfolio: Portfolio }) {
   const { trades: openTrades, isLoading: loadingOpen } = useTrades(portfolio.id, "open");
