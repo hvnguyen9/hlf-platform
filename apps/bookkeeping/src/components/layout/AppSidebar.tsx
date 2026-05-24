@@ -11,7 +11,6 @@ import {
   LogOut,
   Moon,
   Sun,
-  Menu,
   PanelLeftClose,
   PanelLeftOpen,
   ChevronUp,
@@ -20,9 +19,7 @@ import {
 } from "lucide-react";
 import { useTheme } from "next-themes";
 import { cn } from "@/lib/utils";
-import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
-import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import {
   Tooltip,
   TooltipContent,
@@ -287,10 +284,8 @@ export function AppSidebar() {
 }
 
 export function MobileTopBar() {
-  const [open, setOpen] = useState(false);
-
   return (
-    <header className="flex items-center justify-between px-4 h-14 border-b border-border bg-background flex-shrink-0">
+    <header className="flex items-center px-4 h-14 border-b border-border bg-background flex-shrink-0">
       <Link href="/dashboard" className="flex items-center gap-2">
         <div className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 shadow-sm"
              style={{ background: "linear-gradient(135deg, oklch(0.52 0.24 265), oklch(0.40 0.22 280))" }}>
@@ -298,16 +293,6 @@ export function MobileTopBar() {
         </div>
         <span className="font-semibold text-sm text-foreground">HLF Bookkeeping</span>
       </Link>
-      <Sheet open={open} onOpenChange={setOpen}>
-        <SheetTrigger asChild>
-          <Button variant="ghost" size="icon" aria-label="Open navigation">
-            <Menu className="h-5 w-5" />
-          </Button>
-        </SheetTrigger>
-        <SheetContent side="left" className="w-60 p-0">
-          <NavContent onNavigate={() => setOpen(false)} collapsed={false} onToggleCollapse={() => {}} />
-        </SheetContent>
-      </Sheet>
     </header>
   );
 }

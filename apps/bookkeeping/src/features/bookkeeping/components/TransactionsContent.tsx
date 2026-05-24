@@ -84,7 +84,7 @@ export function TransactionsContent({ year }: Props) {
             <h1 className="text-2xl font-bold">Transactions</h1>
             <p className="text-sm text-muted-foreground mt-0.5">All income and expense entries</p>
           </div>
-          <div className="flex gap-2">
+          <div className="hidden md:flex gap-2">
             <Button size="sm" onClick={() => { setEditEntry(undefined); setModalOpen(true); }} className="gap-1.5 h-9">
               <Plus className="h-4 w-4" /> Add Entry
             </Button>
@@ -94,7 +94,7 @@ export function TransactionsContent({ year }: Props) {
 
       {/* Toolbar when embedded inside Records */}
       {year && (
-        <div className="flex justify-end gap-2">
+        <div className="hidden md:flex justify-end gap-2">
           <Button size="sm" onClick={() => { setEditEntry(undefined); setModalOpen(true); }} className="gap-1.5 h-8">
             <Plus className="h-3.5 w-3.5" /> Add Entry
           </Button>

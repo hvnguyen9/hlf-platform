@@ -5,8 +5,12 @@ import { useForm, Controller } from "react-hook-form";
 import { format } from "date-fns";
 import { toast } from "sonner";
 import {
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
-} from "@/components/ui/dialog";
+  ResponsiveModal,
+  ResponsiveModalContent,
+  ResponsiveModalHeader,
+  ResponsiveModalTitle,
+  ResponsiveModalFooter,
+} from "@hlf/ui/responsive-modal";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -96,11 +100,11 @@ export function TransactionModal({ open, onClose, onSaved, editing }: Props) {
   }
 
   return (
-    <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>{editing ? "Edit Transaction" : "Add Transaction"}</DialogTitle>
-        </DialogHeader>
+    <ResponsiveModal open={open} onOpenChange={(v) => !v && onClose()}>
+      <ResponsiveModalContent dialogClassName="sm:max-w-md">
+        <ResponsiveModalHeader>
+          <ResponsiveModalTitle>{editing ? "Edit Transaction" : "Add Transaction"}</ResponsiveModalTitle>
+        </ResponsiveModalHeader>
 
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
           <div className="flex gap-2">
@@ -196,14 +200,14 @@ export function TransactionModal({ open, onClose, onSaved, editing }: Props) {
             <Textarea placeholder="Additional notes (optional)" rows={2} {...register("notes")} />
           </div>
 
-          <DialogFooter>
+          <ResponsiveModalFooter>
             <Button type="button" variant="outline" onClick={onClose}>Cancel</Button>
             <Button type="submit" disabled={loading}>
               {loading ? "Saving…" : editing ? "Update" : "Add Transaction"}
             </Button>
-          </DialogFooter>
+          </ResponsiveModalFooter>
         </form>
-      </DialogContent>
-    </Dialog>
+      </ResponsiveModalContent>
+    </ResponsiveModal>
   );
 }

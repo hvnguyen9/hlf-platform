@@ -9,8 +9,6 @@ import {
   LogOut,
   Sun,
   Moon,
-  Menu,
-  X,
   Sparkles,
   LayoutGrid,
   Settings,
@@ -28,6 +26,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@hlf/ui/popover";
 import { useTheme } from "next-themes";
 import { getLatestVersion } from "@/data/changelog";
 import { APPS, getAppUrl, type AppDef } from "@/lib/apps";
+import { MobileBottomNav } from "@/components/mobile-bottom-nav";
 
 const APP_ICONS: Record<AppDef["key"], React.ElementType> = {
   wheel: TrendingUp,
@@ -46,12 +45,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const initial = (firstName[0] || email[0] || "?").toUpperCase();
   const { resolvedTheme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
-  const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
   useEffect(() => setMounted(true), []);
-  useEffect(() => {
-    setMobileNavOpen(false);
-  }, [pathname]);
 
   function toggleTheme() {
     setTheme(resolvedTheme === "dark" ? "light" : "dark");
@@ -244,14 +239,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
       <div className="flex flex-col flex-1 min-w-0">
         <header className="flex md:hidden items-center gap-3 px-4 py-3 border-b border-border bg-sidebar shrink-0">
-          <Button
-            variant="ghost"
-            size="icon-sm"
-            onClick={() => setMobileNavOpen(true)}
-            aria-label="Open navigation"
-          >
-            <Menu className="h-5 w-5" />
-          </Button>
           <Link href="/dashboard" className="flex items-center gap-2 flex-1 min-w-0">
             <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary/15 shrink-0">
               <LayoutGrid className="h-3.5 w-3.5 text-primary" />
@@ -277,46 +264,17 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           </Button>
         </header>
 
-        <main className="flex-1 overflow-y-auto">{children}</main>
+        <main
+          className={cn(
+            "flex-1 overflow-y-auto",
+            "pb-[calc(theme(spacing.16)+env(safe-area-inset-bottom))] md:pb-0",
+          )}
+        >
+          {children}
+        </main>
       </div>
 
-      {mobileNavOpen && (
-        <div className="fixed inset-0 z-50 md:hidden">
-          <div
-            className="absolute inset-0 bg-black/50"
-            onClick={() => setMobileNavOpen(false)}
-          />
-          <aside className="absolute left-0 top-0 h-full w-72 bg-sidebar border-r border-border flex flex-col">
-            <div className="flex items-center justify-between px-4 py-4 border-b border-sidebar-border">
-              <Link
-                href="/dashboard"
-                className="flex items-center gap-3"
-                onClick={() => setMobileNavOpen(false)}
-              >
-                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/15 shrink-0">
-                  <LayoutGrid className="h-4 w-4 text-primary" />
-                </div>
-                <div>
-                  <p className="font-semibold text-sm leading-tight">HLF Portal</p>
-                  <p className="text-[10px] text-muted-foreground leading-tight mt-0.5">
-                    HL Financial Strategies
-                  </p>
-                </div>
-              </Link>
-              <Button
-                variant="ghost"
-                size="icon-sm"
-                onClick={() => setMobileNavOpen(false)}
-                aria-label="Close navigation"
-                className="shrink-0 ml-2"
-              >
-                <X className="h-4 w-4" />
-              </Button>
-            </div>
-            {sidebarBody}
-          </aside>
-        </div>
-      )}
+      <MobileBottomNav />
     </div>
   );
 }

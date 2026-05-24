@@ -4,6 +4,8 @@ import { usePathname } from "next/navigation";
 import { SessionProvider, useSession } from "next-auth/react";
 import { SWRConfig } from "swr";
 import { AppSidebar, MobileTopBar } from "@/components/layout/AppSidebar";
+import { MobileBottomNav } from "@/components/layout/MobileBottomNav";
+import { QuickAddFab } from "@/components/layout/QuickAdd";
 
 function InnerShell({ children }: { children: React.ReactNode }) {
   const { data: session } = useSession();
@@ -21,10 +23,17 @@ function InnerShell({ children }: { children: React.ReactNode }) {
             <div className="md:hidden">
               <MobileTopBar />
             </div>
-            <main className="flex-1 overflow-y-auto bg-muted dark:bg-gray-950">
+            <main
+              className={
+                "flex-1 overflow-y-auto bg-muted dark:bg-gray-950 " +
+                "pb-[calc(theme(spacing.16)+env(safe-area-inset-bottom))] md:pb-0"
+              }
+            >
               {children}
             </main>
           </div>
+          <MobileBottomNav />
+          <QuickAddFab />
         </div>
       ) : (
         <div className="min-h-[100dvh] flex flex-col">

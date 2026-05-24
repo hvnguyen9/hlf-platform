@@ -176,7 +176,7 @@ export function RecordsLedger({ year, initialMonth }: Props) {
 
   return (
     <div className="space-y-2">
-      <div className="flex justify-end">
+      <div className="hidden md:flex justify-end">
         <Button size="sm" onClick={() => { setEditEntry(undefined); setModalOpen(true); }} className="gap-1.5 h-8">
           <Plus className="h-3.5 w-3.5" /> Add Entry
         </Button>
