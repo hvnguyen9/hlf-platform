@@ -39,6 +39,7 @@ export default async function DashboardPage() {
       bookkeeping={bookkeeping.data}
       budget={budget.data}
       todayItems={todayItems}
+      wheelUrl={wheelUrl}
       errors={{
         wheel: wheel.error,
         bookkeeping: bookkeeping.error,

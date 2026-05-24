@@ -18,7 +18,6 @@ import {
   Target,
   ExternalLink,
   ChevronUp,
-  Inbox,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@hlf/ui/button";
@@ -190,7 +189,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       <nav className="flex-1 px-2 py-3 space-y-3 overflow-y-auto">
         <div className="space-y-0.5">
           {internalLink("/dashboard", "Dashboard", LayoutDashboard)}
-          {internalLink("/today", "Today", Inbox)}
         </div>
         <div>
           <p className="px-3 pt-2 pb-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">

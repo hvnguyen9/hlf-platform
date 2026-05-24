@@ -5,7 +5,7 @@
       "name": "portal",
       "runtimeExecutable": "pnpm",
       "runtimeArgs": ["--filter", "hlf-portal", "dev"],
-      "port": 3004
+      "port": 3003
     },
     {
       "name": "wheel",

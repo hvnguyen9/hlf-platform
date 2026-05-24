@@ -43,6 +43,7 @@ export async function GET(request: Request) {
         ytdNet: 0,
         mtdTradingPnl: 0,
         ytdTradingPnl: 0,
+        mtdTopExpenses: [],
       });
     }
     resolvedUserId = user.id;
@@ -60,7 +61,14 @@ export async function GET(request: Request) {
     const [entries, sharedUser] = await Promise.all([
       prisma.bookkeepingEntry.findMany({
         where: { userId: resolvedUserId! },
-        select: { type: true, amount: true, date: true, recurring: true },
+        select: {
+          name: true,
+          type: true,
+          amount: true,
+          date: true,
+          recurring: true,
+          category: true,
+        },
       }),
       authPrisma.user.findUnique({
         where: { id: resolvedUserId! },
@@ -108,6 +116,15 @@ export async function GET(request: Request) {
     let mtdExpenses = 0;
     let ytdIncome = 0;
     let ytdExpenses = 0;
+    // Collect MTD expenses for the "what makes up this number" window on
+    // the Dashboard. Recurring entries contribute their monthly amount as
+    // a single line so the list matches the mtdExpenses total.
+    const mtdExpenseRows: Array<{
+      name: string;
+      amount: number;
+      category: string | null;
+      recurring: boolean;
+    }> = [];
 
     for (const e of entries) {
       const amount = Number(e.amount);
@@ -118,11 +135,25 @@ export async function GET(request: Request) {
         } else {
           mtdExpenses += amount;
           ytdExpenses += amount * monthsElapsedYtd;
+          mtdExpenseRows.push({
+            name: e.name ?? e.category,
+            amount,
+            category: e.category,
+            recurring: true,
+          });
         }
       } else {
         if (e.date >= mtdStart) {
           if (e.type === "income") mtdIncome += amount;
-          else mtdExpenses += amount;
+          else {
+            mtdExpenses += amount;
+            mtdExpenseRows.push({
+              name: e.name ?? e.category,
+              amount,
+              category: e.category,
+              recurring: false,
+            });
+          }
         }
         if (e.date >= ytdStart) {
           if (e.type === "income") ytdIncome += amount;
@@ -130,6 +161,10 @@ export async function GET(request: Request) {
         }
       }
     }
+
+    const mtdTopExpenses = mtdExpenseRows
+      .sort((a, b) => b.amount - a.amount)
+      .slice(0, 5);
 
     const mtdIncomeWithTrading = mtdIncome + mtdTradingPnl;
     const ytdIncomeWithTrading = ytdIncome + ytdTradingPnl;
@@ -141,6 +176,7 @@ export async function GET(request: Request) {
       ytdNet: ytdIncomeWithTrading - ytdExpenses,
       mtdTradingPnl,
       ytdTradingPnl,
+      mtdTopExpenses,
     });
   } catch (error) {
     console.error("[internal/portal-summary] error:", error);

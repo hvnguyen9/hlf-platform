@@ -3,10 +3,17 @@
 // and bookkeeping rows were dropped because they couldn't produce signal
 // that changed day-to-day (recurring entries showed the same items every
 // render).
+//
+// Action items come from two sources:
+//   1. actionableConfigs — alert configs whose threshold is *currently*
+//      satisfied per the engine's evaluator. Live state, not historical
+//      fires. Powers the "Action alerts" section.
+//   2. expiringTrades — open trades with DTE <= 7. Powers the "Expiring
+//      this week" section.
 
 import type {
+  ActionableConfig,
   ExpiringTrade,
-  RecentAlert,
   WheelSummary,
 } from "@/lib/clients/types";
 
@@ -32,19 +39,16 @@ type AppUrls = {
 
 const SEVERITY_RANK: Record<TodaySeverity, number> = { high: 0, medium: 1, low: 2 };
 
-const RECENT_ALERT_WINDOW_MS = 24 * 60 * 60 * 1000;
-
 export function buildTodayItems(args: {
   wheel: WheelSummary | null;
   appUrls: AppUrls;
   now?: Date;
 }): TodayItem[] {
-  const now = args.now ?? new Date();
   const items: TodayItem[] = [];
 
   if (args.wheel) {
-    for (const alert of args.wheel.recentAlerts ?? []) {
-      items.push(alertToItem(alert, args.appUrls.wheel, now));
+    for (const ac of args.wheel.actionableConfigs ?? []) {
+      items.push(actionableToItem(ac, args.appUrls.wheel));
     }
     for (const trade of args.wheel.expiringTrades ?? []) {
       items.push(expiringTradeToItem(trade, args.appUrls.wheel));
@@ -62,21 +66,58 @@ export function buildTodayItems(args: {
   return items;
 }
 
-function alertToItem(alert: RecentAlert, wheelUrl: string, now: Date): TodayItem {
-  const firedAtMs = Date.parse(alert.firedAt);
-  const isRecent = !Number.isNaN(firedAtMs) && now.getTime() - firedAtMs <= RECENT_ALERT_WINDOW_MS;
-  const ticker = alert.watchlistTicker ?? extractTicker(alert.message);
+function actionableToItem(ac: ActionableConfig, wheelUrl: string): TodayItem {
+  const ticker = ac.ticker ?? extractTicker(ac.message) ?? undefined;
+  const title = ticker
+    ? `${ticker} · ${formatAlertType(ac.type)}`
+    : formatAlertType(ac.type);
+
+  // URL routing: trade-bound configs deep-link to the trade detail page;
+  // lot-bound to the lot detail page; watchlist-bound and orphans land on
+  // the alerts list page.
+  let actionUrl = `${wheelUrl}/alerts`;
+  let actionLabel = "Open alerts";
+  if (ac.tradeId && ac.portfolioId) {
+    actionUrl = `${wheelUrl}/portfolios/${ac.portfolioId}/trades/${ac.tradeId}`;
+    actionLabel = "Open trade";
+  } else if (ac.stockLotId && ac.portfolioId) {
+    actionUrl = `${wheelUrl}/portfolios/${ac.portfolioId}/stocks/${ac.stockLotId}`;
+    actionLabel = "Open lot";
+  } else if (ac.watchlistTicker) {
+    actionUrl = `${wheelUrl}/watchlist`;
+    actionLabel = "Open watchlist";
+  }
+
   return {
-    id: `alert:${alert.id}`,
+    id: `actionable:${ac.configId}`,
     kind: "ALERT",
-    severity: isRecent ? "high" : "medium",
-    title: formatAlertType(alert.type) + (ticker ? ` · ${ticker}` : ""),
-    description: alert.message,
-    actionLabel: "Open alerts",
-    actionUrl: `${wheelUrl}/alerts`,
-    ticker: ticker ?? undefined,
-    timestamp: alert.firedAt,
+    severity: severityFor(ac),
+    title,
+    description: ac.message,
+    actionLabel,
+    actionUrl,
+    ticker,
   };
+}
+
+function severityFor(ac: ActionableConfig): TodaySeverity {
+  // Trade-bound: getting closer to expiration ratchets severity up. ITM
+  // assignment-risk fires regardless of DTE, but if it does fire at DTE<=2
+  // it's a high-priority decision.
+  if (ac.type === "ASSIGNMENT_RISK") {
+    return ac.dte !== null && ac.dte <= 2 ? "high" : "medium";
+  }
+  if (ac.type === "ROLL_OPPORTUNITY") {
+    return ac.dte !== null && ac.dte <= 2 ? "high" : "medium";
+  }
+  if (ac.type === "PROFIT_TARGET") {
+    // Profit targets that fired are always at least the user's threshold —
+    // we don't know the exact pct without parsing the message. Default
+    // medium, but a same-day expiry profit hit is "do it now."
+    return ac.dte !== null && ac.dte <= 1 ? "high" : "medium";
+  }
+  // WATCHLIST_BREACH / LOT_PRICE_BREACH: time-insensitive triggers.
+  return "medium";
 }
 
 function expiringTradeToItem(trade: ExpiringTrade, wheelUrl: string): TodayItem {
@@ -113,8 +154,8 @@ function formatTradeType(type: string) {
 }
 
 // Alert messages produced by the engine usually start with a ticker. Pull it
-// out for the card heading when we don't have a watchlist ticker on the
-// config. Returns null if no obvious symbol is found.
+// out for the card heading when we don't have an explicit ticker on the
+// payload. Returns null if no obvious symbol is found.
 function extractTicker(message: string): string | null {
   const match = message.match(/\b[A-Z]{1,5}\b/);
   return match ? match[0] : null;
