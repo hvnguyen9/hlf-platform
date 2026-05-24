@@ -41,7 +41,7 @@ export async function GET(request: Request) {
         remaining: 0,
         fireScorePct: null,
         overBudgetCategories: [],
-        mtdTopCategories: [],
+        mtdTopTransactions: [],
       });
     }
     resolvedUserId = user.id;
@@ -68,7 +68,13 @@ export async function GET(request: Request) {
           type: "expense",
           date: { gte: start, lt: end },
         },
-        select: { amount: true, categoryId: true },
+        select: {
+          id: true,
+          amount: true,
+          categoryId: true,
+          description: true,
+          date: true,
+        },
       }),
       prisma.recurringTransaction.findMany({
         where: { userId: resolvedUserId!, type: "expense", isActive: true },
@@ -161,16 +167,25 @@ export async function GET(request: Request) {
       fireScorePct = computeFireScore(investableAssets, fiNumber);
     }
 
-    // Top spending categories for the Dashboard's "what makes up Personal
-    // Spend?" window. Sorted by amount desc, capped at 5.
-    const mtdTopCategories = Array.from(spentByCategory.entries())
-      .map(([id, amount]) => {
-        const cat = categoryMap.get(id);
+    // Top *actual* transactions for the Dashboard's "what makes up Personal
+    // Spend?" window. These are real paid transactions, not category roll-
+    // ups or recurring auto-counts — the Dashboard frames them as "these
+    // were paid" so the user can scan exactly what hit. Excludes savings
+    // categories (consistent with mtdSpent), sorted by amount desc, cap 5.
+    const mtdTopTransactions = transactions
+      .filter((t) => {
+        const cat = t.categoryId ? categoryMap.get(t.categoryId) : null;
+        return !cat?.isSavings;
+      })
+      .map((t) => {
+        const cat = t.categoryId ? categoryMap.get(t.categoryId) : null;
         return {
-          id,
-          name: cat?.name ?? "Uncategorized",
-          color: cat?.color ?? null,
-          amount,
+          id: t.id,
+          description: t.description,
+          amount: Number(t.amount),
+          categoryName: cat?.name ?? null,
+          categoryColor: cat?.color ?? null,
+          date: t.date.toISOString(),
         };
       })
       .sort((a, b) => b.amount - a.amount)
@@ -182,7 +197,7 @@ export async function GET(request: Request) {
       remaining: monthlyBudgetTotal - mtdSpent,
       fireScorePct,
       overBudgetCategories,
-      mtdTopCategories,
+      mtdTopTransactions,
     });
   } catch (error) {
     console.error("[internal/portal-summary] error:", error);

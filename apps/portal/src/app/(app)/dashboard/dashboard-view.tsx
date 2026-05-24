@@ -24,8 +24,8 @@ import type {
   BookkeepingSummary,
   BudgetSummary,
   CapitalSummary,
-  MtdCategoryRow,
   MtdExpenseRow,
+  MtdTransactionRow,
   OpenLotSnapshot,
   OpenTradeSnapshot,
   UpcomingEvent,
@@ -948,7 +948,7 @@ function PersonalExpensesWindow({
   budget: BudgetSummary | null;
   loadingHint: string;
 }) {
-  const rows: MtdCategoryRow[] = budget?.mtdTopCategories ?? [];
+  const rows: MtdTransactionRow[] = budget?.mtdTopTransactions ?? [];
   return (
     <WindowKpiShell
       icon={Home}
@@ -962,9 +962,14 @@ function PersonalExpensesWindow({
           {rows.map((r) => (
             <BreakdownRow
               key={r.id}
-              label={r.name}
+              label={r.description ?? r.categoryName ?? "Untitled"}
               amount={r.amount}
-              swatchColor={r.color}
+              meta={
+                // When the description doubles as label, show category as
+                // meta. Otherwise meta is redundant — skip it.
+                r.description && r.categoryName ? r.categoryName : undefined
+              }
+              swatchColor={r.categoryColor}
             />
           ))}
         </div>

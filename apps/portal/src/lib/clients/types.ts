@@ -164,11 +164,13 @@ export type OverBudgetCategory = {
   pct: number;
 };
 
-export type MtdCategoryRow = {
+export type MtdTransactionRow = {
   id: string;
-  name: string;
-  color: string | null;
+  description: string | null;
   amount: number;
+  categoryName: string | null;
+  categoryColor: string | null;
+  date: string;
 };
 
 export type BudgetSummary = {
@@ -179,9 +181,9 @@ export type BudgetSummary = {
   // Optional: returned by budget-tracker only after the Today-inbox extension
   // ships. Older deployments omit it.
   overBudgetCategories?: OverBudgetCategory[];
-  // Optional: top 5 MTD spending categories powering the Dashboard's
-  // breakdown window.
-  mtdTopCategories?: MtdCategoryRow[];
+  // Optional: top 5 MTD spending transactions (actual paid items, not
+  // category roll-ups). Powers the Dashboard's "what was paid" window.
+  mtdTopTransactions?: MtdTransactionRow[];
 };
 
 export type PortalSummary = {
