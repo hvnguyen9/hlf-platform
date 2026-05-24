@@ -91,13 +91,16 @@ export async function GET(request: Request) {
   const expiringCutoff = new Date(todayStart);
   expiringCutoff.setDate(expiringCutoff.getDate() + EXPIRING_DTE_THRESHOLD + 1);
 
+  // Honors the user's per-account portfolio selection from settings:
+  // `tradingPortfolios = "all"` (or unset) → portfolioIds is undefined,
+  // the filter degrades to `{ userId }`. Otherwise scope every wheel-side
+  // query to the selected portfolio set so the Dashboard reflects only
+  // what the user wants in their trading view. Watchlist and alert event
+  // counts remain user-level (they're not portfolio-scoped concepts).
   const portfolioFilter = {
     userId: resolvedUserId!,
     ...(portfolioIds && { id: { in: portfolioIds } }),
   };
-  // Open positions count + expiring trades reflect the full account so the
-  // user still sees what they actually have. Realized P&L respects the filter.
-  const portfolioFilterAll = { userId: resolvedUserId! };
 
   try {
     const [
@@ -120,10 +123,10 @@ export async function GET(request: Request) {
       portfoliosForCapital,
     ] = await Promise.all([
       db.trade.count({
-        where: { status: "open", portfolio: portfolioFilterAll },
+        where: { status: "open", portfolio: portfolioFilter },
       }),
       db.stockLot.count({
-        where: { status: "OPEN", portfolio: portfolioFilterAll },
+        where: { status: "OPEN", portfolio: portfolioFilter },
       }),
       db.trade.findMany({
         where: {
@@ -163,7 +166,7 @@ export async function GET(request: Request) {
       db.trade.findMany({
         where: {
           status: "open",
-          portfolio: portfolioFilterAll,
+          portfolio: portfolioFilter,
           expirationDate: { lt: expiringCutoff },
         },
         orderBy: { expirationDate: "asc" },
@@ -180,13 +183,15 @@ export async function GET(request: Request) {
       }),
       // Evaluate live alert configs against current quotes — this is what
       // powers Today's action queue. Engine reuses the same evaluators the
-      // every-2-min cron scan uses, but without dedup/event-write side effects.
-      evaluateActionableConfigsForUser(resolvedUserId!),
+      // every-2-min cron scan uses, but without dedup/event-write side
+      // effects. Honors the portfolio filter for trade/lot-bound configs;
+      // watchlist alerts always pass through (user-level concept).
+      evaluateActionableConfigsForUser(resolvedUserId!, portfolioIds),
       // Position snapshots for the Dashboard. Trades sorted by ascending DTE
       // so the most time-sensitive show first. Lots sorted by notional
       // (avgCost * shares) descending so the biggest exposures lead.
       db.trade.findMany({
-        where: { status: "open", portfolio: portfolioFilterAll },
+        where: { status: "open", portfolio: portfolioFilter },
         orderBy: { expirationDate: "asc" },
         take: OPEN_TRADES_LIMIT,
         select: {
@@ -203,7 +208,7 @@ export async function GET(request: Request) {
         },
       }),
       db.stockLot.findMany({
-        where: { status: "OPEN", portfolio: portfolioFilterAll },
+        where: { status: "OPEN", portfolio: portfolioFilter },
         orderBy: { shares: "desc" },
         take: OPEN_LOTS_LIMIT,
         select: {
@@ -226,7 +231,7 @@ export async function GET(request: Request) {
       // Cheap projection (no relations); we already cap the displayed list
       // separately in openTradeRows.
       db.trade.findMany({
-        where: { status: "open", portfolio: portfolioFilterAll },
+        where: { status: "open", portfolio: portfolioFilter },
         select: {
           ticker: true,
           type: true,
@@ -237,14 +242,14 @@ export async function GET(request: Request) {
       }),
       // All open lots for cost-basis aggregation + concentration.
       db.stockLot.findMany({
-        where: { status: "OPEN", portfolio: portfolioFilterAll },
+        where: { status: "OPEN", portfolio: portfolioFilter },
         select: { ticker: true, shares: true, avgCost: true },
       }),
       // All-time closed P&L (trades + lots) — needed because currentCapital
       // = capitalBase + total realized, and we report cash as the cash you
       // actually have right now, not just starting + transactions.
       db.trade.findMany({
-        where: { status: "closed", portfolio: portfolioFilterAll },
+        where: { status: "closed", portfolio: portfolioFilter },
         select: {
           type: true,
           contracts: true,
@@ -254,12 +259,12 @@ export async function GET(request: Request) {
         },
       }),
       db.stockLot.findMany({
-        where: { status: "CLOSED", portfolio: portfolioFilterAll },
+        where: { status: "CLOSED", portfolio: portfolioFilter },
         select: { realizedPnl: true },
       }),
       // Portfolio capital base — startingCapital + (deposits − withdrawals).
       db.portfolio.findMany({
-        where: portfolioFilterAll,
+        where: portfolioFilter,
         select: {
           startingCapital: true,
           capitalTransactions: { select: { type: true, amount: true } },

@@ -98,12 +98,21 @@ async function loadEvaluationContext(
 // dedup, no writes — safe to call on every page render. Used by the portal's
 // Today inbox so the action queue reflects current state rather than the
 // last 24h of event fires.
+//
+// When `portfolioIds` is provided, trade/lot-bound configs are restricted
+// to those whose underlying belongs to one of the selected portfolios.
+// Watchlist-bound and orphan configs always pass through — the watchlist
+// is a user-level construct, not portfolio-scoped.
 export async function evaluateActionableConfigsForUser(
   userId: string,
+  portfolioIds?: string[],
 ): Promise<ActionableConfig[]> {
   const { configs, tradeById, lotById, quotes } = await loadEvaluationContext({
     userId,
   });
+
+  const portfolioFilter =
+    portfolioIds && portfolioIds.length > 0 ? new Set(portfolioIds) : null;
 
   const actionable: ActionableConfig[] = [];
   for (const config of configs) {
@@ -111,6 +120,13 @@ export async function evaluateActionableConfigsForUser(
     if (!result || result === "disabled") continue;
     const trade = config.tradeId ? tradeById.get(config.tradeId) ?? null : null;
     const lot = config.stockLotId ? lotById.get(config.stockLotId) ?? null : null;
+
+    // Apply portfolio scope to trade/lot-bound configs.
+    if (portfolioFilter) {
+      if (trade && !portfolioFilter.has(trade.portfolioId)) continue;
+      if (lot && !portfolioFilter.has(lot.portfolioId)) continue;
+    }
+
     actionable.push({
       config,
       trade,
