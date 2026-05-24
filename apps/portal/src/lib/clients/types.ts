@@ -25,6 +25,22 @@ export type ExpiringTrade = {
   dte: number;
 };
 
+// A wheel-tracker alert config whose threshold is currently satisfied per
+// the latest quote — i.e. *now* not historical. The portal's Today inbox
+// turns each one into an "act now" row.
+export type ActionableConfig = {
+  configId: string;
+  type: string;
+  message: string;
+  ticker: string | null;
+  tradeId: string | null;
+  stockLotId: string | null;
+  watchlistTicker: string | null;
+  portfolioId: string | null;
+  price: number;
+  dte: number | null;
+};
+
 export type WheelSummary = {
   openTradeCount: number;
   openLotCount: number;
@@ -34,8 +50,9 @@ export type WheelSummary = {
   alertsThisWeek: number;
   recentAlerts: RecentAlert[];
   // Optional: returned by wheel-tracker only after the Today-inbox extension
-  // ships. Older deployments omit it.
+  // ships. Older deployments omit them.
   expiringTrades?: ExpiringTrade[];
+  actionableConfigs?: ActionableConfig[];
 };
 
 export type BookkeepingSummary = {

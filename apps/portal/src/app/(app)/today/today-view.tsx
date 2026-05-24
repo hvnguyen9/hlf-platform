@@ -82,14 +82,18 @@ export function TodayView({ firstName, items, errors }: Props) {
             </div>
             <p className="text-sm font-medium">You&apos;re all clear</p>
             <p className="text-xs text-muted-foreground max-w-xs">
-              No alerts firing on open positions and nothing expiring within a week.
+              Nothing in your alert zones right now and nothing expiring within a week.
             </p>
           </CardContent>
         </Card>
       ) : (
         <div className="space-y-6">
           {alertItems.length > 0 && (
-            <Section title="Action alerts" subtitle="Triggers firing on your live positions" items={alertItems} />
+            <Section
+              title="Action alerts"
+              subtitle="Positions currently in your alert zones — live state"
+              items={alertItems}
+            />
           )}
           {expiringItems.length > 0 && (
             <Section

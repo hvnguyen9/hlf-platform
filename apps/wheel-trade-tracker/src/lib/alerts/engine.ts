@@ -27,24 +27,40 @@ interface ScanSummary {
   elapsedMs: number;
 }
 
-export async function runAlertScan(): Promise<ScanSummary> {
-  const startedAt = Date.now();
-  const errors: string[] = [];
+// One per (config, current-state) — represents an enabled config whose
+// threshold is satisfied *right now*. Used by both the scan engine (to
+// decide what to fire) and the portal-summary endpoint (to power the
+// Today action queue with live state rather than historical fires).
+export interface ActionableConfig {
+  config: AlertConfig;
+  trade: Trade | null;
+  lot: StockLot | null;
+  message: string;
+  price: number;
+}
 
-  // ─── Load all enabled configs ──────────────────────────────────────────────
-  const configs = await prisma.alertConfig.findMany({ where: { enabled: true } });
+// Hydrate the configs / trades / lots / quotes needed to evaluate a
+// (possibly filtered) set of alert configs. Pure read; no writes.
+async function loadEvaluationContext(
+  whereExtra: Record<string, unknown> = {},
+): Promise<{
+  configs: AlertConfig[];
+  tradeById: Map<string, Trade>;
+  lotById: Map<string, StockLot>;
+  quotes: Map<string, number>;
+}> {
+  const configs = await prisma.alertConfig.findMany({
+    where: { enabled: true, ...whereExtra },
+  });
   if (configs.length === 0) {
     return {
-      configsEvaluated: 0,
-      fired: 0,
-      skippedDedup: 0,
-      skippedDisabled: 0,
-      errors: [],
-      elapsedMs: Date.now() - startedAt,
+      configs,
+      tradeById: new Map(),
+      lotById: new Map(),
+      quotes: new Map(),
     };
   }
 
-  // ─── Determine which symbols we need quotes for ────────────────────────────
   const tradeIds = Array.from(
     new Set(configs.map((c) => c.tradeId).filter((id): id is string => Boolean(id))),
   );
@@ -70,16 +86,63 @@ export async function runAlertScan(): Promise<ScanSummary> {
     new Set([...watchlistTickers, ...tradeTickers, ...lotTickers]),
   );
 
-  const quotes = symbols.length ? await getLatestQuotes(symbols) : new Map<string, number>();
+  const quotes = symbols.length
+    ? await getLatestQuotes(symbols)
+    : new Map<string, number>();
 
-  // ─── Evaluate each config ──────────────────────────────────────────────────
+  return { configs, tradeById, lotById, quotes };
+}
+
+// Pure evaluator: returns all configs for a user that are currently in the
+// "act" zone, with the same human message the scan engine produces. No
+// dedup, no writes — safe to call on every page render. Used by the portal's
+// Today inbox so the action queue reflects current state rather than the
+// last 24h of event fires.
+export async function evaluateActionableConfigsForUser(
+  userId: string,
+): Promise<ActionableConfig[]> {
+  const { configs, tradeById, lotById, quotes } = await loadEvaluationContext({
+    userId,
+  });
+
+  const actionable: ActionableConfig[] = [];
+  for (const config of configs) {
+    const result = evaluateConfig(config, tradeById, lotById, quotes);
+    if (!result || result === "disabled") continue;
+    const trade = config.tradeId ? tradeById.get(config.tradeId) ?? null : null;
+    const lot = config.stockLotId ? lotById.get(config.stockLotId) ?? null : null;
+    actionable.push({
+      config,
+      trade,
+      lot,
+      message: result.message,
+      price: result.price,
+    });
+  }
+  return actionable;
+}
+
+export async function runAlertScan(): Promise<ScanSummary> {
+  const startedAt = Date.now();
+  const errors: string[] = [];
+
+  const { configs, tradeById, lotById, quotes } = await loadEvaluationContext();
+  if (configs.length === 0) {
+    return {
+      configsEvaluated: 0,
+      fired: 0,
+      skippedDedup: 0,
+      skippedDisabled: 0,
+      errors: [],
+      elapsedMs: Date.now() - startedAt,
+    };
+  }
+
   const now = Date.now();
   let fired = 0;
   let skippedDedup = 0;
   let skippedDisabled = 0;
 
-  // Group pending pushes by userId — one push per (user, config fire) but we
-  // commit AlertEvents in a batch at the end.
   const pendingFires: Array<{
     config: AlertConfig;
     message: string;

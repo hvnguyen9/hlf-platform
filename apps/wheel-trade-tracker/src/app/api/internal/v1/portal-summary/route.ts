@@ -5,20 +5,20 @@ import {
 } from "@/server/api/internal";
 import { db } from "@/server/db";
 import { authPrisma } from "@hlf/auth-db";
+import { evaluateActionableConfigsForUser } from "@/lib/alerts/engine";
 
 // GET /api/internal/v1/portal-summary?email=  (or ?userId=)
 // Shaped for the HLF Portal dashboard — small response, single round-trip.
-// Returns: open trade/lot counts, MTD/YTD realized P&L (trades + stock lots),
-// alerts data (sourced from the alerts module merged in 2026-05-13), and
-// open trades with DTE <= 7 (consumed by portal's Today inbox).
+// Returns:
+//   - open trade/lot counts
+//   - MTD/YTD realized P&L (trades + stock lots)
+//   - alerts data from the alerts module (merged in 2026-05-13)
+//   - actionableConfigs: configs *currently in the act zone* per the engine's
+//     evaluator (not historical event fires). Powers the portal's Today inbox.
+//   - expiring trades with DTE <= 7
 
 const EXPIRING_DTE_THRESHOLD = 7;
 const EXPIRING_LIMIT = 20;
-// We fetch a larger pool of recent alerts than we return, then filter out
-// ones linked to closed trades / removed watchlist items so the portal's
-// Today inbox only surfaces still-actionable items. Returned count is
-// RECENT_ALERTS_RETURN.
-const RECENT_ALERTS_POOL = 40;
 const RECENT_ALERTS_RETURN = 10;
 export async function GET(request: Request) {
   if (!validateInternalApiKey(request)) {
@@ -56,6 +56,7 @@ export async function GET(request: Request) {
         alertsThisWeek: 0,
         recentAlerts: [],
         expiringTrades: [],
+        actionableConfigs: [],
       });
     }
     resolvedUserId = user.id;
@@ -88,6 +89,7 @@ export async function GET(request: Request) {
       alertsThisWeek,
       recentAlerts,
       expiringTradeRows,
+      actionable,
     ] = await Promise.all([
       db.trade.count({
         where: { status: "open", portfolio: portfolioFilterAll },
@@ -120,18 +122,13 @@ export async function GET(request: Request) {
       db.alertEvent.findMany({
         where: { userId: resolvedUserId! },
         orderBy: { firedAt: "desc" },
-        take: RECENT_ALERTS_POOL,
+        take: RECENT_ALERTS_RETURN,
         select: {
           id: true,
           message: true,
           firedAt: true,
           config: {
-            select: {
-              type: true,
-              tradeId: true,
-              watchlistTicker: true,
-              stockLotId: true,
-            },
+            select: { type: true, tradeId: true, watchlistTicker: true },
           },
         },
       }),
@@ -153,6 +150,10 @@ export async function GET(request: Request) {
           portfolioId: true,
         },
       }),
+      // Evaluate live alert configs against current quotes — this is what
+      // powers Today's action queue. Engine reuses the same evaluators the
+      // every-2-min cron scan uses, but without dedup/event-write side effects.
+      evaluateActionableConfigsForUser(resolvedUserId!),
     ]);
 
     let mtdRealizedPnl = 0;
@@ -185,47 +186,26 @@ export async function GET(request: Request) {
       };
     });
 
-    // Trim recent alerts to those that are still actionable — drop ones
-    // linked to closed trades / closed stock lots. Watchlist-bound configs
-    // and configs with no link are always kept.
-    const tradeIdsInAlerts = Array.from(
-      new Set(
-        recentAlerts
-          .map((a) => a.config.tradeId)
-          .filter((id): id is string => Boolean(id)),
-      ),
-    );
-    const lotIdsInAlerts = Array.from(
-      new Set(
-        recentAlerts
-          .map((a) => a.config.stockLotId)
-          .filter((id): id is string => Boolean(id)),
-      ),
-    );
-    const [openTradeRows, openLotRows] = await Promise.all([
-      tradeIdsInAlerts.length
-        ? db.trade.findMany({
-            where: { id: { in: tradeIdsInAlerts }, status: "open" },
-            select: { id: true },
-          })
-        : Promise.resolve([] as { id: string }[]),
-      lotIdsInAlerts.length
-        ? db.stockLot.findMany({
-            where: { id: { in: lotIdsInAlerts }, status: "OPEN" },
-            select: { id: true },
-          })
-        : Promise.resolve([] as { id: string }[]),
-    ]);
-    const openTradeIdSet = new Set(openTradeRows.map((r) => r.id));
-    const openLotIdSet = new Set(openLotRows.map((r) => r.id));
-    const activeRecentAlerts = recentAlerts
-      .filter((a) => {
-        const { tradeId, stockLotId } = a.config;
-        if (tradeId) return openTradeIdSet.has(tradeId);
-        if (stockLotId) return openLotIdSet.has(stockLotId);
-        return true;
-      })
-      .slice(0, RECENT_ALERTS_RETURN);
+    const actionableConfigs = actionable.map((a) => ({
+      configId: a.config.id,
+      type: a.config.type,
+      message: a.message,
+      ticker:
+        a.trade?.ticker ?? a.lot?.ticker ?? a.config.watchlistTicker ?? null,
+      tradeId: a.config.tradeId,
+      stockLotId: a.config.stockLotId,
+      watchlistTicker: a.config.watchlistTicker,
+      portfolioId: a.trade?.portfolioId ?? a.lot?.portfolioId ?? null,
+      price: a.price,
+      dte: a.trade
+        ? Math.max(
+            0,
+            Math.ceil(
+              (a.trade.expirationDate.getTime() - todayStart.getTime()) / 86_400_000,
+            ),
+          )
+        : null,
+    }));
 
     return internalResponse({
       openTradeCount,
@@ -234,7 +214,7 @@ export async function GET(request: Request) {
       ytdRealizedPnl,
       alertsToday,
       alertsThisWeek,
-      recentAlerts: activeRecentAlerts.map((a) => ({
+      recentAlerts: recentAlerts.map((a) => ({
         id: a.id,
         message: a.message,
         firedAt: a.firedAt.toISOString(),
@@ -243,6 +223,7 @@ export async function GET(request: Request) {
         watchlistTicker: a.config.watchlistTicker,
       })),
       expiringTrades,
+      actionableConfigs,
     });
   } catch (error) {
     console.error("[internal/portal-summary] error:", error);
