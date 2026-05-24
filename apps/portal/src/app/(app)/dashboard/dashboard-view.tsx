@@ -24,6 +24,8 @@ import type {
   BookkeepingSummary,
   BudgetSummary,
   CapitalSummary,
+  MtdCategoryRow,
+  MtdExpenseRow,
   OpenLotSnapshot,
   OpenTradeSnapshot,
   UpcomingEvent,
@@ -111,28 +113,21 @@ export function DashboardView({
         wheelOffline={Boolean(errors.wheel)}
       />
 
-      {/* Compact reference strip — expense + net at a glance, kept small */}
-      <section className="grid grid-cols-3 gap-3 md:gap-4">
-        <MiniKpi
-          icon={Briefcase}
-          label="Business Exp."
-          value={bookkeeping ? formatCurrency(bookkeeping.mtdExpenses) : "—"}
-          sub={bookkeeping ? "MTD" : errors.bookkeeping ?? "Loading…"}
-          tone={bookkeeping ? "expense" : "neutral"}
+      {/* Reference strip — small windows into what makes up each number */}
+      <section className="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-4">
+        <BusinessExpensesWindow
+          bookkeeping={bookkeeping}
+          loadingHint={errors.bookkeeping ?? "Loading…"}
         />
-        <MiniKpi
-          icon={Home}
-          label="Personal"
-          value={budget ? formatCurrency(budget.mtdSpent) : "—"}
-          sub={budget ? "MTD" : errors.budget ?? "Loading…"}
-          tone={budget ? "expense" : "neutral"}
+        <PersonalExpensesWindow
+          budget={budget}
+          loadingHint={errors.budget ?? "Loading…"}
         />
-        <MiniKpi
-          icon={Banknote}
-          label="MTD Net"
-          value={trueNet != null ? formatCurrency(trueNet) : "—"}
-          sub={trueNet != null ? "Trading − exp" : "Need all 3"}
-          tone={trueNet != null ? (trueNet >= 0 ? "positive" : "negative") : "neutral"}
+        <MtdNetWindow
+          wheel={wheel}
+          bookkeeping={bookkeeping}
+          budget={budget}
+          trueNet={trueNet}
         />
       </section>
     </div>
@@ -814,18 +809,24 @@ function TodayCard({ items }: { items: TodayItem[] }) {
 // Used for the reference strip (business expenses / personal / net) that
 // sits below the main wheel-driven sections. Less detail than KpiCard;
 // these are status, not action.
-function MiniKpi({
+// ── WindowKpi cards ─────────────────────────────────────────────────────
+// Three small windows into the monthly numbers — each shows the top
+// contributors so the user can see *what makes up* the total at a glance.
+
+function WindowKpiShell({
   icon: Icon,
   label,
   value,
   sub,
   tone = "neutral",
+  children,
 }: {
   icon: React.ElementType;
   label: string;
   value: string;
   sub: string;
   tone?: "neutral" | "positive" | "negative" | "expense";
+  children?: React.ReactNode;
 }) {
   const toneClass =
     tone === "positive"
@@ -837,16 +838,180 @@ function MiniKpi({
           : "text-foreground";
   return (
     <Card>
-      <CardContent className="p-3">
-        <div className="flex items-center gap-1.5 mb-1">
-          <Icon className="w-3 h-3 text-muted-foreground" />
-          <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider truncate">
-            {label}
+      <CardContent className="p-3 space-y-2">
+        <div>
+          <div className="flex items-center gap-1.5 mb-1">
+            <Icon className="w-3 h-3 text-muted-foreground" />
+            <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider truncate">
+              {label}
+            </p>
+          </div>
+          <p className={`text-base md:text-lg font-bold font-mono ${toneClass}`}>
+            {value}
           </p>
+          <p className="text-[10px] text-muted-foreground mt-0.5 truncate">{sub}</p>
         </div>
-        <p className={`text-base md:text-lg font-bold font-mono ${toneClass}`}>{value}</p>
-        <p className="text-[10px] text-muted-foreground mt-0.5 truncate">{sub}</p>
+        {children && (
+          <div className="border-t border-border/40 pt-2">{children}</div>
+        )}
       </CardContent>
     </Card>
+  );
+}
+
+function BreakdownRow({
+  label,
+  amount,
+  meta,
+  swatchColor,
+  tone = "expense",
+}: {
+  label: string;
+  amount: number;
+  meta?: string;
+  swatchColor?: string | null;
+  tone?: "expense" | "positive" | "negative" | "neutral";
+}) {
+  const amountClass =
+    tone === "positive"
+      ? "text-emerald-600 dark:text-emerald-400"
+      : tone === "negative"
+        ? "text-rose-600 dark:text-rose-400"
+        : tone === "expense"
+          ? "text-foreground/80"
+          : "text-foreground";
+  const sign =
+    tone === "positive" && amount >= 0
+      ? "+"
+      : tone === "negative" && amount < 0
+        ? ""
+        : tone === "negative"
+          ? "-"
+          : "";
+  return (
+    <div className="flex items-center gap-1.5 text-[11px] leading-tight">
+      {swatchColor && (
+        <span
+          className="h-1.5 w-1.5 rounded-full shrink-0"
+          style={{ backgroundColor: swatchColor }}
+          aria-hidden
+        />
+      )}
+      <span className="truncate flex-1 text-muted-foreground">
+        {label}
+        {meta && <span className="text-muted-foreground/60"> · {meta}</span>}
+      </span>
+      <span className={cn("font-mono tabular-nums shrink-0", amountClass)}>
+        {sign}
+        {formatCurrency(Math.abs(amount), { compact: true })}
+      </span>
+    </div>
+  );
+}
+
+function BusinessExpensesWindow({
+  bookkeeping,
+  loadingHint,
+}: {
+  bookkeeping: BookkeepingSummary | null;
+  loadingHint: string;
+}) {
+  const rows: MtdExpenseRow[] = bookkeeping?.mtdTopExpenses ?? [];
+  return (
+    <WindowKpiShell
+      icon={Briefcase}
+      label="Business Exp."
+      value={bookkeeping ? formatCurrency(bookkeeping.mtdExpenses) : "—"}
+      sub={bookkeeping ? "MTD" : loadingHint}
+      tone={bookkeeping ? "expense" : "neutral"}
+    >
+      {rows.length > 0 && (
+        <div className="space-y-1">
+          {rows.map((r, i) => (
+            <BreakdownRow
+              key={`${r.name}-${i}`}
+              label={r.name}
+              amount={r.amount}
+              meta={r.recurring ? "recurring" : r.category ?? undefined}
+            />
+          ))}
+        </div>
+      )}
+    </WindowKpiShell>
+  );
+}
+
+function PersonalExpensesWindow({
+  budget,
+  loadingHint,
+}: {
+  budget: BudgetSummary | null;
+  loadingHint: string;
+}) {
+  const rows: MtdCategoryRow[] = budget?.mtdTopCategories ?? [];
+  return (
+    <WindowKpiShell
+      icon={Home}
+      label="Personal"
+      value={budget ? formatCurrency(budget.mtdSpent) : "—"}
+      sub={budget ? "MTD" : loadingHint}
+      tone={budget ? "expense" : "neutral"}
+    >
+      {rows.length > 0 && (
+        <div className="space-y-1">
+          {rows.map((r) => (
+            <BreakdownRow
+              key={r.id}
+              label={r.name}
+              amount={r.amount}
+              swatchColor={r.color}
+            />
+          ))}
+        </div>
+      )}
+    </WindowKpiShell>
+  );
+}
+
+function MtdNetWindow({
+  wheel,
+  bookkeeping,
+  budget,
+  trueNet,
+}: {
+  wheel: WheelSummary | null;
+  bookkeeping: BookkeepingSummary | null;
+  budget: BudgetSummary | null;
+  trueNet: number | null;
+}) {
+  const breakdownReady = wheel && bookkeeping && budget;
+  return (
+    <WindowKpiShell
+      icon={Banknote}
+      label="MTD Net"
+      value={trueNet != null ? formatCurrency(trueNet) : "—"}
+      sub={trueNet != null ? "Trading − exp" : "Need all 3"}
+      tone={trueNet != null ? (trueNet >= 0 ? "positive" : "negative") : "neutral"}
+    >
+      {breakdownReady && (
+        <div className="space-y-1">
+          <BreakdownRow
+            label="Trading"
+            amount={wheel!.mtdRealizedPnl}
+            tone={wheel!.mtdRealizedPnl >= 0 ? "positive" : "negative"}
+          />
+          <BreakdownRow
+            label="Business"
+            amount={-bookkeeping!.mtdExpenses}
+            tone="expense"
+          />
+          <BreakdownRow
+            label="Personal"
+            amount={-budget!.mtdSpent}
+            tone="expense"
+          />
+        </div>
+      )}
+    </WindowKpiShell>
   );
 }

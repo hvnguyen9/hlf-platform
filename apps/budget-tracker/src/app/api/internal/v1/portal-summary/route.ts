@@ -41,6 +41,7 @@ export async function GET(request: Request) {
         remaining: 0,
         fireScorePct: null,
         overBudgetCategories: [],
+        mtdTopCategories: [],
       });
     }
     resolvedUserId = user.id;
@@ -75,7 +76,14 @@ export async function GET(request: Request) {
       }),
       prisma.category.findMany({
         where: { userId: resolvedUserId! },
-        select: { id: true, name: true, monthlyBudget: true, isSavings: true, type: true },
+        select: {
+          id: true,
+          name: true,
+          color: true,
+          monthlyBudget: true,
+          isSavings: true,
+          type: true,
+        },
       }),
       prisma.monthlyBudget.findMany({
         where: { userId: resolvedUserId!, year, month },
@@ -153,12 +161,28 @@ export async function GET(request: Request) {
       fireScorePct = computeFireScore(investableAssets, fiNumber);
     }
 
+    // Top spending categories for the Dashboard's "what makes up Personal
+    // Spend?" window. Sorted by amount desc, capped at 5.
+    const mtdTopCategories = Array.from(spentByCategory.entries())
+      .map(([id, amount]) => {
+        const cat = categoryMap.get(id);
+        return {
+          id,
+          name: cat?.name ?? "Uncategorized",
+          color: cat?.color ?? null,
+          amount,
+        };
+      })
+      .sort((a, b) => b.amount - a.amount)
+      .slice(0, 5);
+
     return internalResponse({
       mtdSpent,
       monthlyBudgetTotal,
       remaining: monthlyBudgetTotal - mtdSpent,
       fireScorePct,
       overBudgetCategories,
+      mtdTopCategories,
     });
   } catch (error) {
     console.error("[internal/portal-summary] error:", error);

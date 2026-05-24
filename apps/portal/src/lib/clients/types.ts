@@ -134,6 +134,13 @@ export type WheelSummary = {
   capital?: CapitalSummary | null;
 };
 
+export type MtdExpenseRow = {
+  name: string;
+  amount: number;
+  category: string | null;
+  recurring: boolean;
+};
+
 export type BookkeepingSummary = {
   mtdNet: number;
   mtdIncome: number;
@@ -144,6 +151,9 @@ export type BookkeepingSummary = {
   // can show the "of which trading: $X" sub-line.
   mtdTradingPnl?: number;
   ytdTradingPnl?: number;
+  // Optional: top 5 MTD expense entries powering the Dashboard's
+  // breakdown window.
+  mtdTopExpenses?: MtdExpenseRow[];
 };
 
 export type OverBudgetCategory = {
@@ -154,6 +164,13 @@ export type OverBudgetCategory = {
   pct: number;
 };
 
+export type MtdCategoryRow = {
+  id: string;
+  name: string;
+  color: string | null;
+  amount: number;
+};
+
 export type BudgetSummary = {
   mtdSpent: number;
   monthlyBudgetTotal: number;
@@ -162,6 +179,9 @@ export type BudgetSummary = {
   // Optional: returned by budget-tracker only after the Today-inbox extension
   // ships. Older deployments omit it.
   overBudgetCategories?: OverBudgetCategory[];
+  // Optional: top 5 MTD spending categories powering the Dashboard's
+  // breakdown window.
+  mtdTopCategories?: MtdCategoryRow[];
 };
 
 export type PortalSummary = {
