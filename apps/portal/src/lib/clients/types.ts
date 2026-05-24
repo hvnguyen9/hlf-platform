@@ -170,7 +170,12 @@ export type MtdTransactionRow = {
   amount: number;
   categoryName: string | null;
   categoryColor: string | null;
-  date: string;
+  // ISO date for one-time transactions; null for recurring rows since
+  // they don't have a single "this is when it hit" date.
+  date: string | null;
+  // True for recurring transactions (auto-counted monthly), false for
+  // actual paid Transaction records.
+  recurring: boolean;
 };
 
 export type BudgetSummary = {

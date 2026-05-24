@@ -78,7 +78,12 @@ export async function GET(request: Request) {
       }),
       prisma.recurringTransaction.findMany({
         where: { userId: resolvedUserId!, type: "expense", isActive: true },
-        select: { amount: true, categoryId: true },
+        select: {
+          id: true,
+          amount: true,
+          categoryId: true,
+          description: true,
+        },
       }),
       prisma.category.findMany({
         where: { userId: resolvedUserId! },
@@ -167,12 +172,24 @@ export async function GET(request: Request) {
       fireScorePct = computeFireScore(investableAssets, fiNumber);
     }
 
-    // Top *actual* transactions for the Dashboard's "what makes up Personal
-    // Spend?" window. These are real paid transactions, not category roll-
-    // ups or recurring auto-counts — the Dashboard frames them as "these
-    // were paid" so the user can scan exactly what hit. Excludes savings
-    // categories (consistent with mtdSpent), sorted by amount desc, cap 5.
-    const mtdTopTransactions = transactions
+    // Top spending rows for the Dashboard's "what makes up Personal Spend?"
+    // window. Blends actual transactions with active recurring expenses —
+    // both contribute to mtdSpent so the breakdown should reflect both, or
+    // users with mostly-recurring spend see an empty list. Recurring rows
+    // are tagged so the UI can distinguish "paid this month" from "auto-
+    // counted every month." Excludes savings categories (consistent with
+    // mtdSpent), sorted by amount desc, cap 5.
+    type SpendRow = {
+      id: string;
+      description: string | null;
+      amount: number;
+      categoryName: string | null;
+      categoryColor: string | null;
+      date: string | null;
+      recurring: boolean;
+    };
+
+    const realRows: SpendRow[] = transactions
       .filter((t) => {
         const cat = t.categoryId ? categoryMap.get(t.categoryId) : null;
         return !cat?.isSavings;
@@ -180,14 +197,35 @@ export async function GET(request: Request) {
       .map((t) => {
         const cat = t.categoryId ? categoryMap.get(t.categoryId) : null;
         return {
-          id: t.id,
+          id: `tx:${t.id}`,
           description: t.description,
           amount: Number(t.amount),
           categoryName: cat?.name ?? null,
           categoryColor: cat?.color ?? null,
           date: t.date.toISOString(),
+          recurring: false,
         };
+      });
+
+    const recurringRows: SpendRow[] = recurring
+      .filter((r) => {
+        const cat = r.categoryId ? categoryMap.get(r.categoryId) : null;
+        return !cat?.isSavings;
       })
+      .map((r) => {
+        const cat = r.categoryId ? categoryMap.get(r.categoryId) : null;
+        return {
+          id: `rec:${r.id}`,
+          description: r.description,
+          amount: Number(r.amount),
+          categoryName: cat?.name ?? null,
+          categoryColor: cat?.color ?? null,
+          date: null,
+          recurring: true,
+        };
+      });
+
+    const mtdTopTransactions = [...realRows, ...recurringRows]
       .sort((a, b) => b.amount - a.amount)
       .slice(0, 5);
 

@@ -959,19 +959,24 @@ function PersonalExpensesWindow({
     >
       {rows.length > 0 && (
         <div className="space-y-1">
-          {rows.map((r) => (
-            <BreakdownRow
-              key={r.id}
-              label={r.description ?? r.categoryName ?? "Untitled"}
-              amount={r.amount}
-              meta={
-                // When the description doubles as label, show category as
-                // meta. Otherwise meta is redundant — skip it.
-                r.description && r.categoryName ? r.categoryName : undefined
-              }
-              swatchColor={r.categoryColor}
-            />
-          ))}
+          {rows.map((r) => {
+            // Meta priority: recurring tag wins (it's the more useful
+            // signal), then category name when distinct from the label.
+            const meta = r.recurring
+              ? "recurring"
+              : r.description && r.categoryName
+                ? r.categoryName
+                : undefined;
+            return (
+              <BreakdownRow
+                key={r.id}
+                label={r.description ?? r.categoryName ?? "Untitled"}
+                amount={r.amount}
+                meta={meta}
+                swatchColor={r.categoryColor}
+              />
+            );
+          })}
         </div>
       )}
     </WindowKpiShell>
