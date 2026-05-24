@@ -107,6 +107,7 @@ export async function GET(request: Request) {
       actionable,
       openTradeRows,
       openLotRows,
+      watchlistRows,
     ] = await Promise.all([
       db.trade.count({
         where: { status: "open", portfolio: portfolioFilterAll },
@@ -203,6 +204,13 @@ export async function GET(request: Request) {
           portfolioId: true,
           portfolio: { select: { name: true } },
         },
+      }),
+      // Watchlist tickers — surfaces earnings/ex-div for things the user is
+      // *watching* (not yet positioned in) on the Dashboard's Next 7 days
+      // section. No expiry events for these since there's no trade.
+      db.watchlistItem.findMany({
+        where: { userId: resolvedUserId! },
+        select: { ticker: true },
       }),
     ]);
 
@@ -341,12 +349,17 @@ export async function GET(request: Request) {
 
     // ── Calendar lookahead (Phase 3) ───────────────────────────────────────
     // Pull earnings + ex-div dates for every ticker we have open exposure
-    // to — trades and lots — then merge with already-known option expiries
-    // into one chronological list capped at 7 days out. Calendar fetch is
-    // best-effort; failure leaves only the expiry rows.
+    // to — trades, lots, AND watchlist items — then merge with already-known
+    // option expiries into one chronological list capped at 7 days out.
+    // Watchlist coverage means "AAPL earnings Thursday" surfaces even before
+    // you've entered a position. Calendar fetch is best-effort; failure
+    // leaves only the expiry rows.
     const sevenDaysOut = new Date(todayStart);
     sevenDaysOut.setDate(sevenDaysOut.getDate() + 7);
-    const calendarTickers = snapshotTickers; // already deduped trade + lot tickers
+    const watchlistTickers = watchlistRows.map((w) => w.ticker.toUpperCase());
+    const calendarTickers = Array.from(
+      new Set([...snapshotTickers, ...watchlistTickers]),
+    );
     let calendarMap: Map<string, { earningsDate: Date | null; exDividendDate: Date | null }> =
       new Map();
     if (calendarTickers.length > 0) {
