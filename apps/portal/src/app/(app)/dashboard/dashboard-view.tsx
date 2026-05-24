@@ -638,7 +638,16 @@ function WheelPnlCard({
               <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70 flex items-center gap-1.5">
                 <Wallet className="w-3 h-3" /> Cash Available
               </p>
-              <p className="text-2xl md:text-3xl font-bold font-mono mt-1 text-emerald-600 dark:text-emerald-400">
+              <p
+                className={cn(
+                  "text-2xl md:text-3xl font-bold font-mono mt-1",
+                  capital == null
+                    ? "text-foreground"
+                    : capital.cashAvailable >= 0
+                      ? "text-emerald-600 dark:text-emerald-400"
+                      : "text-rose-600 dark:text-rose-400",
+                )}
+              >
                 {capital ? formatCurrency(capital.cashAvailable) : "—"}
               </p>
               <p className="text-[11px] text-muted-foreground mt-1">
