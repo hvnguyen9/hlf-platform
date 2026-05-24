@@ -33,9 +33,9 @@ packages/
 | `wheel-strat-tracker` | 3000 | Emerald | `ballast` Railway (also hosts alerts module tables since 2026-05-13) |
 | `hlf-bookkeeping` | 3001 | Indigo | `turntable:21201` Railway |
 | `hlf-budgettracker` | 3002 | Teal | `shuttle` Railway |
-| `portal` | 3004 | HLF green | no DB — reads from `@hlf/auth-db` + cross-app internal APIs |
+| `portal` | 3003 | HLF green | no DB — reads from `@hlf/auth-db` + cross-app internal APIs |
 
-`stock-alerts` (port 3003) retired 2026-05-13 — alerts now live inside wheel-strat-tracker at `/alerts/*` with Web Push + GitHub Actions cron.
+`stock-alerts` (originally on port 3003) retired 2026-05-13 — alerts now live inside wheel-strat-tracker at `/alerts/*`. Portal took over port 3003 so the apps occupy a contiguous range.
 
 `mobile` (Expo + React Native) retired 2026-05-20 — `apps/mobile/` deleted, portal's mobile-JWT mint endpoint (`/api/auth/mobile/session`) and aggregated `/api/portal/summary` deleted, `@hlf/auth-db` mobile-token helpers removed. HLF apps are now mobile-responsive web only. `requireAuth` helper in wheel-tracker still exists but only supports the web session cookie path.
 

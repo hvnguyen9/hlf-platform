@@ -10,6 +10,8 @@ import {
   Sparkles,
   Bell,
   CalendarClock,
+  LineChart,
+  Layers,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@hlf/ui/card";
 import { Badge } from "@hlf/ui/badge";
@@ -17,6 +19,8 @@ import { cn, formatCurrency } from "@/lib/utils";
 import type {
   BookkeepingSummary,
   BudgetSummary,
+  OpenLotSnapshot,
+  OpenTradeSnapshot,
   WheelSummary,
 } from "@/lib/clients/types";
 import type { TodayItem, TodayItemKind, TodaySeverity } from "@/lib/today-items";
@@ -27,6 +31,7 @@ type Props = {
   bookkeeping: BookkeepingSummary | null;
   budget: BudgetSummary | null;
   todayItems: TodayItem[];
+  wheelUrl: string;
   errors: {
     wheel?: string;
     bookkeeping?: string;
@@ -53,6 +58,7 @@ export function DashboardView({
   bookkeeping,
   budget,
   todayItems,
+  wheelUrl,
   errors,
 }: Props) {
   const greeting = firstName ? `Welcome back, ${firstName}` : "Welcome back";
@@ -73,6 +79,13 @@ export function DashboardView({
           Your HLF suite at a glance — month to date.
         </p>
       </header>
+
+      <PositionsSnapshot
+        trades={wheel?.openTrades ?? []}
+        lots={wheel?.openLots ?? []}
+        wheelUrl={wheelUrl}
+        wheelOffline={Boolean(errors.wheel)}
+      />
 
       <section className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
         <KpiCard
@@ -233,3 +246,232 @@ function KpiCard({
   );
 }
 
+function PositionsSnapshot({
+  trades,
+  lots,
+  wheelUrl,
+  wheelOffline,
+}: {
+  trades: OpenTradeSnapshot[];
+  lots: OpenLotSnapshot[];
+  wheelUrl: string;
+  wheelOffline: boolean;
+}) {
+  // Hide the section entirely when the wheel-tracker is offline — the KPI
+  // strip below already surfaces the outage badge, no need to render two
+  // empty skeleton cards.
+  if (wheelOffline) return null;
+  if (trades.length === 0 && lots.length === 0) return null;
+
+  return (
+    <section className="grid grid-cols-1 lg:grid-cols-2 gap-3 md:gap-4">
+      <OpenTradesCard trades={trades} wheelUrl={wheelUrl} />
+      <OpenLotsCard lots={lots} wheelUrl={wheelUrl} />
+    </section>
+  );
+}
+
+function OpenTradesCard({
+  trades,
+  wheelUrl,
+}: {
+  trades: OpenTradeSnapshot[];
+  wheelUrl: string;
+}) {
+  return (
+    <Card>
+      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
+        <CardTitle className="text-base flex items-center gap-2">
+          <LineChart className="w-4 h-4 text-primary" />
+          Open option trades
+        </CardTitle>
+        <Link
+          href={`${wheelUrl}/summary`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-[11px] font-medium text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1"
+        >
+          All trades
+          {trades.length > 0 && (
+            <Badge variant="secondary" className="font-mono text-[10px] ml-1">
+              {trades.length}
+            </Badge>
+          )}
+          <ArrowUpRight className="w-3 h-3" />
+        </Link>
+      </CardHeader>
+      <CardContent>
+        {trades.length === 0 ? (
+          <EmptyHint text="No open option trades." />
+        ) : (
+          <ul className="divide-y divide-border -mt-1">
+            {trades.map((t) => (
+              <li key={t.id}>
+                <a
+                  href={`${wheelUrl}/portfolios/${t.portfolioId}/trades/${t.id}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="group flex items-center gap-3 py-2.5 -mx-2 px-2 rounded-md hover:bg-muted/50 transition-colors"
+                >
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-semibold">{t.ticker}</span>
+                      <span className="text-[11px] font-medium text-muted-foreground">
+                        {formatTradeKind(t.type)} ${t.strikePrice}
+                      </span>
+                      {t.itm === true && (
+                        <Badge variant="outline" className="text-[10px] px-1 py-0 border-rose-500/40 text-rose-600 dark:text-rose-400">
+                          ITM
+                        </Badge>
+                      )}
+                    </div>
+                    <p className="text-[11px] text-muted-foreground mt-0.5">
+                      {t.contracts} contract{t.contracts === 1 ? "" : "s"} · {formatDte(t.dte)}
+                    </p>
+                  </div>
+                  <div className="text-right shrink-0">
+                    <p className="text-sm font-mono tabular-nums">
+                      {t.currentPrice != null ? `$${t.currentPrice.toFixed(2)}` : "—"}
+                    </p>
+                    <p
+                      className={cn(
+                        "text-[11px] font-mono tabular-nums",
+                        t.changePct == null
+                          ? "text-muted-foreground"
+                          : t.changePct >= 0
+                            ? "text-emerald-600 dark:text-emerald-400"
+                            : "text-rose-600 dark:text-rose-400",
+                      )}
+                    >
+                      {t.changePct != null
+                        ? `${t.changePct >= 0 ? "+" : ""}${t.changePct.toFixed(2)}%`
+                        : "—"}
+                    </p>
+                  </div>
+                  <ArrowUpRight className="h-3.5 w-3.5 text-muted-foreground/40 group-hover:text-foreground transition-colors shrink-0" />
+                </a>
+              </li>
+            ))}
+          </ul>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+function OpenLotsCard({
+  lots,
+  wheelUrl,
+}: {
+  lots: OpenLotSnapshot[];
+  wheelUrl: string;
+}) {
+  return (
+    <Card>
+      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
+        <CardTitle className="text-base flex items-center gap-2">
+          <Layers className="w-4 h-4 text-primary" />
+          Open stock lots
+        </CardTitle>
+        <Link
+          href={`${wheelUrl}/summary`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-[11px] font-medium text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1"
+        >
+          All lots
+          {lots.length > 0 && (
+            <Badge variant="secondary" className="font-mono text-[10px] ml-1">
+              {lots.length}
+            </Badge>
+          )}
+          <ArrowUpRight className="w-3 h-3" />
+        </Link>
+      </CardHeader>
+      <CardContent>
+        {lots.length === 0 ? (
+          <EmptyHint text="No open stock lots." />
+        ) : (
+          <ul className="divide-y divide-border -mt-1">
+            {lots.map((l) => {
+              const pnlPositive = l.unrealizedPnl != null && l.unrealizedPnl >= 0;
+              return (
+                <li key={l.id}>
+                  <a
+                    href={`${wheelUrl}/portfolios/${l.portfolioId}/stocks/${l.id}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="group flex items-center gap-3 py-2.5 -mx-2 px-2 rounded-md hover:bg-muted/50 transition-colors"
+                  >
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-semibold">{l.ticker}</span>
+                        <span className="text-[11px] font-medium text-muted-foreground">
+                          {l.shares} share{l.shares === 1 ? "" : "s"}
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-muted-foreground mt-0.5">
+                        Avg ${l.avgCost.toFixed(2)} · Now {l.currentPrice != null ? `$${l.currentPrice.toFixed(2)}` : "—"}
+                      </p>
+                    </div>
+                    <div className="text-right shrink-0">
+                      <p
+                        className={cn(
+                          "text-sm font-mono tabular-nums font-semibold",
+                          l.unrealizedPnl == null
+                            ? "text-muted-foreground"
+                            : pnlPositive
+                              ? "text-emerald-600 dark:text-emerald-400"
+                              : "text-rose-600 dark:text-rose-400",
+                        )}
+                      >
+                        {l.unrealizedPnl != null
+                          ? `${pnlPositive ? "+" : ""}${formatCurrency(l.unrealizedPnl)}`
+                          : "—"}
+                      </p>
+                      <p
+                        className={cn(
+                          "text-[11px] font-mono tabular-nums",
+                          l.unrealizedPct == null
+                            ? "text-muted-foreground"
+                            : pnlPositive
+                              ? "text-emerald-600 dark:text-emerald-400"
+                              : "text-rose-600 dark:text-rose-400",
+                        )}
+                      >
+                        {l.unrealizedPct != null
+                          ? `${pnlPositive ? "+" : ""}${l.unrealizedPct.toFixed(2)}%`
+                          : "—"}
+                      </p>
+                    </div>
+                    <ArrowUpRight className="h-3.5 w-3.5 text-muted-foreground/40 group-hover:text-foreground transition-colors shrink-0" />
+                  </a>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+function EmptyHint({ text }: { text: string }) {
+  return (
+    <div className="py-6 text-center">
+      <p className="text-xs text-muted-foreground">{text}</p>
+    </div>
+  );
+}
+
+function formatTradeKind(type: string): string {
+  if (type === "CashSecuredPut") return "CSP";
+  if (type === "CoveredCall") return "CC";
+  return type;
+}
+
+function formatDte(dte: number): string {
+  if (dte === 0) return "expires today";
+  if (dte === 1) return "1 DTE";
+  return `${dte} DTE`;
+}

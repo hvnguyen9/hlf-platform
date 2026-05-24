@@ -95,14 +95,14 @@ others together.
 # Install everything from the repo root
 pnpm install
 
-# Run all web apps at once (ports 3000, 3001, 3002, 3004)
+# Run all web apps at once (ports 3000, 3001, 3002, 3003)
 pnpm dev
 
 # Run just one app
 pnpm --filter wheel-strat-tracker dev    # port 3000
 pnpm --filter hlf-bookkeeping dev        # port 3001
 pnpm --filter hlf-budgettracker dev      # port 3002
-pnpm --filter hlf-portal dev             # port 3004
+pnpm --filter hlf-portal dev             # port 3003
 ```
 
 Each web app needs a `.env.local` with:
@@ -111,7 +111,7 @@ Each web app needs a `.env.local` with:
 DATABASE_URL=       # the app's own Railway connection string
 AUTH_DATABASE_URL=  # shared HLF auth DB — same value across all apps
 NEXTAUTH_SECRET=    # same value across all apps (cross-app JWT validity)
-NEXTAUTH_URL=       # e.g. http://localhost:3004 for portal
+NEXTAUTH_URL=       # e.g. http://localhost:3003 for portal
 ```
 
 Cross-app integration adds:

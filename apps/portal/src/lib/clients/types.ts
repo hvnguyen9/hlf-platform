@@ -41,6 +41,36 @@ export type ActionableConfig = {
   dte: number | null;
 };
 
+// Top N open option trades with the live quote of the underlying. Portal
+// Dashboard renders these as a compact morning snapshot.
+export type OpenTradeSnapshot = {
+  id: string;
+  ticker: string;
+  type: string;
+  strikePrice: number;
+  contracts: number;
+  expirationDate: string;
+  portfolioId: string;
+  dte: number;
+  currentPrice: number | null;
+  changePct: number | null;
+  itm: boolean | null;
+};
+
+// Top N open stock lots with current price and unrealized P&L. Portal
+// Dashboard renders these alongside open trades.
+export type OpenLotSnapshot = {
+  id: string;
+  ticker: string;
+  shares: number;
+  avgCost: number;
+  portfolioId: string;
+  currentPrice: number | null;
+  changePct: number | null;
+  unrealizedPnl: number | null;
+  unrealizedPct: number | null;
+};
+
 export type WheelSummary = {
   openTradeCount: number;
   openLotCount: number;
@@ -53,6 +83,10 @@ export type WheelSummary = {
   // ships. Older deployments omit them.
   expiringTrades?: ExpiringTrade[];
   actionableConfigs?: ActionableConfig[];
+  // Optional: returned by wheel-tracker only after the Phase 2 snapshot
+  // extension. Older deployments omit them.
+  openTrades?: OpenTradeSnapshot[];
+  openLots?: OpenLotSnapshot[];
 };
 
 export type BookkeepingSummary = {

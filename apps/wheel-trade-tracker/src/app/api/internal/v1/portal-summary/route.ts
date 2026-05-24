@@ -6,6 +6,7 @@ import {
 import { db } from "@/server/db";
 import { authPrisma } from "@hlf/auth-db";
 import { evaluateActionableConfigsForUser } from "@/lib/alerts/engine";
+import { getQuoteSnapshots } from "@/lib/alpaca";
 
 // GET /api/internal/v1/portal-summary?email=  (or ?userId=)
 // Shaped for the HLF Portal dashboard — small response, single round-trip.
@@ -16,10 +17,17 @@ import { evaluateActionableConfigsForUser } from "@/lib/alerts/engine";
 //   - actionableConfigs: configs *currently in the act zone* per the engine's
 //     evaluator (not historical event fires). Powers the portal's Today inbox.
 //   - expiring trades with DTE <= 7
+//   - openTrades + openLots: position snapshots with current quotes for the
+//     portal Dashboard's morning briefing surface (Phase 2).
 
 const EXPIRING_DTE_THRESHOLD = 7;
 const EXPIRING_LIMIT = 20;
 const RECENT_ALERTS_RETURN = 10;
+// Cap snapshot tables — Dashboard shows compact previews, full list in
+// wheel-tracker. Sorted by ascending DTE (trades) / descending notional (lots)
+// so the most attention-worthy items lead.
+const OPEN_TRADES_LIMIT = 8;
+const OPEN_LOTS_LIMIT = 8;
 export async function GET(request: Request) {
   if (!validateInternalApiKey(request)) {
     return internalError("Unauthorized", 401);
@@ -57,6 +65,8 @@ export async function GET(request: Request) {
         recentAlerts: [],
         expiringTrades: [],
         actionableConfigs: [],
+        openTrades: [],
+        openLots: [],
       });
     }
     resolvedUserId = user.id;
@@ -90,6 +100,8 @@ export async function GET(request: Request) {
       recentAlerts,
       expiringTradeRows,
       actionable,
+      openTradeRows,
+      openLotRows,
     ] = await Promise.all([
       db.trade.count({
         where: { status: "open", portfolio: portfolioFilterAll },
@@ -154,6 +166,37 @@ export async function GET(request: Request) {
       // powers Today's action queue. Engine reuses the same evaluators the
       // every-2-min cron scan uses, but without dedup/event-write side effects.
       evaluateActionableConfigsForUser(resolvedUserId!),
+      // Position snapshots for the Dashboard. Trades sorted by ascending DTE
+      // so the most time-sensitive show first. Lots sorted by notional
+      // (avgCost * shares) descending so the biggest exposures lead.
+      db.trade.findMany({
+        where: { status: "open", portfolio: portfolioFilterAll },
+        orderBy: { expirationDate: "asc" },
+        take: OPEN_TRADES_LIMIT,
+        select: {
+          id: true,
+          ticker: true,
+          type: true,
+          strikePrice: true,
+          contracts: true,
+          contractsOpen: true,
+          contractPrice: true,
+          expirationDate: true,
+          portfolioId: true,
+        },
+      }),
+      db.stockLot.findMany({
+        where: { status: "OPEN", portfolio: portfolioFilterAll },
+        orderBy: { shares: "desc" },
+        take: OPEN_LOTS_LIMIT,
+        select: {
+          id: true,
+          ticker: true,
+          shares: true,
+          avgCost: true,
+          portfolioId: true,
+        },
+      }),
     ]);
 
     let mtdRealizedPnl = 0;
@@ -207,6 +250,86 @@ export async function GET(request: Request) {
         : null,
     }));
 
+    // One quote-snapshot batch covers every ticker we need to enrich. Sums
+    // open-trade tickers + open-lot tickers; getQuoteSnapshots dedupes inside.
+    const snapshotTickers = Array.from(
+      new Set([
+        ...openTradeRows.map((t) => t.ticker.toUpperCase()),
+        ...openLotRows.map((l) => l.ticker.toUpperCase()),
+      ]),
+    );
+    const snapshotMap = new Map<string, { price: number | null; changePct: number | null; previousClose: number | null }>();
+    if (snapshotTickers.length) {
+      try {
+        const snaps = await getQuoteSnapshots(snapshotTickers);
+        for (const s of snaps) {
+          snapshotMap.set(s.ticker, {
+            price: s.price,
+            changePct: s.changePct,
+            previousClose: s.previousClose,
+          });
+        }
+      } catch (err) {
+        // Snapshots are best-effort — log and continue with null prices so
+        // the rest of the payload still renders.
+        console.error("[internal/portal-summary] snapshot fetch failed:", err);
+      }
+    }
+
+    const openTrades = openTradeRows.map((t) => {
+      const snap = snapshotMap.get(t.ticker.toUpperCase());
+      const dteMs = t.expirationDate.getTime() - todayStart.getTime();
+      const dte = Math.max(0, Math.ceil(dteMs / 86_400_000));
+      // ITM status: short put is ITM when price < strike; short call when
+      // price > strike. For the snapshot we don't distinguish trade direction
+      // (we don't model long options separately in the wheel context), so
+      // treat puts and calls by their type label.
+      const price = snap?.price ?? null;
+      const isPutLike = t.type === "CashSecuredPut" || t.type === "Put";
+      const itm =
+        price !== null
+          ? isPutLike
+            ? price < t.strikePrice
+            : price > t.strikePrice
+          : null;
+      return {
+        id: t.id,
+        ticker: t.ticker,
+        type: t.type,
+        strikePrice: t.strikePrice,
+        contracts: t.contractsOpen ?? t.contracts,
+        expirationDate: t.expirationDate.toISOString(),
+        portfolioId: t.portfolioId,
+        dte,
+        currentPrice: price,
+        changePct: snap?.changePct ?? null,
+        itm,
+      };
+    });
+
+    const openLots = openLotRows.map((l) => {
+      const snap = snapshotMap.get(l.ticker.toUpperCase());
+      const avgCost = Number(l.avgCost);
+      const price = snap?.price ?? null;
+      const unrealizedPnl =
+        price !== null && Number.isFinite(avgCost)
+          ? (price - avgCost) * l.shares
+          : null;
+      const unrealizedPct =
+        unrealizedPnl !== null && avgCost > 0 ? ((price! - avgCost) / avgCost) * 100 : null;
+      return {
+        id: l.id,
+        ticker: l.ticker,
+        shares: l.shares,
+        avgCost,
+        portfolioId: l.portfolioId,
+        currentPrice: price,
+        changePct: snap?.changePct ?? null,
+        unrealizedPnl,
+        unrealizedPct,
+      };
+    });
+
     return internalResponse({
       openTradeCount,
       openLotCount,
@@ -224,6 +347,8 @@ export async function GET(request: Request) {
       })),
       expiringTrades,
       actionableConfigs,
+      openTrades,
+      openLots,
     });
   } catch (error) {
     console.error("[internal/portal-summary] error:", error);
