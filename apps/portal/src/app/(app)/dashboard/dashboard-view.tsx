@@ -623,11 +623,14 @@ function describeEvent(ev: UpcomingEvent): string {
   if (ev.kind === "expiry") {
     const kind = formatTradeKind(ev.tradeType ?? "");
     const strike = ev.strikePrice != null ? `$${ev.strikePrice}` : "";
+    const head = [kind, strike].filter(Boolean).join(" "); // "CSP $101"
     const contracts =
       ev.contracts != null
         ? `${ev.contracts} contract${ev.contracts === 1 ? "" : "s"}`
         : "";
-    return [kind, strike, contracts].filter(Boolean).join(" ");
+    // " · " separator so adjacent numbers don't visually merge —
+    // ("CSP $101 10 contracts" reads as "$10110 contracts" at a glance).
+    return [head, contracts].filter(Boolean).join(" · ");
   }
   if (ev.kind === "earnings") return "Earnings report — watch for IV crush";
   if (ev.kind === "exDividend") return "Ex-dividend date — assignment risk on shorts";
