@@ -195,6 +195,30 @@ function PositionsSnapshot({
           </div>
         </CardHeader>
         <CardContent className="space-y-5">
+          {/* Stock lots sub-section — top for consistency with wheel-tracker */}
+          <div className="space-y-2">
+            <div className="flex items-baseline gap-2 px-1">
+              <Layers className="w-3 h-3 text-muted-foreground" />
+              <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                Stock lots
+              </p>
+              <span className="text-[10px] text-muted-foreground/60 font-mono ml-auto">
+                {lots.length}
+              </span>
+            </div>
+            {lots.length === 0 ? (
+              <EmptyHint text="No open stock lots." />
+            ) : (
+              <ul className="divide-y divide-border/60 rounded-md border border-border/40 overflow-hidden">
+                {lots.map((l) => (
+                  <li key={l.id}>
+                    <LotRow lot={l} wheelUrl={wheelUrl} />
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+
           {/* Option trades sub-section */}
           <div className="space-y-2">
             <div className="flex items-baseline gap-2 px-1">
@@ -230,30 +254,6 @@ function PositionsSnapshot({
                   </div>
                 ))}
               </div>
-            )}
-          </div>
-
-          {/* Stock lots sub-section */}
-          <div className="space-y-2">
-            <div className="flex items-baseline gap-2 px-1">
-              <Layers className="w-3 h-3 text-muted-foreground" />
-              <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                Stock lots
-              </p>
-              <span className="text-[10px] text-muted-foreground/60 font-mono ml-auto">
-                {lots.length}
-              </span>
-            </div>
-            {lots.length === 0 ? (
-              <EmptyHint text="No open stock lots." />
-            ) : (
-              <ul className="divide-y divide-border/60 rounded-md border border-border/40 overflow-hidden">
-                {lots.map((l) => (
-                  <li key={l.id}>
-                    <LotRow lot={l} wheelUrl={wheelUrl} />
-                  </li>
-                ))}
-              </ul>
             )}
           </div>
         </CardContent>
