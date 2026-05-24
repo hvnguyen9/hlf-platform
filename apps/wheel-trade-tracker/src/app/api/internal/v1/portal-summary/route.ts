@@ -8,6 +8,7 @@ import { authPrisma } from "@hlf/auth-db";
 import { evaluateActionableConfigsForUser } from "@/lib/alerts/engine";
 import { getQuoteSnapshots } from "@/lib/alpaca";
 import { getCalendarEvents } from "@/lib/yahoo-finance";
+import { capitalUsedForTrade } from "@/lib/tradeMetrics";
 
 // GET /api/internal/v1/portal-summary?email=  (or ?userId=)
 // Shaped for the HLF Portal dashboard — small response, single round-trip.
@@ -23,6 +24,9 @@ import { getCalendarEvents } from "@/lib/yahoo-finance";
 //   - upcomingEvents: chronological 7-day lookahead combining option expiries
 //     with earnings dates and ex-dividend dates for open-position tickers
 //     (Phase 3). Calendar data is best-effort via Yahoo's quoteSummary.
+//   - capital: account-wide capital metrics for the Dashboard's wheel P/L
+//     card — cash available, deployed, % deployed, top concentration
+//     tickers. Computed across the user's full account (all portfolios).
 
 const EXPIRING_DTE_THRESHOLD = 7;
 const EXPIRING_LIMIT = 20;
@@ -72,6 +76,7 @@ export async function GET(request: Request) {
         openTrades: [],
         openLots: [],
         upcomingEvents: [],
+        capital: null,
       });
     }
     resolvedUserId = user.id;
@@ -108,6 +113,11 @@ export async function GET(request: Request) {
       openTradeRows,
       openLotRows,
       watchlistRows,
+      allOpenTrades,
+      allOpenLots,
+      allClosedTrades,
+      allClosedLots,
+      portfoliosForCapital,
     ] = await Promise.all([
       db.trade.count({
         where: { status: "open", portfolio: portfolioFilterAll },
@@ -211,6 +221,49 @@ export async function GET(request: Request) {
       db.watchlistItem.findMany({
         where: { userId: resolvedUserId! },
         select: { ticker: true },
+      }),
+      // All open trades for account-wide capital + concentration math.
+      // Cheap projection (no relations); we already cap the displayed list
+      // separately in openTradeRows.
+      db.trade.findMany({
+        where: { status: "open", portfolio: portfolioFilterAll },
+        select: {
+          ticker: true,
+          type: true,
+          strikePrice: true,
+          contractsOpen: true,
+          contractPrice: true,
+        },
+      }),
+      // All open lots for cost-basis aggregation + concentration.
+      db.stockLot.findMany({
+        where: { status: "OPEN", portfolio: portfolioFilterAll },
+        select: { ticker: true, shares: true, avgCost: true },
+      }),
+      // All-time closed P&L (trades + lots) — needed because currentCapital
+      // = capitalBase + total realized, and we report cash as the cash you
+      // actually have right now, not just starting + transactions.
+      db.trade.findMany({
+        where: { status: "closed", portfolio: portfolioFilterAll },
+        select: {
+          type: true,
+          contracts: true,
+          contractPrice: true,
+          closingPrice: true,
+          premiumCaptured: true,
+        },
+      }),
+      db.stockLot.findMany({
+        where: { status: "CLOSED", portfolio: portfolioFilterAll },
+        select: { realizedPnl: true },
+      }),
+      // Portfolio capital base — startingCapital + (deposits − withdrawals).
+      db.portfolio.findMany({
+        where: portfolioFilterAll,
+        select: {
+          startingCapital: true,
+          capitalTransactions: { select: { type: true, amount: true } },
+        },
       }),
     ]);
 
@@ -446,6 +499,86 @@ export async function GET(request: Request) {
       return KIND_RANK[a.kind] - KIND_RANK[b.kind];
     });
 
+    // ── Capital metrics ────────────────────────────────────────────────────
+    // Account-wide cash + deployment + per-ticker concentration. Pulls
+    // from the full open-positions queries (not the capped display lists)
+    // so totals are accurate even when more than 8 trades or lots exist.
+    const capitalBase = portfoliosForCapital.reduce((acc, p) => {
+      const starting = Number(p.startingCapital ?? 0);
+      const adj = p.capitalTransactions.reduce(
+        (s, t) =>
+          s + (t.type === "deposit" ? Number(t.amount) : -Number(t.amount)),
+        0,
+      );
+      return acc + starting + adj;
+    }, 0);
+
+    const realizedAllTime =
+      allClosedTrades.reduce((s, t) => {
+        if (t.premiumCaptured != null) return s + Number(t.premiumCaptured);
+        const open = Number(t.contractPrice);
+        const close = Number(t.closingPrice ?? 0);
+        const c = Number(t.contracts);
+        return s + (open - close) * 100 * c;
+      }, 0) +
+      allClosedLots.reduce((s, l) => s + Number(l.realizedPnl ?? 0), 0);
+
+    const currentCapital = capitalBase + realizedAllTime;
+
+    const capitalDeployedOptions = allOpenTrades.reduce(
+      (s, t) => s + capitalUsedForTrade(t),
+      0,
+    );
+    const capitalDeployedStocks = allOpenLots.reduce(
+      (s, l) => s + Number(l.shares ?? 0) * Number(l.avgCost ?? 0),
+      0,
+    );
+    const capitalDeployed = capitalDeployedOptions + capitalDeployedStocks;
+    const cashAvailable = currentCapital - capitalDeployed;
+    const percentDeployed =
+      currentCapital > 0 ? (capitalDeployed / currentCapital) * 100 : 0;
+
+    // Per-ticker exposure: CSP collateral + open lot cost basis. Long
+    // options contribute their premium-at-risk via capitalUsedForTrade;
+    // CCs contribute 0 (shares are already covered by the underlying lot).
+    const exposureByTicker = new Map<string, number>();
+    for (const t of allOpenTrades) {
+      const cap = capitalUsedForTrade(t);
+      if (cap > 0 && t.ticker)
+        exposureByTicker.set(
+          t.ticker,
+          (exposureByTicker.get(t.ticker) ?? 0) + cap,
+        );
+    }
+    for (const l of allOpenLots) {
+      const cap = Number(l.shares ?? 0) * Number(l.avgCost ?? 0);
+      if (cap > 0 && l.ticker)
+        exposureByTicker.set(
+          l.ticker,
+          (exposureByTicker.get(l.ticker) ?? 0) + cap,
+        );
+    }
+    const totalForPct = capitalDeployed || 1;
+    const concentration = Array.from(exposureByTicker.entries())
+      .map(([ticker, capital]) => ({
+        ticker,
+        capital,
+        pct: (capital / totalForPct) * 100,
+      }))
+      .sort((a, b) => b.capital - a.capital)
+      .slice(0, 5);
+
+    const capital = {
+      capitalBase,
+      currentCapital,
+      cashAvailable,
+      capitalDeployed,
+      capitalDeployedOptions,
+      capitalDeployedStocks,
+      percentDeployed,
+      concentration,
+    };
+
     return internalResponse({
       openTradeCount,
       openLotCount,
@@ -466,6 +599,7 @@ export async function GET(request: Request) {
       openTrades,
       openLots,
       upcomingEvents,
+      capital,
     });
   } catch (error) {
     console.error("[internal/portal-summary] error:", error);

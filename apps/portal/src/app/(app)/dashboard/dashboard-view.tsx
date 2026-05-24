@@ -14,6 +14,8 @@ import {
   Layers,
   Megaphone,
   Coins,
+  Wallet,
+  AlertTriangle,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@hlf/ui/card";
 import { Badge } from "@hlf/ui/badge";
@@ -21,6 +23,7 @@ import { cn, formatCurrency } from "@/lib/utils";
 import type {
   BookkeepingSummary,
   BudgetSummary,
+  CapitalSummary,
   OpenLotSnapshot,
   OpenTradeSnapshot,
   UpcomingEvent,
@@ -83,6 +86,24 @@ export function DashboardView({
         </p>
       </header>
 
+      {/* Monthly view — how the account is set up + how the wheel is doing */}
+      <WheelPnlCard
+        wheel={wheel}
+        wheelUrl={wheelUrl}
+        wheelOffline={Boolean(errors.wheel)}
+        loadingHint={errors.wheel ?? "Loading…"}
+      />
+
+      {/* Weekly view — what's coming up that needs attention */}
+      <Next7Days
+        events={wheel?.upcomingEvents ?? []}
+        wheelUrl={wheelUrl}
+        wheelOffline={Boolean(errors.wheel)}
+      />
+
+      {/* Daily view — what to act on today, then drill into positions */}
+      <TodayCard items={todayItems} />
+
       <PositionsSnapshot
         trades={wheel?.openTrades ?? []}
         lots={wheel?.openLots ?? []}
@@ -90,161 +111,31 @@ export function DashboardView({
         wheelOffline={Boolean(errors.wheel)}
       />
 
-      <Next7Days
-        events={wheel?.upcomingEvents ?? []}
-        wheelUrl={wheelUrl}
-        wheelOffline={Boolean(errors.wheel)}
-      />
-
-      <section className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
-        <KpiCard
-          icon={TrendingUp}
-          label="MTD Trading P&L"
-          value={wheel ? formatCurrency(wheel.mtdRealizedPnl) : "—"}
-          sub={
-            wheel
-              ? `YTD ${formatCurrency(wheel.ytdRealizedPnl, { compact: true })}`
-              : errors.wheel ?? "Loading…"
-          }
-          tone={wheel ? (wheel.mtdRealizedPnl >= 0 ? "positive" : "negative") : "neutral"}
-        />
-        <KpiCard
+      {/* Compact reference strip — expense + net at a glance, kept small */}
+      <section className="grid grid-cols-3 gap-3 md:gap-4">
+        <MiniKpi
           icon={Briefcase}
-          label="Business Expenses"
+          label="Business Exp."
           value={bookkeeping ? formatCurrency(bookkeeping.mtdExpenses) : "—"}
-          sub={
-            bookkeeping
-              ? "Bookkeeping · MTD"
-              : errors.bookkeeping ?? "Loading…"
-          }
+          sub={bookkeeping ? "MTD" : errors.bookkeeping ?? "Loading…"}
           tone={bookkeeping ? "expense" : "neutral"}
         />
-        <KpiCard
+        <MiniKpi
           icon={Home}
-          label="Personal Spend"
+          label="Personal"
           value={budget ? formatCurrency(budget.mtdSpent) : "—"}
-          sub={
-            budget
-              ? `Budget · MTD`
-              : errors.budget ?? "Loading…"
-          }
+          sub={budget ? "MTD" : errors.budget ?? "Loading…"}
           tone={budget ? "expense" : "neutral"}
         />
-        <KpiCard
+        <MiniKpi
           icon={Banknote}
           label="MTD Net"
           value={trueNet != null ? formatCurrency(trueNet) : "—"}
-          sub={
-            trueNet != null
-              ? "Trading − business − personal"
-              : "Needs all three apps online"
-          }
+          sub={trueNet != null ? "Trading − exp" : "Need all 3"}
           tone={trueNet != null ? (trueNet >= 0 ? "positive" : "negative") : "neutral"}
         />
       </section>
-
-      <section>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
-            <CardTitle className="text-base flex items-center gap-2">
-              <Inbox className="w-4 h-4 text-primary" />
-              Today
-            </CardTitle>
-            {todayItems.length > 0 && (
-              <Badge variant="secondary" className="font-mono text-[10px]">
-                {todayItems.length} item{todayItems.length === 1 ? "" : "s"}
-              </Badge>
-            )}
-          </CardHeader>
-          <CardContent>
-            {todayItems.length === 0 ? (
-              <div className="py-10 flex flex-col items-center text-center gap-2">
-                <div className="h-10 w-10 rounded-full bg-emerald-500/10 grid place-items-center">
-                  <Sparkles className="h-5 w-5 text-emerald-500" />
-                </div>
-                <p className="text-sm font-medium">You&apos;re all clear</p>
-                <p className="text-xs text-muted-foreground max-w-xs leading-snug">
-                  No alerts firing, no trades expiring within a week, no categories near limit.
-                </p>
-              </div>
-            ) : (
-              <ul className="divide-y divide-border -mt-1">
-                {todayItems.map((item) => {
-                  const Icon = KIND_ICON[item.kind];
-                  return (
-                    <li key={item.id}>
-                      <a
-                        href={item.actionUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="group flex items-start gap-3 py-3 -mx-2 px-2 rounded-md hover:bg-muted/50 transition-colors"
-                      >
-                        <div className="relative shrink-0 mt-0.5">
-                          <div className="h-8 w-8 rounded-md bg-muted grid place-items-center">
-                            <Icon className="h-4 w-4 text-muted-foreground" />
-                          </div>
-                          <span
-                            className={cn(
-                              "absolute -top-0.5 -right-0.5 h-2 w-2 rounded-full ring-2 ring-card",
-                              SEVERITY_DOT[item.severity],
-                            )}
-                            aria-hidden
-                          />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium leading-snug">{item.title}</p>
-                          <p className="text-[11px] text-muted-foreground leading-snug mt-0.5 line-clamp-2">
-                            {item.description}
-                          </p>
-                        </div>
-                        <ArrowUpRight className="h-4 w-4 text-muted-foreground/50 group-hover:text-foreground shrink-0 mt-1.5 transition-colors" />
-                      </a>
-                    </li>
-                  );
-                })}
-              </ul>
-            )}
-          </CardContent>
-        </Card>
-      </section>
     </div>
-  );
-}
-
-function KpiCard({
-  icon: Icon,
-  label,
-  value,
-  sub,
-  tone = "neutral",
-}: {
-  icon: React.ElementType;
-  label: string;
-  value: string;
-  sub: string;
-  tone?: "neutral" | "positive" | "negative" | "expense";
-}) {
-  const toneClass =
-    tone === "positive"
-      ? "text-emerald-600 dark:text-emerald-400"
-      : tone === "negative"
-        ? "text-rose-600 dark:text-rose-400"
-        : tone === "expense"
-          ? "text-rose-800/80 dark:text-rose-300/80"
-          : "text-foreground";
-  return (
-    <Card>
-      <CardContent className="p-4">
-        <div className="flex items-center gap-2 mb-2">
-          <Icon className="w-3.5 h-3.5 text-muted-foreground" />
-          <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">
-            {label}
-          </p>
-        </div>
-        <p className={`text-xl md:text-2xl font-bold font-mono ${toneClass}`}>{value}</p>
-        <p className="text-[11px] text-muted-foreground mt-1 truncate">{sub}</p>
-      </CardContent>
-    </Card>
   );
 }
 
@@ -280,6 +171,24 @@ function OpenTradesCard({
   trades: OpenTradeSnapshot[];
   wheelUrl: string;
 }) {
+  // Group trades by portfolio name so the user can scan per-account
+  // exposure at a glance. Preserves the existing sort order (by DTE
+  // ascending from the upstream query) within each group.
+  const byPortfolio = new Map<string, OpenTradeSnapshot[]>();
+  for (const t of trades) {
+    const key = t.portfolioName ?? "Unassigned";
+    const arr = byPortfolio.get(key) ?? [];
+    arr.push(t);
+    byPortfolio.set(key, arr);
+  }
+  // Portfolio groups sorted by total contract count desc — larger
+  // commitments lead.
+  const groups = Array.from(byPortfolio.entries()).sort(
+    ([, a], [, b]) =>
+      b.reduce((s, t) => s + t.contracts, 0) -
+      a.reduce((s, t) => s + t.contracts, 0),
+  );
+
   return (
     <Card>
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
@@ -306,61 +215,69 @@ function OpenTradesCard({
         {trades.length === 0 ? (
           <EmptyHint text="No open option trades." />
         ) : (
-          <ul className="divide-y divide-border -mt-1">
-            {trades.map((t) => (
-              <li key={t.id}>
-                <a
-                  href={`${wheelUrl}/portfolios/${t.portfolioId}/trades/${t.id}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="group flex items-center gap-3 py-2.5 -mx-2 px-2 rounded-md hover:bg-muted/50 transition-colors"
-                >
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm font-semibold">{t.ticker}</span>
-                      <span className="text-[11px] font-medium text-muted-foreground">
-                        {formatTradeKind(t.type)} ${t.strikePrice}
-                      </span>
-                      {t.itm === true && (
-                        <Badge variant="outline" className="text-[10px] px-1 py-0 border-rose-500/40 text-rose-600 dark:text-rose-400">
-                          ITM
-                        </Badge>
-                      )}
-                    </div>
-                    <p className="text-[11px] text-muted-foreground mt-0.5 truncate">
-                      {t.contracts} contract{t.contracts === 1 ? "" : "s"} · {formatDte(t.dte)}
-                      {t.portfolioName && (
-                        <>
-                          {" · "}
-                          <span className="text-muted-foreground/80">{t.portfolioName}</span>
-                        </>
-                      )}
-                    </p>
-                  </div>
-                  <div className="text-right shrink-0">
-                    <p className="text-sm font-mono tabular-nums">
-                      {t.currentPrice != null ? `$${t.currentPrice.toFixed(2)}` : "—"}
-                    </p>
-                    <p
-                      className={cn(
-                        "text-[11px] font-mono tabular-nums",
-                        t.changePct == null
-                          ? "text-muted-foreground"
-                          : t.changePct >= 0
-                            ? "text-emerald-600 dark:text-emerald-400"
-                            : "text-rose-600 dark:text-rose-400",
-                      )}
-                    >
-                      {t.changePct != null
-                        ? `${t.changePct >= 0 ? "+" : ""}${t.changePct.toFixed(2)}%`
-                        : "—"}
-                    </p>
-                  </div>
-                  <ArrowUpRight className="h-3.5 w-3.5 text-muted-foreground/40 group-hover:text-foreground transition-colors shrink-0" />
-                </a>
-              </li>
+          <div className="space-y-3 -mt-1">
+            {groups.map(([portfolioName, list]) => (
+              <div key={portfolioName} className="space-y-1">
+                <div className="flex items-baseline justify-between gap-2 px-1">
+                  <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70 truncate">
+                    {portfolioName}
+                  </p>
+                  <span className="text-[10px] text-muted-foreground/60 font-mono">
+                    {list.length} trade{list.length === 1 ? "" : "s"}
+                  </span>
+                </div>
+                <ul className="divide-y divide-border/60 rounded-md border border-border/40 overflow-hidden">
+                  {list.map((t) => (
+                    <li key={t.id}>
+                      <a
+                        href={`${wheelUrl}/portfolios/${t.portfolioId}/trades/${t.id}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="group flex items-center gap-3 py-2.5 px-3 hover:bg-muted/50 transition-colors"
+                      >
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm font-semibold">{t.ticker}</span>
+                            <span className="text-[11px] font-medium text-muted-foreground">
+                              {formatTradeKind(t.type)} ${t.strikePrice}
+                            </span>
+                            {t.itm === true && (
+                              <Badge variant="outline" className="text-[10px] px-1 py-0 border-rose-500/40 text-rose-600 dark:text-rose-400">
+                                ITM
+                              </Badge>
+                            )}
+                          </div>
+                          <p className="text-[11px] text-muted-foreground mt-0.5 truncate">
+                            {t.contracts} contract{t.contracts === 1 ? "" : "s"} · {formatDte(t.dte)}
+                          </p>
+                        </div>
+                        <div className="text-right shrink-0">
+                          <p className="text-sm font-mono tabular-nums">
+                            {t.currentPrice != null ? `$${t.currentPrice.toFixed(2)}` : "—"}
+                          </p>
+                          <p
+                            className={cn(
+                              "text-[11px] font-mono tabular-nums",
+                              t.changePct == null
+                                ? "text-muted-foreground"
+                                : t.changePct >= 0
+                                  ? "text-emerald-600 dark:text-emerald-400"
+                                  : "text-rose-600 dark:text-rose-400",
+                            )}
+                          >
+                            {t.changePct != null
+                              ? `${t.changePct >= 0 ? "+" : ""}${t.changePct.toFixed(2)}%`
+                              : "—"}
+                          </p>
+                        </div>
+                        <ArrowUpRight className="h-3.5 w-3.5 text-muted-foreground/40 group-hover:text-foreground transition-colors shrink-0" />
+                      </a>
+                    </li>
+                  ))}
+                </ul>
+              </div>
             ))}
-          </ul>
+          </div>
         )}
       </CardContent>
     </Card>
@@ -642,4 +559,285 @@ function formatDayHeading(iso: string, daysAway: number): string {
   if (daysAway === 1) return "Tomorrow";
   const d = new Date(iso);
   return d.toLocaleDateString(undefined, { weekday: "long", month: "short", day: "numeric" });
+}
+
+// ── Wheel P&L full-row card ──────────────────────────────────────────────
+// Sets up the monthly view: MTD/YTD P&L, cash position, deployment % bar,
+// and top concentration warning. This is the "month" layer in the
+// month→week→day dashboard flow.
+function WheelPnlCard({
+  wheel,
+  wheelUrl,
+  wheelOffline,
+  loadingHint,
+}: {
+  wheel: WheelSummary | null;
+  wheelUrl: string;
+  wheelOffline: boolean;
+  loadingHint: string;
+}) {
+  const capital: CapitalSummary | null = wheel?.capital ?? null;
+  const mtd = wheel?.mtdRealizedPnl ?? null;
+  const ytd = wheel?.ytdRealizedPnl ?? null;
+  // 30% in any single ticker is the conservative wheel-strategy
+  // concentration warning threshold — adjust to taste.
+  const concentrationThreshold = 30;
+  const overConcentrated = capital?.concentration.find(
+    (c) => c.pct >= concentrationThreshold,
+  );
+
+  return (
+    <Card>
+      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
+        <CardTitle className="text-base flex items-center gap-2">
+          <TrendingUp className="w-4 h-4 text-primary" />
+          Wheel Trading
+        </CardTitle>
+        <Link
+          href={`${wheelUrl}/summary`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-[11px] font-medium text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1"
+        >
+          Full account
+          <ArrowUpRight className="w-3 h-3" />
+        </Link>
+      </CardHeader>
+      <CardContent>
+        {wheelOffline ? (
+          <p className="text-xs text-muted-foreground py-3">{loadingHint}</p>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 md:gap-6">
+            {/* MTD / YTD P&L block */}
+            <div className="md:border-r md:border-border md:pr-6">
+              <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">
+                Realized P&amp;L
+              </p>
+              <p
+                className={cn(
+                  "text-2xl md:text-3xl font-bold font-mono mt-1",
+                  mtd == null
+                    ? "text-foreground"
+                    : mtd >= 0
+                      ? "text-emerald-600 dark:text-emerald-400"
+                      : "text-rose-600 dark:text-rose-400",
+                )}
+              >
+                {mtd != null ? formatCurrency(mtd) : "—"}
+              </p>
+              <p className="text-[11px] text-muted-foreground mt-1">
+                MTD · YTD{" "}
+                <span className="font-mono tabular-nums">
+                  {ytd != null ? formatCurrency(ytd, { compact: true }) : "—"}
+                </span>
+              </p>
+            </div>
+
+            {/* Cash available */}
+            <div className="md:border-r md:border-border md:pr-6">
+              <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70 flex items-center gap-1.5">
+                <Wallet className="w-3 h-3" /> Cash Available
+              </p>
+              <p className="text-2xl md:text-3xl font-bold font-mono mt-1 text-emerald-600 dark:text-emerald-400">
+                {capital ? formatCurrency(capital.cashAvailable) : "—"}
+              </p>
+              <p className="text-[11px] text-muted-foreground mt-1">
+                Of{" "}
+                <span className="font-mono tabular-nums">
+                  {capital ? formatCurrency(capital.currentCapital) : "—"}
+                </span>{" "}
+                total
+              </p>
+            </div>
+
+            {/* Cash deployed + utilization bar */}
+            <div className="md:border-r md:border-border md:pr-6">
+              <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70 flex items-center gap-1.5">
+                <Layers className="w-3 h-3" /> Deployed
+              </p>
+              <p className="text-2xl md:text-3xl font-bold font-mono mt-1">
+                {capital ? formatCurrency(capital.capitalDeployed) : "—"}
+              </p>
+              {capital && (
+                <>
+                  <div className="mt-2 h-1.5 w-full rounded-full bg-muted overflow-hidden">
+                    <div
+                      className={cn(
+                        "h-full rounded-full transition-all",
+                        capital.percentDeployed >= 85
+                          ? "bg-rose-500"
+                          : capital.percentDeployed >= 65
+                            ? "bg-amber-500"
+                            : "bg-emerald-500",
+                      )}
+                      style={{
+                        width: `${Math.min(100, Math.max(0, capital.percentDeployed))}%`,
+                      }}
+                    />
+                  </div>
+                  <p className="text-[11px] text-muted-foreground mt-1 font-mono tabular-nums">
+                    {capital.percentDeployed.toFixed(1)}% of account
+                  </p>
+                </>
+              )}
+            </div>
+
+            {/* Top concentration */}
+            <div>
+              <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70 flex items-center gap-1.5">
+                <AlertTriangle
+                  className={cn(
+                    "w-3 h-3",
+                    overConcentrated ? "text-amber-500" : "text-muted-foreground/50",
+                  )}
+                />{" "}
+                Top Concentration
+              </p>
+              {capital && capital.concentration.length > 0 ? (
+                <ul className="space-y-1 mt-1.5">
+                  {capital.concentration.slice(0, 3).map((c) => (
+                    <li
+                      key={c.ticker}
+                      className="flex items-center justify-between text-sm"
+                    >
+                      <span className="font-medium">{c.ticker}</span>
+                      <span
+                        className={cn(
+                          "font-mono tabular-nums text-[12px]",
+                          c.pct >= concentrationThreshold
+                            ? "text-amber-600 dark:text-amber-400 font-semibold"
+                            : "text-muted-foreground",
+                        )}
+                      >
+                        {c.pct.toFixed(1)}%
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="text-[11px] text-muted-foreground mt-1">No open positions.</p>
+              )}
+              {overConcentrated && (
+                <p className="text-[10px] text-amber-600 dark:text-amber-400 mt-1.5 leading-tight">
+                  {overConcentrated.ticker} at {overConcentrated.pct.toFixed(0)}% — heavy
+                </p>
+              )}
+            </div>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+// ── Today action queue card ──────────────────────────────────────────────
+// Extracted from the inline JSX so the Dashboard body stays readable.
+function TodayCard({ items }: { items: TodayItem[] }) {
+  return (
+    <section>
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
+          <CardTitle className="text-base flex items-center gap-2">
+            <Inbox className="w-4 h-4 text-primary" />
+            Today
+          </CardTitle>
+          {items.length > 0 && (
+            <Badge variant="secondary" className="font-mono text-[10px]">
+              {items.length} item{items.length === 1 ? "" : "s"}
+            </Badge>
+          )}
+        </CardHeader>
+        <CardContent>
+          {items.length === 0 ? (
+            <div className="py-10 flex flex-col items-center text-center gap-2">
+              <div className="h-10 w-10 rounded-full bg-emerald-500/10 grid place-items-center">
+                <Sparkles className="h-5 w-5 text-emerald-500" />
+              </div>
+              <p className="text-sm font-medium">You&apos;re all clear</p>
+              <p className="text-xs text-muted-foreground max-w-xs leading-snug">
+                Nothing in your alert zones right now and nothing expiring soon.
+              </p>
+            </div>
+          ) : (
+            <ul className="divide-y divide-border -mt-1">
+              {items.map((item) => {
+                const Icon = KIND_ICON[item.kind];
+                return (
+                  <li key={item.id}>
+                    <a
+                      href={item.actionUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="group flex items-start gap-3 py-3 -mx-2 px-2 rounded-md hover:bg-muted/50 transition-colors"
+                    >
+                      <div className="relative shrink-0 mt-0.5">
+                        <div className="h-8 w-8 rounded-md bg-muted grid place-items-center">
+                          <Icon className="h-4 w-4 text-muted-foreground" />
+                        </div>
+                        <span
+                          className={cn(
+                            "absolute -top-0.5 -right-0.5 h-2 w-2 rounded-full ring-2 ring-card",
+                            SEVERITY_DOT[item.severity],
+                          )}
+                          aria-hidden
+                        />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium leading-snug">{item.title}</p>
+                        <p className="text-[11px] text-muted-foreground leading-snug mt-0.5 line-clamp-2">
+                          {item.description}
+                        </p>
+                      </div>
+                      <ArrowUpRight className="h-4 w-4 text-muted-foreground/50 group-hover:text-foreground shrink-0 mt-1.5 transition-colors" />
+                    </a>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </CardContent>
+      </Card>
+    </section>
+  );
+}
+
+// ── Compact KPI card — smaller than KpiCard above ───────────────────────
+// Used for the reference strip (business expenses / personal / net) that
+// sits below the main wheel-driven sections. Less detail than KpiCard;
+// these are status, not action.
+function MiniKpi({
+  icon: Icon,
+  label,
+  value,
+  sub,
+  tone = "neutral",
+}: {
+  icon: React.ElementType;
+  label: string;
+  value: string;
+  sub: string;
+  tone?: "neutral" | "positive" | "negative" | "expense";
+}) {
+  const toneClass =
+    tone === "positive"
+      ? "text-emerald-600 dark:text-emerald-400"
+      : tone === "negative"
+        ? "text-rose-600 dark:text-rose-400"
+        : tone === "expense"
+          ? "text-rose-800/80 dark:text-rose-300/80"
+          : "text-foreground";
+  return (
+    <Card>
+      <CardContent className="p-3">
+        <div className="flex items-center gap-1.5 mb-1">
+          <Icon className="w-3 h-3 text-muted-foreground" />
+          <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider truncate">
+            {label}
+          </p>
+        </div>
+        <p className={`text-base md:text-lg font-bold font-mono ${toneClass}`}>{value}</p>
+        <p className="text-[10px] text-muted-foreground mt-0.5 truncate">{sub}</p>
+      </CardContent>
+    </Card>
+  );
 }

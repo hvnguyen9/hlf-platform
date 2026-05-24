@@ -58,6 +58,25 @@ export type OpenTradeSnapshot = {
   itm: boolean | null;
 };
 
+// Account-wide capital snapshot. Powers the Dashboard's expanded wheel
+// P/L card (cash position + deployment + concentration warnings).
+export type CapitalConcentration = {
+  ticker: string;
+  capital: number;
+  pct: number;
+};
+
+export type CapitalSummary = {
+  capitalBase: number;
+  currentCapital: number;
+  cashAvailable: number;
+  capitalDeployed: number;
+  capitalDeployedOptions: number;
+  capitalDeployedStocks: number;
+  percentDeployed: number;
+  concentration: CapitalConcentration[];
+};
+
 // 7-day forward-looking calendar event — option expiry, earnings, or
 // ex-dividend — for any ticker the user has open exposure to. The
 // Dashboard's "Next 7 days" section renders these chronologically.
@@ -110,6 +129,9 @@ export type WheelSummary = {
   // Optional: returned by wheel-tracker only after the Phase 3 calendar
   // extension. Older deployments omit it.
   upcomingEvents?: UpcomingEvent[];
+  // Optional: returned by wheel-tracker only after the capital-metrics
+  // extension. Older deployments omit it. null when there are no portfolios.
+  capital?: CapitalSummary | null;
 };
 
 export type BookkeepingSummary = {
