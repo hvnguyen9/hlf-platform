@@ -9,8 +9,11 @@ import {
   Sparkles,
   Bell,
   CalendarClock,
+  CalendarDays,
   LineChart,
   Layers,
+  Megaphone,
+  Coins,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@hlf/ui/card";
 import { Badge } from "@hlf/ui/badge";
@@ -20,6 +23,8 @@ import type {
   BudgetSummary,
   OpenLotSnapshot,
   OpenTradeSnapshot,
+  UpcomingEvent,
+  UpcomingEventKind,
   WheelSummary,
 } from "@/lib/clients/types";
 import type { TodayItem, TodayItemKind, TodaySeverity } from "@/lib/today-items";
@@ -81,6 +86,12 @@ export function DashboardView({
       <PositionsSnapshot
         trades={wheel?.openTrades ?? []}
         lots={wheel?.openLots ?? []}
+        wheelUrl={wheelUrl}
+        wheelOffline={Boolean(errors.wheel)}
+      />
+
+      <Next7Days
+        events={wheel?.upcomingEvents ?? []}
         wheelUrl={wheelUrl}
         wheelOffline={Boolean(errors.wheel)}
       />
@@ -477,4 +488,155 @@ function formatDte(dte: number): string {
   if (dte === 0) return "expires today";
   if (dte === 1) return "1 DTE";
   return `${dte} DTE`;
+}
+
+const UPCOMING_KIND_META: Record<
+  UpcomingEventKind,
+  { icon: React.ElementType; label: string; tone: string; tile: string }
+> = {
+  expiry: {
+    icon: CalendarClock,
+    label: "Expiry",
+    tone: "text-amber-600 dark:text-amber-400",
+    tile: "bg-amber-500/10",
+  },
+  earnings: {
+    icon: Megaphone,
+    label: "Earnings",
+    tone: "text-violet-600 dark:text-violet-400",
+    tile: "bg-violet-500/10",
+  },
+  exDividend: {
+    icon: Coins,
+    label: "Ex-div",
+    tone: "text-sky-600 dark:text-sky-400",
+    tile: "bg-sky-500/10",
+  },
+};
+
+function Next7Days({
+  events,
+  wheelUrl,
+  wheelOffline,
+}: {
+  events: UpcomingEvent[];
+  wheelUrl: string;
+  wheelOffline: boolean;
+}) {
+  if (wheelOffline) return null;
+  if (events.length === 0) return null;
+
+  // Group rows by daysAway (so all "in 2 days" entries sit under one date
+  // heading). Map preserves insertion order; the upstream sort is already
+  // chronological + kind-prioritized.
+  const byDay = new Map<number, UpcomingEvent[]>();
+  for (const ev of events) {
+    const arr = byDay.get(ev.daysAway) ?? [];
+    arr.push(ev);
+    byDay.set(ev.daysAway, arr);
+  }
+
+  return (
+    <section>
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
+          <CardTitle className="text-base flex items-center gap-2">
+            <CalendarDays className="w-4 h-4 text-primary" />
+            Next 7 days
+          </CardTitle>
+          <Badge variant="secondary" className="font-mono text-[10px]">
+            {events.length} event{events.length === 1 ? "" : "s"}
+          </Badge>
+        </CardHeader>
+        <CardContent>
+          <ul className="space-y-3">
+            {Array.from(byDay.entries()).map(([daysAway, group]) => (
+              <li key={daysAway} className="space-y-1">
+                <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70 px-1">
+                  {formatDayHeading(group[0].date, daysAway)}
+                </p>
+                <ul className="divide-y divide-border rounded-md border border-border/60 overflow-hidden">
+                  {group.map((ev) => (
+                    <li key={`${ev.kind}-${ev.ticker}-${ev.tradeId ?? ev.date}`}>
+                      <UpcomingRow ev={ev} wheelUrl={wheelUrl} />
+                    </li>
+                  ))}
+                </ul>
+              </li>
+            ))}
+          </ul>
+        </CardContent>
+      </Card>
+    </section>
+  );
+}
+
+function UpcomingRow({ ev, wheelUrl }: { ev: UpcomingEvent; wheelUrl: string }) {
+  const meta = UPCOMING_KIND_META[ev.kind];
+  const Icon = meta.icon;
+
+  // Expiry rows deep-link to the trade detail page. Earnings + ex-div
+  // events aren't tied to any specific page in wheel-tracker; render as
+  // plain rows.
+  const href =
+    ev.kind === "expiry" && ev.tradeId && ev.portfolioId
+      ? `${wheelUrl}/portfolios/${ev.portfolioId}/trades/${ev.tradeId}`
+      : null;
+
+  const body = (
+    <div className="flex items-center gap-3 px-3 py-2.5">
+      <div className={cn("h-7 w-7 rounded-md grid place-items-center shrink-0", meta.tile)}>
+        <Icon className={cn("h-3.5 w-3.5", meta.tone)} />
+      </div>
+      <div className="min-w-0 flex-1">
+        <div className="flex items-center gap-2">
+          <span className="text-sm font-semibold">{ev.ticker}</span>
+          <span className={cn("text-[10px] font-medium uppercase tracking-wider", meta.tone)}>
+            {meta.label}
+          </span>
+        </div>
+        <p className="text-[11px] text-muted-foreground leading-snug mt-0.5 truncate">
+          {describeEvent(ev)}
+        </p>
+      </div>
+      {href && (
+        <ArrowUpRight className="h-3.5 w-3.5 text-muted-foreground/40 group-hover:text-foreground transition-colors shrink-0" />
+      )}
+    </div>
+  );
+
+  return href ? (
+    <a
+      href={href}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="group block hover:bg-muted/40 transition-colors"
+    >
+      {body}
+    </a>
+  ) : (
+    <div>{body}</div>
+  );
+}
+
+function describeEvent(ev: UpcomingEvent): string {
+  if (ev.kind === "expiry") {
+    const kind = formatTradeKind(ev.tradeType ?? "");
+    const strike = ev.strikePrice != null ? `$${ev.strikePrice}` : "";
+    const contracts =
+      ev.contracts != null
+        ? `${ev.contracts} contract${ev.contracts === 1 ? "" : "s"}`
+        : "";
+    return [kind, strike, contracts].filter(Boolean).join(" ");
+  }
+  if (ev.kind === "earnings") return "Earnings report — watch for IV crush";
+  if (ev.kind === "exDividend") return "Ex-dividend date — assignment risk on shorts";
+  return "";
+}
+
+function formatDayHeading(iso: string, daysAway: number): string {
+  if (daysAway === 0) return "Today";
+  if (daysAway === 1) return "Tomorrow";
+  const d = new Date(iso);
+  return d.toLocaleDateString(undefined, { weekday: "long", month: "short", day: "numeric" });
 }

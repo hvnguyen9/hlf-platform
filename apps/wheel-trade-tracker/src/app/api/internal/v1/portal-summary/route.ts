@@ -7,6 +7,7 @@ import { db } from "@/server/db";
 import { authPrisma } from "@hlf/auth-db";
 import { evaluateActionableConfigsForUser } from "@/lib/alerts/engine";
 import { getQuoteSnapshots } from "@/lib/alpaca";
+import { getCalendarEvents } from "@/lib/yahoo-finance";
 
 // GET /api/internal/v1/portal-summary?email=  (or ?userId=)
 // Shaped for the HLF Portal dashboard — small response, single round-trip.
@@ -19,6 +20,9 @@ import { getQuoteSnapshots } from "@/lib/alpaca";
 //   - expiring trades with DTE <= 7
 //   - openTrades + openLots: position snapshots with current quotes for the
 //     portal Dashboard's morning briefing surface (Phase 2).
+//   - upcomingEvents: chronological 7-day lookahead combining option expiries
+//     with earnings dates and ex-dividend dates for open-position tickers
+//     (Phase 3). Calendar data is best-effort via Yahoo's quoteSummary.
 
 const EXPIRING_DTE_THRESHOLD = 7;
 const EXPIRING_LIMIT = 20;
@@ -67,6 +71,7 @@ export async function GET(request: Request) {
         actionableConfigs: [],
         openTrades: [],
         openLots: [],
+        upcomingEvents: [],
       });
     }
     resolvedUserId = user.id;
@@ -334,6 +339,100 @@ export async function GET(request: Request) {
       };
     });
 
+    // ── Calendar lookahead (Phase 3) ───────────────────────────────────────
+    // Pull earnings + ex-div dates for every ticker we have open exposure
+    // to — trades and lots — then merge with already-known option expiries
+    // into one chronological list capped at 7 days out. Calendar fetch is
+    // best-effort; failure leaves only the expiry rows.
+    const sevenDaysOut = new Date(todayStart);
+    sevenDaysOut.setDate(sevenDaysOut.getDate() + 7);
+    const calendarTickers = snapshotTickers; // already deduped trade + lot tickers
+    let calendarMap: Map<string, { earningsDate: Date | null; exDividendDate: Date | null }> =
+      new Map();
+    if (calendarTickers.length > 0) {
+      try {
+        const events = await getCalendarEvents(calendarTickers);
+        calendarMap = events;
+      } catch (err) {
+        console.error("[internal/portal-summary] calendar fetch failed:", err);
+      }
+    }
+
+    type UpcomingEvent = {
+      kind: "expiry" | "earnings" | "exDividend";
+      ticker: string;
+      date: string;
+      daysAway: number;
+      // For expiry events, include the trade context so the Portal can deep-link.
+      tradeId?: string;
+      portfolioId?: string;
+      contracts?: number;
+      strikePrice?: number;
+      tradeType?: string;
+    };
+
+    const upcomingEvents: UpcomingEvent[] = [];
+
+    // Option expiries — pull from the already-fetched expiringTradeRows.
+    for (const t of expiringTradeRows) {
+      upcomingEvents.push({
+        kind: "expiry",
+        ticker: t.ticker,
+        date: t.expirationDate.toISOString(),
+        daysAway: Math.max(
+          0,
+          Math.ceil((t.expirationDate.getTime() - todayStart.getTime()) / 86_400_000),
+        ),
+        tradeId: t.id,
+        portfolioId: t.portfolioId,
+        contracts: t.contracts,
+        strikePrice: t.strikePrice,
+        tradeType: t.type,
+      });
+    }
+
+    // Earnings + ex-div for each ticker we have open exposure to.
+    for (const ticker of calendarTickers) {
+      const ev = calendarMap.get(ticker);
+      if (!ev) continue;
+      if (ev.earningsDate && ev.earningsDate >= todayStart && ev.earningsDate <= sevenDaysOut) {
+        upcomingEvents.push({
+          kind: "earnings",
+          ticker,
+          date: ev.earningsDate.toISOString(),
+          daysAway: Math.max(
+            0,
+            Math.ceil((ev.earningsDate.getTime() - todayStart.getTime()) / 86_400_000),
+          ),
+        });
+      }
+      if (
+        ev.exDividendDate &&
+        ev.exDividendDate >= todayStart &&
+        ev.exDividendDate <= sevenDaysOut
+      ) {
+        upcomingEvents.push({
+          kind: "exDividend",
+          ticker,
+          date: ev.exDividendDate.toISOString(),
+          daysAway: Math.max(
+            0,
+            Math.ceil((ev.exDividendDate.getTime() - todayStart.getTime()) / 86_400_000),
+          ),
+        });
+      }
+    }
+
+    // Chronological — soonest first; tie-break by kind so expiries lead on
+    // the same day (most action-prone).
+    const KIND_RANK = { expiry: 0, earnings: 1, exDividend: 2 } as const;
+    upcomingEvents.sort((a, b) => {
+      const da = Date.parse(a.date);
+      const db = Date.parse(b.date);
+      if (da !== db) return da - db;
+      return KIND_RANK[a.kind] - KIND_RANK[b.kind];
+    });
+
     return internalResponse({
       openTradeCount,
       openLotCount,
@@ -353,6 +452,7 @@ export async function GET(request: Request) {
       actionableConfigs,
       openTrades,
       openLots,
+      upcomingEvents,
     });
   } catch (error) {
     console.error("[internal/portal-summary] error:", error);

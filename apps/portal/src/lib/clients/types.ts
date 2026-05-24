@@ -58,6 +58,24 @@ export type OpenTradeSnapshot = {
   itm: boolean | null;
 };
 
+// 7-day forward-looking calendar event — option expiry, earnings, or
+// ex-dividend — for any ticker the user has open exposure to. The
+// Dashboard's "Next 7 days" section renders these chronologically.
+export type UpcomingEventKind = "expiry" | "earnings" | "exDividend";
+
+export type UpcomingEvent = {
+  kind: UpcomingEventKind;
+  ticker: string;
+  date: string;
+  daysAway: number;
+  // Expiry events carry the trade context so the row can deep-link.
+  tradeId?: string;
+  portfolioId?: string;
+  contracts?: number;
+  strikePrice?: number;
+  tradeType?: string;
+};
+
 // Top N open stock lots with current price and unrealized P&L. Portal
 // Dashboard renders these alongside open trades.
 export type OpenLotSnapshot = {
@@ -89,6 +107,9 @@ export type WheelSummary = {
   // extension. Older deployments omit them.
   openTrades?: OpenTradeSnapshot[];
   openLots?: OpenLotSnapshot[];
+  // Optional: returned by wheel-tracker only after the Phase 3 calendar
+  // extension. Older deployments omit it.
+  upcomingEvents?: UpcomingEvent[];
 };
 
 export type BookkeepingSummary = {
