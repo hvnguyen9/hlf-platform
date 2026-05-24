@@ -3,7 +3,13 @@
 import { useState, useEffect } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { toast } from "sonner";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import {
+  ResponsiveModal,
+  ResponsiveModalContent,
+  ResponsiveModalHeader,
+  ResponsiveModalTitle,
+  ResponsiveModalFooter,
+} from "@hlf/ui/responsive-modal";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -85,11 +91,11 @@ export function CategoryModal({ open, onClose, onSaved, editing }: Props) {
   }
 
   return (
-    <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>{editing ? "Edit Category" : "Add Category"}</DialogTitle>
-        </DialogHeader>
+    <ResponsiveModal open={open} onOpenChange={(v) => !v && onClose()}>
+      <ResponsiveModalContent dialogClassName="sm:max-w-md">
+        <ResponsiveModalHeader>
+          <ResponsiveModalTitle>{editing ? "Edit Category" : "Add Category"}</ResponsiveModalTitle>
+        </ResponsiveModalHeader>
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
@@ -158,14 +164,14 @@ export function CategoryModal({ open, onClose, onSaved, editing }: Props) {
             )} />
           )}
 
-          <DialogFooter>
+          <ResponsiveModalFooter>
             <Button type="button" variant="outline" onClick={onClose}>Cancel</Button>
             <Button type="submit" disabled={loading}>
               {loading ? "Saving…" : editing ? "Update" : "Create Category"}
             </Button>
-          </DialogFooter>
+          </ResponsiveModalFooter>
         </form>
-      </DialogContent>
-    </Dialog>
+      </ResponsiveModalContent>
+    </ResponsiveModal>
   );
 }

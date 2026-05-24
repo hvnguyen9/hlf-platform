@@ -1,19 +1,18 @@
-// Pure helper that turns the three portal-summary payloads into a unified,
-// ranked list of action items for the Today inbox. Keep this free of side
-// effects so the view stays a dumb renderer.
+// Pure helper that turns wheel-tracker's portal-summary into a list of
+// action items for the Today inbox. Wheel is the only contributor — budget
+// and bookkeeping rows were dropped because they couldn't produce signal
+// that changed day-to-day (recurring entries showed the same items every
+// render).
 
 import type {
-  BookkeepingSummary,
-  BudgetSummary,
   ExpiringTrade,
-  OverBudgetCategory,
   RecentAlert,
   WheelSummary,
 } from "@/lib/clients/types";
 
 export type TodaySeverity = "high" | "medium" | "low";
 
-export type TodayItemKind = "ALERT" | "EXPIRING" | "OVER_BUDGET";
+export type TodayItemKind = "ALERT" | "EXPIRING";
 
 export type TodayItem = {
   id: string;
@@ -25,12 +24,10 @@ export type TodayItem = {
   actionUrl: string;
   ticker?: string;
   timestamp?: string;
-  pct?: number;
 };
 
 type AppUrls = {
   wheel: string;
-  budget: string;
 };
 
 const SEVERITY_RANK: Record<TodaySeverity, number> = { high: 0, medium: 1, low: 2 };
@@ -39,8 +36,6 @@ const RECENT_ALERT_WINDOW_MS = 24 * 60 * 60 * 1000;
 
 export function buildTodayItems(args: {
   wheel: WheelSummary | null;
-  bookkeeping: BookkeepingSummary | null;
-  budget: BudgetSummary | null;
   appUrls: AppUrls;
   now?: Date;
 }): TodayItem[] {
@@ -55,15 +50,6 @@ export function buildTodayItems(args: {
       items.push(expiringTradeToItem(trade, args.appUrls.wheel));
     }
   }
-
-  if (args.budget) {
-    for (const cat of args.budget.overBudgetCategories ?? []) {
-      items.push(overBudgetToItem(cat, args.appUrls.budget));
-    }
-  }
-
-  // Suppress bookkeeping for v1 — no actionable signal in the current payload.
-  void args.bookkeeping;
 
   items.sort((a, b) => {
     const sev = SEVERITY_RANK[a.severity] - SEVERITY_RANK[b.severity];
@@ -109,23 +95,6 @@ function expiringTradeToItem(trade: ExpiringTrade, wheelUrl: string): TodayItem 
     actionUrl: `${wheelUrl}/portfolios/${trade.portfolioId}/trades/${trade.id}`,
     ticker: trade.ticker,
     timestamp: trade.expirationDate,
-  };
-}
-
-function overBudgetToItem(cat: OverBudgetCategory, budgetUrl: string): TodayItem {
-  const severity: TodaySeverity = cat.pct >= 1 ? "high" : "medium";
-  const pctLabel = `${Math.round(cat.pct * 100)}%`;
-  return {
-    id: `budget:${cat.id}`,
-    kind: "OVER_BUDGET",
-    severity,
-    title: `${cat.name} at ${pctLabel} of budget`,
-    description: `$${Math.round(cat.spent)} spent of $${Math.round(cat.budget)} — ${
-      cat.pct >= 1 ? "over budget" : "approaching limit"
-    } this month.`,
-    actionLabel: "Open budget",
-    actionUrl: `${budgetUrl}/transactions`,
-    pct: cat.pct,
   };
 }
 

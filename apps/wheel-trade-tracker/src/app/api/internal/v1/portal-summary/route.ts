@@ -14,6 +14,12 @@ import { authPrisma } from "@hlf/auth-db";
 
 const EXPIRING_DTE_THRESHOLD = 7;
 const EXPIRING_LIMIT = 20;
+// We fetch a larger pool of recent alerts than we return, then filter out
+// ones linked to closed trades / removed watchlist items so the portal's
+// Today inbox only surfaces still-actionable items. Returned count is
+// RECENT_ALERTS_RETURN.
+const RECENT_ALERTS_POOL = 40;
+const RECENT_ALERTS_RETURN = 10;
 export async function GET(request: Request) {
   if (!validateInternalApiKey(request)) {
     return internalError("Unauthorized", 401);
@@ -114,13 +120,18 @@ export async function GET(request: Request) {
       db.alertEvent.findMany({
         where: { userId: resolvedUserId! },
         orderBy: { firedAt: "desc" },
-        take: 10,
+        take: RECENT_ALERTS_POOL,
         select: {
           id: true,
           message: true,
           firedAt: true,
           config: {
-            select: { type: true, tradeId: true, watchlistTicker: true },
+            select: {
+              type: true,
+              tradeId: true,
+              watchlistTicker: true,
+              stockLotId: true,
+            },
           },
         },
       }),
@@ -174,6 +185,48 @@ export async function GET(request: Request) {
       };
     });
 
+    // Trim recent alerts to those that are still actionable — drop ones
+    // linked to closed trades / closed stock lots. Watchlist-bound configs
+    // and configs with no link are always kept.
+    const tradeIdsInAlerts = Array.from(
+      new Set(
+        recentAlerts
+          .map((a) => a.config.tradeId)
+          .filter((id): id is string => Boolean(id)),
+      ),
+    );
+    const lotIdsInAlerts = Array.from(
+      new Set(
+        recentAlerts
+          .map((a) => a.config.stockLotId)
+          .filter((id): id is string => Boolean(id)),
+      ),
+    );
+    const [openTradeRows, openLotRows] = await Promise.all([
+      tradeIdsInAlerts.length
+        ? db.trade.findMany({
+            where: { id: { in: tradeIdsInAlerts }, status: "open" },
+            select: { id: true },
+          })
+        : Promise.resolve([] as { id: string }[]),
+      lotIdsInAlerts.length
+        ? db.stockLot.findMany({
+            where: { id: { in: lotIdsInAlerts }, status: "OPEN" },
+            select: { id: true },
+          })
+        : Promise.resolve([] as { id: string }[]),
+    ]);
+    const openTradeIdSet = new Set(openTradeRows.map((r) => r.id));
+    const openLotIdSet = new Set(openLotRows.map((r) => r.id));
+    const activeRecentAlerts = recentAlerts
+      .filter((a) => {
+        const { tradeId, stockLotId } = a.config;
+        if (tradeId) return openTradeIdSet.has(tradeId);
+        if (stockLotId) return openLotIdSet.has(stockLotId);
+        return true;
+      })
+      .slice(0, RECENT_ALERTS_RETURN);
+
     return internalResponse({
       openTradeCount,
       openLotCount,
@@ -181,7 +234,7 @@ export async function GET(request: Request) {
       ytdRealizedPnl,
       alertsToday,
       alertsThisWeek,
-      recentAlerts: recentAlerts.map((a) => ({
+      recentAlerts: activeRecentAlerts.map((a) => ({
         id: a.id,
         message: a.message,
         firedAt: a.firedAt.toISOString(),

@@ -1,4 +1,4 @@
-import { ArrowUpRight, Bell, CalendarClock, PiggyBank, Sparkles, AlertCircle } from "lucide-react";
+import { ArrowUpRight, Bell, CalendarClock, Sparkles, AlertCircle } from "lucide-react";
 import { Card, CardContent } from "@hlf/ui/card";
 import { Badge } from "@hlf/ui/badge";
 import { cn } from "@/lib/utils";
@@ -7,13 +7,11 @@ import type { TodayItem, TodayItemKind, TodaySeverity } from "@/lib/today-items"
 const KIND_ICON: Record<TodayItemKind, React.ElementType> = {
   ALERT: Bell,
   EXPIRING: CalendarClock,
-  OVER_BUDGET: PiggyBank,
 };
 
 const KIND_LABEL: Record<TodayItemKind, string> = {
   ALERT: "Alert",
   EXPIRING: "Expiring",
-  OVER_BUDGET: "Budget",
 };
 
 const SEVERITY_DOT: Record<TodaySeverity, string> = {
@@ -33,8 +31,6 @@ type Props = {
   items: TodayItem[];
   errors: {
     wheel?: string;
-    bookkeeping?: string;
-    budget?: string;
   };
 };
 
@@ -44,6 +40,8 @@ export function TodayView({ firstName, items, errors }: Props) {
     .filter(([, v]) => Boolean(v))
     .map(([k]) => k);
 
+  const alertItems = items.filter((i) => i.kind === "ALERT");
+  const expiringItems = items.filter((i) => i.kind === "EXPIRING");
   const highCount = items.filter((i) => i.severity === "high").length;
 
   return (
@@ -52,7 +50,7 @@ export function TodayView({ firstName, items, errors }: Props) {
         <div>
           <h1 className="text-2xl md:text-3xl font-bold tracking-tight">{greeting}</h1>
           <p className="text-muted-foreground text-sm mt-1">
-            What needs your attention across the HLF suite.
+            What needs action across your open positions.
           </p>
         </div>
         {items.length > 0 && (
@@ -84,21 +82,54 @@ export function TodayView({ firstName, items, errors }: Props) {
             </div>
             <p className="text-sm font-medium">You&apos;re all clear</p>
             <p className="text-xs text-muted-foreground max-w-xs">
-              No alerts firing, no trades expiring within a week, and no budget categories near
-              their limit.
+              No alerts firing on open positions and nothing expiring within a week.
             </p>
           </CardContent>
         </Card>
       ) : (
-        <ul className="space-y-2.5">
-          {items.map((item) => (
-            <li key={item.id}>
-              <TodayRow item={item} />
-            </li>
-          ))}
-        </ul>
+        <div className="space-y-6">
+          {alertItems.length > 0 && (
+            <Section title="Action alerts" subtitle="Triggers firing on your live positions" items={alertItems} />
+          )}
+          {expiringItems.length > 0 && (
+            <Section
+              title="Expiring this week"
+              subtitle="Decide: close, roll, or let expire"
+              items={expiringItems}
+            />
+          )}
+        </div>
       )}
     </div>
+  );
+}
+
+function Section({
+  title,
+  subtitle,
+  items,
+}: {
+  title: string;
+  subtitle: string;
+  items: TodayItem[];
+}) {
+  return (
+    <section className="space-y-2.5">
+      <div className="flex items-baseline justify-between gap-3 px-1">
+        <div>
+          <h2 className="text-sm font-semibold tracking-tight">{title}</h2>
+          <p className="text-[11px] text-muted-foreground leading-tight">{subtitle}</p>
+        </div>
+        <span className="text-[11px] text-muted-foreground font-mono">{items.length}</span>
+      </div>
+      <ul className="space-y-2.5">
+        {items.map((item) => (
+          <li key={item.id}>
+            <TodayRow item={item} />
+          </li>
+        ))}
+      </ul>
+    </section>
   );
 }
 

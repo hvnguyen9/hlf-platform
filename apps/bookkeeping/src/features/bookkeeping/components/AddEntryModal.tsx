@@ -4,7 +4,12 @@ import { useState, useEffect } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { toast } from "sonner";
 import { RefreshCw } from "lucide-react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  ResponsiveModal,
+  ResponsiveModalContent,
+  ResponsiveModalHeader,
+  ResponsiveModalTitle,
+} from "@hlf/ui/responsive-modal";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -125,11 +130,11 @@ export function AddEntryModal({ open, onOpenChange, entry, onSuccess }: Props) {
   }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>{isEdit ? "Edit Entry" : "Add Entry"}</DialogTitle>
-        </DialogHeader>
+    <ResponsiveModal open={open} onOpenChange={onOpenChange}>
+      <ResponsiveModalContent dialogClassName="sm:max-w-md">
+        <ResponsiveModalHeader>
+          <ResponsiveModalTitle>{isEdit ? "Edit Entry" : "Add Entry"}</ResponsiveModalTitle>
+        </ResponsiveModalHeader>
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 pt-1">
 
           {/* Type toggle */}
@@ -265,7 +270,7 @@ export function AddEntryModal({ open, onOpenChange, entry, onSuccess }: Props) {
             </Button>
           </div>
         </form>
-      </DialogContent>
-    </Dialog>
+      </ResponsiveModalContent>
+    </ResponsiveModal>
   );
 }
