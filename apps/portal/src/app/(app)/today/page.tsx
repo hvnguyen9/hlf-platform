@@ -1,9 +1,5 @@
 import { auth } from "@/server/auth/auth";
-import {
-  fetchBookkeepingSummary,
-  fetchBudgetSummary,
-  fetchWheelSummary,
-} from "@/lib/clients";
+import { fetchWheelSummary } from "@/lib/clients";
 import { APPS } from "@/lib/apps";
 import { buildTodayItems } from "@/lib/today-items";
 import { getUserTradingPortfolios } from "@/lib/user-settings";
@@ -19,31 +15,20 @@ export default async function TodayPage() {
 
   const portfolioIds = userId ? await getUserTradingPortfolios(userId) : undefined;
 
-  const [wheel, bookkeeping, budget] = await Promise.all([
-    fetchWheelSummary(email, portfolioIds),
-    fetchBookkeepingSummary(email),
-    fetchBudgetSummary(email),
-  ]);
+  const wheel = await fetchWheelSummary(email, portfolioIds);
 
   const wheelUrl = APPS.find((a) => a.key === "wheel")?.url ?? "";
-  const budgetUrl = APPS.find((a) => a.key === "budget")?.url ?? "";
 
   const items = buildTodayItems({
     wheel: wheel.data,
-    bookkeeping: bookkeeping.data,
-    budget: budget.data,
-    appUrls: { wheel: wheelUrl, budget: budgetUrl },
+    appUrls: { wheel: wheelUrl },
   });
 
   return (
     <TodayView
       firstName={firstName}
       items={items}
-      errors={{
-        wheel: wheel.error,
-        bookkeeping: bookkeeping.error,
-        budget: budget.error,
-      }}
+      errors={{ wheel: wheel.error }}
     />
   );
 }

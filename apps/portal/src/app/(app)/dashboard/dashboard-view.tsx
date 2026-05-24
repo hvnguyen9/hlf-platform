@@ -10,7 +10,6 @@ import {
   Sparkles,
   Bell,
   CalendarClock,
-  PiggyBank,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@hlf/ui/card";
 import { Badge } from "@hlf/ui/badge";
@@ -40,7 +39,6 @@ const TODAY_PREVIEW_LIMIT = 6;
 const KIND_ICON: Record<TodayItemKind, React.ElementType> = {
   ALERT: Bell,
   EXPIRING: CalendarClock,
-  OVER_BUDGET: PiggyBank,
 };
 
 const SEVERITY_DOT: Record<TodaySeverity, string> = {

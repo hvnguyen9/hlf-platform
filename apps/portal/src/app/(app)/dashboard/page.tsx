@@ -26,13 +26,10 @@ export default async function DashboardPage() {
   ]);
 
   const wheelUrl = APPS.find((a) => a.key === "wheel")?.url ?? "";
-  const budgetUrl = APPS.find((a) => a.key === "budget")?.url ?? "";
 
   const todayItems = buildTodayItems({
     wheel: wheel.data,
-    bookkeeping: bookkeeping.data,
-    budget: budget.data,
-    appUrls: { wheel: wheelUrl, budget: budgetUrl },
+    appUrls: { wheel: wheelUrl },
   });
 
   return (
