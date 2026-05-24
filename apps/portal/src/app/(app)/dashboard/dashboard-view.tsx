@@ -134,6 +134,10 @@ export function DashboardView({
   );
 }
 
+// One consolidated "Open positions" card containing both option trades
+// (grouped by portfolio) and stock lots. Replaces the previous side-by-
+// side OpenTradesCard + OpenLotsCard, which wasted real estate for the
+// common case of few-to-no stock lots.
 function PositionsSnapshot({
   trades,
   lots,
@@ -145,30 +149,11 @@ function PositionsSnapshot({
   wheelUrl: string;
   wheelOffline: boolean;
 }) {
-  // Hide the section entirely when the wheel-tracker is offline — the KPI
-  // strip below already surfaces the outage badge, no need to render two
-  // empty skeleton cards.
   if (wheelOffline) return null;
   if (trades.length === 0 && lots.length === 0) return null;
 
-  return (
-    <section className="grid grid-cols-1 lg:grid-cols-2 gap-3 md:gap-4">
-      <OpenTradesCard trades={trades} wheelUrl={wheelUrl} />
-      <OpenLotsCard lots={lots} wheelUrl={wheelUrl} />
-    </section>
-  );
-}
-
-function OpenTradesCard({
-  trades,
-  wheelUrl,
-}: {
-  trades: OpenTradeSnapshot[];
-  wheelUrl: string;
-}) {
-  // Group trades by portfolio name so the user can scan per-account
-  // exposure at a glance. Preserves the existing sort order (by DTE
-  // ascending from the upstream query) within each group.
+  // Group trades by portfolio name so per-account exposure is scannable.
+  // Preserves the upstream DTE-ascending sort within each group.
   const byPortfolio = new Map<string, OpenTradeSnapshot[]>();
   for (const t of trades) {
     const key = t.portfolioName ?? "Unassigned";
@@ -176,215 +161,223 @@ function OpenTradesCard({
     arr.push(t);
     byPortfolio.set(key, arr);
   }
-  // Portfolio groups sorted by total contract count desc — larger
-  // commitments lead.
-  const groups = Array.from(byPortfolio.entries()).sort(
+  const tradeGroups = Array.from(byPortfolio.entries()).sort(
     ([, a], [, b]) =>
       b.reduce((s, t) => s + t.contracts, 0) -
       a.reduce((s, t) => s + t.contracts, 0),
   );
 
+  const totalCount = trades.length + lots.length;
+
   return (
-    <Card>
-      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
-        <CardTitle className="text-base flex items-center gap-2">
-          <LineChart className="w-4 h-4 text-primary" />
-          Open option trades
-        </CardTitle>
-        <Link
-          href={`${wheelUrl}/summary`}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="text-[11px] font-medium text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1"
-        >
-          All trades
-          {trades.length > 0 && (
-            <Badge variant="secondary" className="font-mono text-[10px] ml-1">
-              {trades.length}
-            </Badge>
-          )}
-          <ArrowUpRight className="w-3 h-3" />
-        </Link>
-      </CardHeader>
-      <CardContent>
-        {trades.length === 0 ? (
-          <EmptyHint text="No open option trades." />
-        ) : (
-          <div className="space-y-3 -mt-1">
-            {groups.map(([portfolioName, list]) => (
-              <div key={portfolioName} className="space-y-1">
-                <div className="flex items-baseline justify-between gap-2 px-1">
-                  <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70 truncate">
-                    {portfolioName}
-                  </p>
-                  <span className="text-[10px] text-muted-foreground/60 font-mono">
-                    {list.length} trade{list.length === 1 ? "" : "s"}
-                  </span>
-                </div>
-                <ul className="divide-y divide-border/60 rounded-md border border-border/40 overflow-hidden">
-                  {list.map((t) => (
-                    <li key={t.id}>
-                      <a
-                        href={`${wheelUrl}/portfolios/${t.portfolioId}/trades/${t.id}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="group flex items-center gap-3 py-2.5 px-3 hover:bg-muted/50 transition-colors"
-                      >
-                        <div className="min-w-0 flex-1">
-                          <div className="flex items-center gap-2">
-                            <span className="text-sm font-semibold">{t.ticker}</span>
-                            <span className="text-[11px] font-medium text-muted-foreground">
-                              {formatTradeKind(t.type)} ${t.strikePrice}
-                            </span>
-                            {t.itm === true && (
-                              <Badge variant="outline" className="text-[10px] px-1 py-0 border-rose-500/40 text-rose-600 dark:text-rose-400">
-                                ITM
-                              </Badge>
-                            )}
-                          </div>
-                          <p className="text-[11px] text-muted-foreground mt-0.5 truncate">
-                            {t.contracts} contract{t.contracts === 1 ? "" : "s"} · {formatDte(t.dte)}
-                          </p>
-                        </div>
-                        <div className="text-right shrink-0">
-                          <p className="text-sm font-mono tabular-nums">
-                            {t.currentPrice != null ? `$${t.currentPrice.toFixed(2)}` : "—"}
-                          </p>
-                          <p
-                            className={cn(
-                              "text-[11px] font-mono tabular-nums",
-                              t.changePct == null
-                                ? "text-muted-foreground"
-                                : t.changePct >= 0
-                                  ? "text-emerald-600 dark:text-emerald-400"
-                                  : "text-rose-600 dark:text-rose-400",
-                            )}
-                          >
-                            {t.changePct != null
-                              ? `${t.changePct >= 0 ? "+" : ""}${t.changePct.toFixed(2)}%`
-                              : "—"}
-                          </p>
-                        </div>
-                        <ArrowUpRight className="h-3.5 w-3.5 text-muted-foreground/40 group-hover:text-foreground transition-colors shrink-0" />
-                      </a>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            ))}
+    <section>
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
+          <CardTitle className="text-base flex items-center gap-2">
+            <Layers className="w-4 h-4 text-primary" />
+            Open positions
+          </CardTitle>
+          <div className="flex items-center gap-2">
+            {totalCount > 0 && (
+              <Badge variant="secondary" className="font-mono text-[10px]">
+                {totalCount}
+              </Badge>
+            )}
+            <Link
+              href={`${wheelUrl}/summary`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-[11px] font-medium text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1"
+            >
+              Full view
+              <ArrowUpRight className="w-3 h-3" />
+            </Link>
           </div>
-        )}
-      </CardContent>
-    </Card>
+        </CardHeader>
+        <CardContent className="space-y-5">
+          {/* Option trades sub-section */}
+          <div className="space-y-2">
+            <div className="flex items-baseline gap-2 px-1">
+              <LineChart className="w-3 h-3 text-muted-foreground" />
+              <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                Option trades
+              </p>
+              <span className="text-[10px] text-muted-foreground/60 font-mono ml-auto">
+                {trades.length}
+              </span>
+            </div>
+            {trades.length === 0 ? (
+              <EmptyHint text="No open option trades." />
+            ) : (
+              <div className="space-y-3">
+                {tradeGroups.map(([portfolioName, list]) => (
+                  <div key={portfolioName} className="space-y-1">
+                    <div className="flex items-baseline justify-between gap-2 px-1">
+                      <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70 truncate">
+                        {portfolioName}
+                      </p>
+                      <span className="text-[10px] text-muted-foreground/60 font-mono">
+                        {list.length} trade{list.length === 1 ? "" : "s"}
+                      </span>
+                    </div>
+                    <ul className="divide-y divide-border/60 rounded-md border border-border/40 overflow-hidden">
+                      {list.map((t) => (
+                        <li key={t.id}>
+                          <TradeRow trade={t} wheelUrl={wheelUrl} />
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Stock lots sub-section */}
+          <div className="space-y-2">
+            <div className="flex items-baseline gap-2 px-1">
+              <Layers className="w-3 h-3 text-muted-foreground" />
+              <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                Stock lots
+              </p>
+              <span className="text-[10px] text-muted-foreground/60 font-mono ml-auto">
+                {lots.length}
+              </span>
+            </div>
+            {lots.length === 0 ? (
+              <EmptyHint text="No open stock lots." />
+            ) : (
+              <ul className="divide-y divide-border/60 rounded-md border border-border/40 overflow-hidden">
+                {lots.map((l) => (
+                  <li key={l.id}>
+                    <LotRow lot={l} wheelUrl={wheelUrl} />
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+    </section>
   );
 }
 
-function OpenLotsCard({
-  lots,
-  wheelUrl,
-}: {
-  lots: OpenLotSnapshot[];
-  wheelUrl: string;
-}) {
+function TradeRow({ trade: t, wheelUrl }: { trade: OpenTradeSnapshot; wheelUrl: string }) {
   return (
-    <Card>
-      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
-        <CardTitle className="text-base flex items-center gap-2">
-          <Layers className="w-4 h-4 text-primary" />
-          Open stock lots
-        </CardTitle>
-        <Link
-          href={`${wheelUrl}/summary`}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="text-[11px] font-medium text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1"
-        >
-          All lots
-          {lots.length > 0 && (
-            <Badge variant="secondary" className="font-mono text-[10px] ml-1">
-              {lots.length}
+    <a
+      href={`${wheelUrl}/portfolios/${t.portfolioId}/trades/${t.id}`}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="group flex items-center gap-3 py-2.5 px-3 hover:bg-muted/50 transition-colors"
+    >
+      <div className="min-w-0 flex-1">
+        <div className="flex items-center gap-2">
+          <span className="text-sm font-semibold">{t.ticker}</span>
+          <span className="text-[11px] font-medium text-muted-foreground">
+            {formatTradeKind(t.type)} ${t.strikePrice}
+          </span>
+          {t.itm === true && (
+            <Badge
+              variant="outline"
+              className="text-[10px] px-1 py-0 border-rose-500/40 text-rose-600 dark:text-rose-400"
+            >
+              ITM
             </Badge>
           )}
-          <ArrowUpRight className="w-3 h-3" />
-        </Link>
-      </CardHeader>
-      <CardContent>
-        {lots.length === 0 ? (
-          <EmptyHint text="No open stock lots." />
-        ) : (
-          <ul className="divide-y divide-border -mt-1">
-            {lots.map((l) => {
-              const pnlPositive = l.unrealizedPnl != null && l.unrealizedPnl >= 0;
-              return (
-                <li key={l.id}>
-                  <a
-                    href={`${wheelUrl}/portfolios/${l.portfolioId}/stocks/${l.id}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="group flex items-center gap-3 py-2.5 -mx-2 px-2 rounded-md hover:bg-muted/50 transition-colors"
-                  >
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm font-semibold">{l.ticker}</span>
-                        <span className="text-[11px] font-medium text-muted-foreground">
-                          {l.shares} share{l.shares === 1 ? "" : "s"}
-                        </span>
-                      </div>
-                      <p className="text-[11px] text-muted-foreground mt-0.5 truncate">
-                        Avg ${l.avgCost.toFixed(2)} · Now {l.currentPrice != null ? `$${l.currentPrice.toFixed(2)}` : "—"}
-                        {l.portfolioName && (
-                          <>
-                            {" · "}
-                            <span className="text-muted-foreground/80">{l.portfolioName}</span>
-                          </>
-                        )}
-                      </p>
-                    </div>
-                    <div className="text-right shrink-0">
-                      <p
-                        className={cn(
-                          "text-sm font-mono tabular-nums font-semibold",
-                          l.unrealizedPnl == null
-                            ? "text-muted-foreground"
-                            : pnlPositive
-                              ? "text-emerald-600 dark:text-emerald-400"
-                              : "text-rose-600 dark:text-rose-400",
-                        )}
-                      >
-                        {l.unrealizedPnl != null
-                          ? `${pnlPositive ? "+" : ""}${formatCurrency(l.unrealizedPnl)}`
-                          : "—"}
-                      </p>
-                      <p
-                        className={cn(
-                          "text-[11px] font-mono tabular-nums",
-                          l.unrealizedPct == null
-                            ? "text-muted-foreground"
-                            : pnlPositive
-                              ? "text-emerald-600 dark:text-emerald-400"
-                              : "text-rose-600 dark:text-rose-400",
-                        )}
-                      >
-                        {l.unrealizedPct != null
-                          ? `${pnlPositive ? "+" : ""}${l.unrealizedPct.toFixed(2)}%`
-                          : "—"}
-                      </p>
-                    </div>
-                    <ArrowUpRight className="h-3.5 w-3.5 text-muted-foreground/40 group-hover:text-foreground transition-colors shrink-0" />
-                  </a>
-                </li>
-              );
-            })}
-          </ul>
-        )}
-      </CardContent>
-    </Card>
+        </div>
+        <p className="text-[11px] text-muted-foreground mt-0.5 truncate">
+          {t.contracts} contract{t.contracts === 1 ? "" : "s"} · {formatDte(t.dte)}
+        </p>
+      </div>
+      <div className="text-right shrink-0">
+        <p className="text-sm font-mono tabular-nums">
+          {t.currentPrice != null ? `$${t.currentPrice.toFixed(2)}` : "—"}
+        </p>
+        <p
+          className={cn(
+            "text-[11px] font-mono tabular-nums",
+            t.changePct == null
+              ? "text-muted-foreground"
+              : t.changePct >= 0
+                ? "text-emerald-600 dark:text-emerald-400"
+                : "text-rose-600 dark:text-rose-400",
+          )}
+        >
+          {t.changePct != null
+            ? `${t.changePct >= 0 ? "+" : ""}${t.changePct.toFixed(2)}%`
+            : "—"}
+        </p>
+      </div>
+      <ArrowUpRight className="h-3.5 w-3.5 text-muted-foreground/40 group-hover:text-foreground transition-colors shrink-0" />
+    </a>
+  );
+}
+
+function LotRow({ lot: l, wheelUrl }: { lot: OpenLotSnapshot; wheelUrl: string }) {
+  const pnlPositive = l.unrealizedPnl != null && l.unrealizedPnl >= 0;
+  return (
+    <a
+      href={`${wheelUrl}/portfolios/${l.portfolioId}/stocks/${l.id}`}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="group flex items-center gap-3 py-2.5 px-3 hover:bg-muted/50 transition-colors"
+    >
+      <div className="min-w-0 flex-1">
+        <div className="flex items-center gap-2">
+          <span className="text-sm font-semibold">{l.ticker}</span>
+          <span className="text-[11px] font-medium text-muted-foreground">
+            {l.shares} share{l.shares === 1 ? "" : "s"}
+          </span>
+        </div>
+        <p className="text-[11px] text-muted-foreground mt-0.5 truncate">
+          Avg ${l.avgCost.toFixed(2)} · Now{" "}
+          {l.currentPrice != null ? `$${l.currentPrice.toFixed(2)}` : "—"}
+          {l.portfolioName && (
+            <>
+              {" · "}
+              <span className="text-muted-foreground/80">{l.portfolioName}</span>
+            </>
+          )}
+        </p>
+      </div>
+      <div className="text-right shrink-0">
+        <p
+          className={cn(
+            "text-sm font-mono tabular-nums font-semibold",
+            l.unrealizedPnl == null
+              ? "text-muted-foreground"
+              : pnlPositive
+                ? "text-emerald-600 dark:text-emerald-400"
+                : "text-rose-600 dark:text-rose-400",
+          )}
+        >
+          {l.unrealizedPnl != null
+            ? `${pnlPositive ? "+" : ""}${formatCurrency(l.unrealizedPnl)}`
+            : "—"}
+        </p>
+        <p
+          className={cn(
+            "text-[11px] font-mono tabular-nums",
+            l.unrealizedPct == null
+              ? "text-muted-foreground"
+              : pnlPositive
+                ? "text-emerald-600 dark:text-emerald-400"
+                : "text-rose-600 dark:text-rose-400",
+          )}
+        >
+          {l.unrealizedPct != null
+            ? `${pnlPositive ? "+" : ""}${l.unrealizedPct.toFixed(2)}%`
+            : "—"}
+        </p>
+      </div>
+      <ArrowUpRight className="h-3.5 w-3.5 text-muted-foreground/40 group-hover:text-foreground transition-colors shrink-0" />
+    </a>
   );
 }
 
 function EmptyHint({ text }: { text: string }) {
   return (
-    <div className="py-6 text-center">
+    <div className="py-4 text-center">
       <p className="text-xs text-muted-foreground">{text}</p>
     </div>
   );
