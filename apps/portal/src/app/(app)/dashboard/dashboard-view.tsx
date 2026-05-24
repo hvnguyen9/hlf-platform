@@ -1,6 +1,5 @@
 import Link from "next/link";
 import {
-  ArrowRight,
   ArrowUpRight,
   TrendingUp,
   Briefcase,
@@ -39,7 +38,6 @@ type Props = {
   };
 };
 
-const TODAY_PREVIEW_LIMIT = 6;
 
 const KIND_ICON: Record<TodayItemKind, React.ElementType> = {
   ALERT: Bell,
@@ -141,18 +139,11 @@ export function DashboardView({
               <Inbox className="w-4 h-4 text-primary" />
               Today
             </CardTitle>
-            <Link
-              href="/today"
-              className="text-[11px] font-medium text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1"
-            >
-              View all
-              {todayItems.length > 0 && (
-                <Badge variant="secondary" className="font-mono text-[10px] ml-1">
-                  {todayItems.length}
-                </Badge>
-              )}
-              <ArrowRight className="w-3 h-3" />
-            </Link>
+            {todayItems.length > 0 && (
+              <Badge variant="secondary" className="font-mono text-[10px]">
+                {todayItems.length} item{todayItems.length === 1 ? "" : "s"}
+              </Badge>
+            )}
           </CardHeader>
           <CardContent>
             {todayItems.length === 0 ? (
@@ -167,7 +158,7 @@ export function DashboardView({
               </div>
             ) : (
               <ul className="divide-y divide-border -mt-1">
-                {todayItems.slice(0, TODAY_PREVIEW_LIMIT).map((item) => {
+                {todayItems.map((item) => {
                   const Icon = KIND_ICON[item.kind];
                   return (
                     <li key={item.id}>
@@ -325,8 +316,14 @@ function OpenTradesCard({
                         </Badge>
                       )}
                     </div>
-                    <p className="text-[11px] text-muted-foreground mt-0.5">
+                    <p className="text-[11px] text-muted-foreground mt-0.5 truncate">
                       {t.contracts} contract{t.contracts === 1 ? "" : "s"} · {formatDte(t.dte)}
+                      {t.portfolioName && (
+                        <>
+                          {" · "}
+                          <span className="text-muted-foreground/80">{t.portfolioName}</span>
+                        </>
+                      )}
                     </p>
                   </div>
                   <div className="text-right shrink-0">
@@ -410,8 +407,14 @@ function OpenLotsCard({
                           {l.shares} share{l.shares === 1 ? "" : "s"}
                         </span>
                       </div>
-                      <p className="text-[11px] text-muted-foreground mt-0.5">
+                      <p className="text-[11px] text-muted-foreground mt-0.5 truncate">
                         Avg ${l.avgCost.toFixed(2)} · Now {l.currentPrice != null ? `$${l.currentPrice.toFixed(2)}` : "—"}
+                        {l.portfolioName && (
+                          <>
+                            {" · "}
+                            <span className="text-muted-foreground/80">{l.portfolioName}</span>
+                          </>
+                        )}
                       </p>
                     </div>
                     <div className="text-right shrink-0">

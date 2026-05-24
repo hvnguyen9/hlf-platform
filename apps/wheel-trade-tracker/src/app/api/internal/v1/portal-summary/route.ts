@@ -183,6 +183,7 @@ export async function GET(request: Request) {
           contractPrice: true,
           expirationDate: true,
           portfolioId: true,
+          portfolio: { select: { name: true } },
         },
       }),
       db.stockLot.findMany({
@@ -195,6 +196,7 @@ export async function GET(request: Request) {
           shares: true,
           avgCost: true,
           portfolioId: true,
+          portfolio: { select: { name: true } },
         },
       }),
     ]);
@@ -300,6 +302,7 @@ export async function GET(request: Request) {
         contracts: t.contractsOpen ?? t.contracts,
         expirationDate: t.expirationDate.toISOString(),
         portfolioId: t.portfolioId,
+        portfolioName: t.portfolio?.name ?? null,
         dte,
         currentPrice: price,
         changePct: snap?.changePct ?? null,
@@ -323,6 +326,7 @@ export async function GET(request: Request) {
         shares: l.shares,
         avgCost,
         portfolioId: l.portfolioId,
+        portfolioName: l.portfolio?.name ?? null,
         currentPrice: price,
         changePct: snap?.changePct ?? null,
         unrealizedPnl,

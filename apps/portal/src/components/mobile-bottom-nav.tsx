@@ -7,7 +7,6 @@ import { useSession, signOut } from "next-auth/react";
 import { useTheme } from "next-themes";
 import {
   LayoutDashboard,
-  Inbox,
   LayoutGrid,
   MoreHorizontal,
   Settings,
@@ -165,13 +164,6 @@ export function MobileBottomNav() {
 
   const tabs: BottomNavTab[] = [
     { key: "dashboard", label: "Dashboard", icon: LayoutDashboard, href: "/dashboard" },
-    {
-      key: "today",
-      label: "Today",
-      icon: Inbox,
-      href: "/today",
-      match: (p) => p.startsWith("/today"),
-    },
     {
       key: "apps",
       label: "Apps",

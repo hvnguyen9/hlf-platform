@@ -51,6 +51,7 @@ export type OpenTradeSnapshot = {
   contracts: number;
   expirationDate: string;
   portfolioId: string;
+  portfolioName: string | null;
   dte: number;
   currentPrice: number | null;
   changePct: number | null;
@@ -65,6 +66,7 @@ export type OpenLotSnapshot = {
   shares: number;
   avgCost: number;
   portfolioId: string;
+  portfolioName: string | null;
   currentPrice: number | null;
   changePct: number | null;
   unrealizedPnl: number | null;
