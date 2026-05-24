@@ -77,6 +77,7 @@ export async function GET(request: Request) {
         openLots: [],
         upcomingEvents: [],
         capital: null,
+        watchlist: [],
       });
     }
     resolvedUserId = user.id;
@@ -121,6 +122,7 @@ export async function GET(request: Request) {
       allClosedTrades,
       allClosedLots,
       portfoliosForCapital,
+      watchlistAlertConfigs,
     ] = await Promise.all([
       db.trade.count({
         where: { status: "open", portfolio: portfolioFilter },
@@ -220,12 +222,13 @@ export async function GET(request: Request) {
           portfolio: { select: { name: true } },
         },
       }),
-      // Watchlist tickers — surfaces earnings/ex-div for things the user is
-      // *watching* (not yet positioned in) on the Dashboard's Next 7 days
-      // section. No expiry events for these since there's no trade.
+      // Watchlist tickers — feeds two things on the Dashboard: the
+      // "Watchlist" card (with current quotes) and the Next 7 days
+      // calendar (earnings/ex-div for things the user is watching).
       db.watchlistItem.findMany({
         where: { userId: resolvedUserId! },
-        select: { ticker: true },
+        select: { id: true, ticker: true, order: true },
+        orderBy: { order: "asc" },
       }),
       // All open trades for account-wide capital + concentration math.
       // Cheap projection (no relations); we already cap the displayed list
@@ -269,6 +272,17 @@ export async function GET(request: Request) {
           startingCapital: true,
           capitalTransactions: { select: { type: true, amount: true } },
         },
+      }),
+      // Active watchlist breach configs — surfaces a small "N triggers"
+      // badge per watchlist row on the Dashboard. The user-level scope
+      // matches how watchlist itself is scoped (not portfolio-bound).
+      db.alertConfig.findMany({
+        where: {
+          userId: resolvedUserId!,
+          type: "WATCHLIST_BREACH",
+          enabled: true,
+        },
+        select: { watchlistTicker: true },
       }),
     ]);
 
@@ -323,12 +337,14 @@ export async function GET(request: Request) {
         : null,
     }));
 
-    // One quote-snapshot batch covers every ticker we need to enrich. Sums
-    // open-trade tickers + open-lot tickers; getQuoteSnapshots dedupes inside.
+    // One quote-snapshot batch covers every ticker we need to enrich:
+    // open trades + open lots + watchlist items. getQuoteSnapshots
+    // dedupes inside so overlaps are free.
     const snapshotTickers = Array.from(
       new Set([
         ...openTradeRows.map((t) => t.ticker.toUpperCase()),
         ...openLotRows.map((l) => l.ticker.toUpperCase()),
+        ...watchlistRows.map((w) => w.ticker.toUpperCase()),
       ]),
     );
     const snapshotMap = new Map<string, { price: number | null; changePct: number | null; previousClose: number | null }>();
@@ -402,6 +418,27 @@ export async function GET(request: Request) {
         changePct: snap?.changePct ?? null,
         unrealizedPnl,
         unrealizedPct,
+      };
+    });
+
+    // Watchlist snapshot — ticker + live quote + count of active price-
+    // breach triggers per ticker. Sorted by the user's preferred order
+    // from the watchlist itself (already applied by the orderBy above).
+    const breachCountByTicker = new Map<string, number>();
+    for (const c of watchlistAlertConfigs) {
+      if (!c.watchlistTicker) continue;
+      const key = c.watchlistTicker.toUpperCase();
+      breachCountByTicker.set(key, (breachCountByTicker.get(key) ?? 0) + 1);
+    }
+    const watchlist = watchlistRows.map((w) => {
+      const snap = snapshotMap.get(w.ticker.toUpperCase());
+      return {
+        id: w.id,
+        ticker: w.ticker,
+        currentPrice: snap?.price ?? null,
+        changePct: snap?.changePct ?? null,
+        previousClose: snap?.previousClose ?? null,
+        alertCount: breachCountByTicker.get(w.ticker.toUpperCase()) ?? 0,
       };
     });
 
@@ -605,6 +642,7 @@ export async function GET(request: Request) {
       openLots,
       upcomingEvents,
       capital,
+      watchlist,
     });
   } catch (error) {
     console.error("[internal/portal-summary] error:", error);

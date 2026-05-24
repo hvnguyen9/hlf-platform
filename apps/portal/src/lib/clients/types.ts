@@ -95,6 +95,18 @@ export type UpcomingEvent = {
   tradeType?: string;
 };
 
+// Watchlist row with current quote + count of active WATCHLIST_BREACH
+// triggers the user has set on this ticker. Powers the Dashboard's
+// Watchlist card.
+export type WatchlistSnapshot = {
+  id: string;
+  ticker: string;
+  currentPrice: number | null;
+  changePct: number | null;
+  previousClose: number | null;
+  alertCount: number;
+};
+
 // Top N open stock lots with current price and unrealized P&L. Portal
 // Dashboard renders these alongside open trades.
 export type OpenLotSnapshot = {
@@ -132,6 +144,9 @@ export type WheelSummary = {
   // Optional: returned by wheel-tracker only after the capital-metrics
   // extension. Older deployments omit it. null when there are no portfolios.
   capital?: CapitalSummary | null;
+  // Optional: returned by wheel-tracker only after the watchlist-snapshot
+  // extension. Older deployments omit it.
+  watchlist?: WatchlistSnapshot[];
 };
 
 export type MtdExpenseRow = {

@@ -16,6 +16,7 @@ import {
   Coins,
   Wallet,
   AlertTriangle,
+  Eye,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@hlf/ui/card";
 import { Badge } from "@hlf/ui/badge";
@@ -30,6 +31,7 @@ import type {
   OpenTradeSnapshot,
   UpcomingEvent,
   UpcomingEventKind,
+  WatchlistSnapshot,
   WheelSummary,
 } from "@/lib/clients/types";
 import type { TodayItem, TodayItemKind, TodaySeverity } from "@/lib/today-items";
@@ -109,6 +111,12 @@ export function DashboardView({
       <PositionsSnapshot
         trades={wheel?.openTrades ?? []}
         lots={wheel?.openLots ?? []}
+        wheelUrl={wheelUrl}
+        wheelOffline={Boolean(errors.wheel)}
+      />
+
+      <WatchlistCard
+        items={wheel?.watchlist ?? []}
         wheelUrl={wheelUrl}
         wheelOffline={Boolean(errors.wheel)}
       />
@@ -1016,5 +1024,104 @@ function MtdNetWindow({
         </div>
       )}
     </WindowKpiShell>
+  );
+}
+
+// ── Watchlist card ───────────────────────────────────────────────────────
+// Tickers the user is watching but not yet positioned in. Compact 2-col
+// grid on desktop so a 10-ticker list doesn't dominate the page. Each
+// row shows the current price, today's change, and a small badge if the
+// user has active price-breach triggers on that ticker.
+function WatchlistCard({
+  items,
+  wheelUrl,
+  wheelOffline,
+}: {
+  items: WatchlistSnapshot[];
+  wheelUrl: string;
+  wheelOffline: boolean;
+}) {
+  if (wheelOffline) return null;
+  if (items.length === 0) return null;
+
+  return (
+    <section>
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
+          <CardTitle className="text-base flex items-center gap-2">
+            <Eye className="w-4 h-4 text-primary" />
+            Watchlist
+          </CardTitle>
+          <div className="flex items-center gap-2">
+            <Badge variant="secondary" className="font-mono text-[10px]">
+              {items.length}
+            </Badge>
+            <Link
+              href={`${wheelUrl}/watchlist`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-[11px] font-medium text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1"
+            >
+              Manage
+              <ArrowUpRight className="w-3 h-3" />
+            </Link>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <ul className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+            {items.map((w) => (
+              <li key={w.id}>
+                <WatchlistRow item={w} wheelUrl={wheelUrl} />
+              </li>
+            ))}
+          </ul>
+        </CardContent>
+      </Card>
+    </section>
+  );
+}
+
+function WatchlistRow({ item: w, wheelUrl }: { item: WatchlistSnapshot; wheelUrl: string }) {
+  return (
+    <a
+      href={`${wheelUrl}/watchlist`}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="group flex items-center gap-3 py-2 px-2.5 rounded-md border border-border/40 hover:bg-muted/50 hover:border-border transition-colors"
+    >
+      <div className="min-w-0 flex-1">
+        <div className="flex items-center gap-2">
+          <span className="text-sm font-semibold">{w.ticker}</span>
+          {w.alertCount > 0 && (
+            <Badge
+              variant="outline"
+              className="text-[10px] px-1 py-0 border-amber-500/40 text-amber-600 dark:text-amber-400"
+            >
+              <Bell className="w-2.5 h-2.5 mr-0.5" />
+              {w.alertCount}
+            </Badge>
+          )}
+        </div>
+      </div>
+      <div className="text-right shrink-0">
+        <p className="text-sm font-mono tabular-nums">
+          {w.currentPrice != null ? `$${w.currentPrice.toFixed(2)}` : "—"}
+        </p>
+        <p
+          className={cn(
+            "text-[11px] font-mono tabular-nums leading-tight",
+            w.changePct == null
+              ? "text-muted-foreground"
+              : w.changePct >= 0
+                ? "text-emerald-600 dark:text-emerald-400"
+                : "text-rose-600 dark:text-rose-400",
+          )}
+        >
+          {w.changePct != null
+            ? `${w.changePct >= 0 ? "+" : ""}${w.changePct.toFixed(2)}%`
+            : "—"}
+        </p>
+      </div>
+    </a>
   );
 }
