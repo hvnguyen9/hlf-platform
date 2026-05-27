@@ -25,6 +25,7 @@ import CloseTradeModal from "@/features/trades/components/CloseTradeModal";
 import AddToTradeModal from "@/features/trades/components/AddToTradeModal";
 import { AdminEditTradeModal } from "@/features/trades/components/AdminEditTradeModal";
 import { formatDateOnlyUTC, ensureUtcMidnight } from "@/lib/formatDateOnly";
+import { capitalUsedForTrade } from "@/lib/tradeMetrics";
 
 type Props = { portfolioId: string; tradeId: string };
 
@@ -49,19 +50,21 @@ function formatCloseReason(reason: string | null | undefined) {
 }
 
 function TypeBadge({ type }: { type: string }) {
-  const t = type.toLowerCase();
-  const isCoveredCall =
-    t === "coveredcall" || (t.includes("covered") && t.includes("call"));
-  const isCSP = t.includes("put") && !t.includes("covered");
-  const isCall = t.includes("call") && !isCoveredCall;
+  const t = type.toLowerCase().replace(/[\s_-]/g, "");
+  const isCSP = t === "cashsecuredput" || t === "csp";
+  const isCoveredCall = t === "coveredcall" || t === "cc";
+  const isLongCall = t === "call";
+  const isLongPut = t === "put";
 
   const cls = isCoveredCall
     ? "bg-violet-500/10 text-violet-600 dark:text-violet-400 border-violet-500/20"
     : isCSP
       ? "bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20"
-      : isCall
+      : isLongCall
         ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20"
-        : "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20";
+        : isLongPut
+          ? "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20"
+          : "bg-muted text-muted-foreground border-border";
 
   return (
     <Badge variant="secondary" className={`border ${cls}`}>
@@ -224,8 +227,15 @@ export default function TradeDetailPageClient({ portfolioId, tradeId }: Props) {
   }
 
   const isOpen = trade.status === "open";
-  const t = trade.type.toLowerCase();
-  const isCashSecuredPut = t.includes("put") && !t.includes("covered");
+  const t = trade.type.toLowerCase().replace(/[\s_-]/g, "");
+  const isCashSecuredPut = t === "cashsecuredput" || t === "csp";
+  const isCoveredCall = t === "coveredcall" || t === "cc";
+  const isLongPut = t === "put";
+  const isLongCall = t === "call";
+  // For breakeven and moneyness, CSP and long-put share the put-side formula;
+  // CC and long-call share the call-side formula.
+  const isPutSide = isCashSecuredPut || isLongPut;
+  const isCallSide = isCoveredCall || isLongCall;
 
   const contractsOpen = trade.contractsOpen ?? trade.contracts ?? 0;
   const contractsInitial = trade.contractsInitial ?? trade.contracts ?? 0;
@@ -233,27 +243,33 @@ export default function TradeDetailPageClient({ portfolioId, tradeId }: Props) {
   const partiallyFilled = isOpen && contractsOpen !== contractsInitial;
 
   const openPremium = trade.contractPrice * 100 * contractsOpen;
-  const capitalInUse = isOpen && isCashSecuredPut
-    ? trade.strikePrice * 100 * contractsOpen
+  const capitalInUse = isOpen
+    ? capitalUsedForTrade({
+        type: trade.type,
+        strikePrice: trade.strikePrice,
+        contractsOpen,
+        contractPrice: trade.contractPrice,
+      })
     : 0;
 
-  const isCoveredCall = t.includes("covered");
   const totalCapital = metrics?.currentCapital ?? metrics?.capitalBase ?? metrics?.startingCapital ?? 0;
   const allocPct = totalCapital > 0 && capitalInUse > 0
     ? (capitalInUse / totalCapital) * 100
     : null;
-  const breakeven = isCashSecuredPut
+  const breakeven = isPutSide
     ? trade.strikePrice - trade.contractPrice
     : isCoveredCall && trade.entryPrice != null
       ? trade.entryPrice - trade.contractPrice
-      : null;
+      : isLongCall
+        ? trade.strikePrice + trade.contractPrice
+        : null;
 
   const livePrice = quote?.price ?? null;
   const otmPct =
     isOpen && livePrice != null
-      ? isCashSecuredPut
+      ? isPutSide
         ? ((livePrice - trade.strikePrice) / livePrice) * 100
-        : isCoveredCall
+        : isCallSide
           ? ((trade.strikePrice - livePrice) / livePrice) * 100
           : null
       : null;
@@ -353,7 +369,9 @@ export default function TradeDetailPageClient({ portfolioId, tradeId }: Props) {
                 ? `${allocPct.toFixed(1)}% of portfolio`
                 : capitalInUse > 0
                   ? undefined
-                  : "N/A for CCs"
+                  : isCoveredCall
+                    ? "Tied to stock lot"
+                    : "—"
             }
           />
         ) : (

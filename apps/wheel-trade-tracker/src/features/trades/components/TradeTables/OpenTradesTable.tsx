@@ -98,9 +98,8 @@ const isFavorableMoney = (type: string | undefined, otmPct: number) =>
 const calcCapitalInUse = (t: Trade) => {
   const contracts = t.contractsOpen ?? t.contracts ?? 0;
   if (isCashSecuredPut(t.type)) return t.strikePrice * 100 * contracts;
-  if (isCoveredCall(t.type) && t.entryPrice != null) {
-    return t.entryPrice * 100 * contracts;
-  }
+  // CC capital is already tracked on the underlying StockLot — don't double-count.
+  if (isCoveredCall(t.type)) return 0;
   if (isLongOption(t.type)) return (t.contractPrice ?? 0) * 100 * contracts;
   return 0;
 };
