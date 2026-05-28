@@ -3,6 +3,7 @@ import { prisma } from "@/server/prisma";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/server/auth/auth";
 import { capitalUsedForTrade } from "@/lib/tradeMetrics";
+import { loadEffectiveBasisByLot } from "@/lib/effectiveStockBasis";
 import { getEffectiveUserId } from "@/server/auth/getEffectiveUserId";
 
 export const revalidate = 0;
@@ -215,7 +216,11 @@ export async function GET() {
           prisma.stockLot.findMany({
             where: { portfolioId: p.id, status: "OPEN" },
             select: {
+              id: true,
+              portfolioId: true,
               ticker: true,
+              openedAt: true,
+              closedAt: true,
               shares: true,
               avgCost: true,
             },
@@ -249,11 +254,14 @@ export async function GET() {
           })
         );
       }, 0);
-      const capitalInUseStocks = openStockLots.reduce((sum, lot) => {
-        const shares = Number(lot.shares ?? 0);
-        const avgCost = Number(lot.avgCost ?? 0);
-        return sum + shares * avgCost;
-      }, 0);
+      // Stock capital uses effective basis (CSP + long-option premiums
+      // captured during the hold reduce the sell-floor). Keeps per-portfolio
+      // totals consistent with the rows on the stocks table.
+      const stockBasisByLot = await loadEffectiveBasisByLot(prisma, openStockLots);
+      const capitalInUseStocks = openStockLots.reduce(
+        (sum, lot) => sum + (stockBasisByLot.get(lot.id)?.effectiveBasis ?? 0),
+        0,
+      );
       const capitalInUse = capitalInUseOptions + capitalInUseStocks;
 
       // Biggest CSP by collateral
@@ -284,7 +292,7 @@ export async function GET() {
         if (t.ticker) exposureByTicker.set(t.ticker, (exposureByTicker.get(t.ticker) ?? 0) + cap);
       }
       for (const lot of openStockLots) {
-        const cap = Number(lot.shares ?? 0) * Number(lot.avgCost ?? 0);
+        const cap = stockBasisByLot.get(lot.id)?.effectiveBasis ?? 0;
         if (lot.ticker && cap > 0) exposureByTicker.set(lot.ticker, (exposureByTicker.get(lot.ticker) ?? 0) + cap);
       }
       // accumulate to global exposure map

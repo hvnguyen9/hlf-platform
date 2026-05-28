@@ -4,6 +4,7 @@ import { prisma } from "@/server/prisma";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/server/auth/auth";
 import { requireAuth } from "@/server/auth/require-auth";
+import { loadEffectiveBasisByLot } from "@/lib/effectiveStockBasis";
 
 type StockLotStatusQuery = "open" | "closed";
 
@@ -90,47 +91,17 @@ export async function GET(req: Request) {
       }
     }
 
-    const cspByLot = new Map<string, number>();
-    const longByLot = new Map<string, number>();
-    await Promise.all(
-      stockLots.map(async (lot) => {
-        const closedAtFilter = lot.closedAt
-          ? { gte: lot.openedAt, lte: lot.closedAt }
-          : { gte: lot.openedAt };
-        const [cspAgg, longAgg] = await Promise.all([
-          prisma.trade.aggregate({
-            _sum: { premiumCaptured: true },
-            where: {
-              portfolioId: lot.portfolioId,
-              ticker: lot.ticker,
-              type: "CashSecuredPut",
-              status: "closed",
-              closeReason: { not: "assigned" },
-              closedAt: closedAtFilter,
-            },
-          }),
-          prisma.trade.aggregate({
-            _sum: { premiumCaptured: true },
-            where: {
-              portfolioId: lot.portfolioId,
-              ticker: lot.ticker,
-              type: { in: ["Call", "Put"] },
-              status: "closed",
-              closedAt: closedAtFilter,
-            },
-          }),
-        ]);
-        cspByLot.set(lot.id, Number(cspAgg._sum.premiumCaptured ?? 0));
-        longByLot.set(lot.id, Number(longAgg._sum.premiumCaptured ?? 0));
-      }),
-    );
+    const basisByLot = await loadEffectiveBasisByLot(prisma, stockLots);
 
-    const stockLotsWithBasis = stockLots.map((lot) => ({
-      ...lot,
-      ccPremiumCaptured: ccByLot.get(lot.id) ?? 0,
-      cspPremiumDuringHold: cspByLot.get(lot.id) ?? 0,
-      longOptionPnlDuringHold: longByLot.get(lot.id) ?? 0,
-    }));
+    const stockLotsWithBasis = stockLots.map((lot) => {
+      const b = basisByLot.get(lot.id);
+      return {
+        ...lot,
+        ccPremiumCaptured: ccByLot.get(lot.id) ?? 0,
+        cspPremiumDuringHold: b?.cspPremiumDuringHold ?? 0,
+        longOptionPnlDuringHold: b?.longOptionPnlDuringHold ?? 0,
+      };
+    });
 
     return NextResponse.json({ stockLots: stockLotsWithBasis });
   } catch (err) {
