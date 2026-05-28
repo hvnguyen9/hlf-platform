@@ -7,6 +7,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useBookkeeping, useTradingSummary } from "@/features/bookkeeping/hooks/useBookkeeping";
+import { TaxReserveTracker } from "@/features/bookkeeping/components/TaxReserveTracker";
 import { estimateTax, getQuarterlyDates, SUPPORTED_YEARS } from "@/lib/taxCalc";
 import type { TaxYear } from "@/lib/taxCalc";
 import { formatCurrency, cn, entryAmount } from "@/lib/utils";
@@ -161,9 +162,15 @@ export function TaxEstimate({ year: yearProp }: Props) {
         </p>
       </div>
 
-      {/* Reserve gauge */}
+      {/* Reserve tracker — set-aside tally + quarterly payment schedule */}
+      <TaxReserveTracker year={selectedYear} target={result.totalEstimatedTax} loading={loading} />
+
+      {/* Reserve rate gauge */}
       <Card>
-        <CardContent className="p-6">
+        <CardHeader className="pb-1">
+          <CardTitle className="text-base font-semibold">Recommended Reserve Rate</CardTitle>
+        </CardHeader>
+        <CardContent className="p-6 pt-2">
           {loading ? <Skeleton className="h-24 w-full" /> : (
             <ReserveGauge rate={result.recommendedReserveRate} />
           )}

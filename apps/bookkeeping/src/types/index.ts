@@ -45,3 +45,18 @@ export const SE_TAXABLE_CATEGORIES: ReadonlyArray<string> = [
 
 export type IncomeCategory = (typeof INCOME_CATEGORIES)[number];
 export type ExpenseCategory = (typeof EXPENSE_CATEGORIES)[number];
+
+export type TaxReserveKind = "parked" | "paid";
+
+export interface TaxReserveEntry {
+  id: string;
+  userId: string;
+  year: number;
+  date: string;
+  amount: number;
+  kind: TaxReserveKind;
+  quarter?: number | null;
+  note?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
