@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, forwardRef, useImperativeHandle } from "react";
+import { useState, forwardRef, useImperativeHandle, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
@@ -36,6 +36,15 @@ export const TradeNotesSimple = forwardRef<TradeNotesHandle, Props>(
       setEditing(value);
       onEditingChange?.(value);
     }
+
+    // Re-sync local state when the parent re-fetches the trade and feeds us
+    // new initialNotes (e.g. after Add-to-Position auto-prepends a log entry).
+    // Skip overwriting the draft while editing so we don't blow away in-progress typing.
+    useEffect(() => {
+      const next = initialNotes ?? "";
+      setNotes(next);
+      if (!editing) setDraft(next);
+    }, [initialNotes, editing]);
 
     useImperativeHandle(ref, () => ({
       startEditing: () => setEditingWithCallback(true),

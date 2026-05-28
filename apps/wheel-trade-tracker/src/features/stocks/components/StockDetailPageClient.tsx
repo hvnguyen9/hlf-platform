@@ -449,7 +449,6 @@ export default function StockDetailPageClient(props: {
   }
 
   const s = stockLot;
-  const basis = avg * shares;
   const sharesForContracts = Math.floor(shares / 100);
   const availableContracts = Math.max(
     0,
@@ -550,8 +549,16 @@ export default function StockDetailPageClient(props: {
       {/* Stat cards */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         <LotStat label="Shares" value={String(shares)} />
-        <LotStat label="Avg Cost / Share" value={moneyCompact(avg)} />
-        <LotStat label="Total Cost Basis" value={money(basis)} />
+        <LotStat
+          label="Effective Cost / Share"
+          value={moneyCompact(effectiveAvgCost)}
+          tone="success"
+        />
+        <LotStat
+          label="Effective Cost Basis"
+          value={money(effectiveAvgCost * shares)}
+          tone="success"
+        />
         <LotStat
           label={
             quote?.marketState && quote.marketState !== "REGULAR"

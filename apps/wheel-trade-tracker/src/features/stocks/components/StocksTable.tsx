@@ -80,18 +80,18 @@ export function StocksTable({ portfolioId, totalCapital }: Props) {
           <div className="md:hidden space-y-2 p-2">
             {rows.map((r) => {
               const avg = toNumber(r.avgCost);
-              const basis = avg * r.shares;
               const ccPrem = r.ccPremiumCaptured ?? 0;
               const cspPrem = r.cspPremiumDuringHold ?? 0;
               const longPnl = r.longOptionPnlDuringHold ?? 0;
               const originalAvg = r.shares > 0 ? avg + ccPrem / r.shares : avg;
               const effectiveAvg =
                 r.shares > 0 ? Math.max(0, avg - (cspPrem + longPnl) / r.shares) : avg;
+              const basis = effectiveAvg * r.shares;
               const q = quotes[r.ticker];
               const price = q?.price ?? null;
-              const unrealized = price != null ? (price - avg) * r.shares : null;
+              const unrealized = price != null ? (price - effectiveAvg) * r.shares : null;
               const unrealizedPct =
-                avg > 0 && unrealized != null ? (unrealized / basis) * 100 : null;
+                effectiveAvg > 0 && unrealized != null ? (unrealized / basis) * 100 : null;
               const allocPct =
                 showAllocation && basis > 0
                   ? (basis / (totalCapital as number)) * 100
@@ -154,8 +154,8 @@ export function StocksTable({ portfolioId, totalCapital }: Props) {
                       </div>
                     </div>
                     <div>
-                      <div className="text-xs text-muted-foreground">Cost Basis</div>
-                      <div className="tabular-nums font-medium">
+                      <div className="text-xs text-muted-foreground">Effective Cost Basis</div>
+                      <div className="tabular-nums font-medium text-emerald-600 dark:text-emerald-400">
                         {formatCompactCurrency(basis)}
                       </div>
                     </div>
@@ -219,7 +219,7 @@ export function StocksTable({ portfolioId, totalCapital }: Props) {
                   <th className="px-2 sm:px-4 py-2.5 text-[11px] font-medium text-muted-foreground uppercase tracking-wide select-none">Shares</th>
                   <th className="px-2 sm:px-4 py-2.5 text-[11px] font-medium text-muted-foreground uppercase tracking-wide select-none">Original</th>
                   <th className="px-2 sm:px-4 py-2.5 text-[11px] font-medium text-muted-foreground uppercase tracking-wide select-none">Effective</th>
-                  <th className="px-2 sm:px-4 py-2.5 text-[11px] font-medium text-muted-foreground uppercase tracking-wide select-none">Cost Basis</th>
+                  <th className="px-2 sm:px-4 py-2.5 text-[11px] font-medium text-muted-foreground uppercase tracking-wide select-none">Effective Cost Basis</th>
                   {showAllocation && (
                     <th className="px-2 sm:px-4 py-2.5 text-[11px] font-medium text-muted-foreground uppercase tracking-wide select-none text-right">Allocation</th>
                   )}
@@ -230,17 +230,17 @@ export function StocksTable({ portfolioId, totalCapital }: Props) {
               <tbody>
                 {rows.map((r) => {
                   const avg = toNumber(r.avgCost);
-                  const basis = avg * r.shares;
                   const ccPrem = r.ccPremiumCaptured ?? 0;
                   const cspPrem = r.cspPremiumDuringHold ?? 0;
                   const longPnl = r.longOptionPnlDuringHold ?? 0;
                   const originalAvg = r.shares > 0 ? avg + ccPrem / r.shares : avg;
                   const effectiveAvg =
                     r.shares > 0 ? Math.max(0, avg - (cspPrem + longPnl) / r.shares) : avg;
+                  const basis = effectiveAvg * r.shares;
                   const q = quotes[r.ticker];
                   const price = q?.price ?? null;
-                  const unrealized = price != null ? (price - avg) * r.shares : null;
-                  const unrealizedPct = avg > 0 && unrealized != null ? (unrealized / basis) * 100 : null;
+                  const unrealized = price != null ? (price - effectiveAvg) * r.shares : null;
+                  const unrealizedPct = effectiveAvg > 0 && unrealized != null ? (unrealized / basis) * 100 : null;
 
                   return (
                     <tr
@@ -260,7 +260,7 @@ export function StocksTable({ portfolioId, totalCapital }: Props) {
                       <td className="px-2 sm:px-4 py-2">{r.shares}</td>
                       <td className="px-2 sm:px-4 py-2 tabular-nums text-muted-foreground">{formatCurrency(originalAvg)}</td>
                       <td className="px-2 sm:px-4 py-2 tabular-nums text-emerald-600 dark:text-emerald-400">{formatCurrency(effectiveAvg)}</td>
-                      <td className="px-2 sm:px-4 py-2 tabular-nums">{formatCurrency(basis)}</td>
+                      <td className="px-2 sm:px-4 py-2 tabular-nums text-emerald-600 dark:text-emerald-400">{formatCurrency(basis)}</td>
                       {showAllocation && (
                         <td className="px-2 sm:px-4 py-2 text-right">
                           {basis > 0 ? (() => {
