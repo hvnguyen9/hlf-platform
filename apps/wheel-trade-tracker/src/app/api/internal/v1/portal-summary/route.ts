@@ -9,6 +9,7 @@ import { evaluateActionableConfigsForUser } from "@/lib/alerts/engine";
 import { getQuoteSnapshots } from "@/lib/alpaca";
 import { getCalendarEvents } from "@/lib/yahoo-finance";
 import { capitalUsedForTrade } from "@/lib/tradeMetrics";
+import { loadEffectiveBasisByLot } from "@/lib/effectiveStockBasis";
 
 // GET /api/internal/v1/portal-summary?email=  (or ?userId=)
 // Shaped for the HLF Portal dashboard — small response, single round-trip.
@@ -246,7 +247,15 @@ export async function GET(request: Request) {
       // All open lots for cost-basis aggregation + concentration.
       db.stockLot.findMany({
         where: { status: "OPEN", portfolio: portfolioFilter },
-        select: { ticker: true, shares: true, avgCost: true },
+        select: {
+          id: true,
+          portfolioId: true,
+          ticker: true,
+          openedAt: true,
+          closedAt: true,
+          shares: true,
+          avgCost: true,
+        },
       }),
       // All-time closed P&L (trades + lots) — needed because currentCapital
       // = capitalBase + total realized, and we report cash as the cash you
@@ -365,6 +374,11 @@ export async function GET(request: Request) {
       }
     }
 
+    // Effective basis per open lot — needed both by the per-row openLots
+    // payload below and by the aggregate Capital Deployed math further down.
+    // Computed once here so both surfaces agree.
+    const stockBasisByLot = await loadEffectiveBasisByLot(db, allOpenLots);
+
     const openTrades = openTradeRows.map((t) => {
       const snap = snapshotMap.get(t.ticker.toUpperCase());
       const dteMs = t.expirationDate.getTime() - todayStart.getTime();
@@ -399,7 +413,12 @@ export async function GET(request: Request) {
 
     const openLots = openLotRows.map((l) => {
       const snap = snapshotMap.get(l.ticker.toUpperCase());
-      const avgCost = Number(l.avgCost);
+      // Use effective basis (CSP + long-option premiums during the hold
+      // already subtracted) so the portal's per-lot view agrees with the
+      // wheel-tracker's stocks table and with the Capital Deployed total
+      // computed above.
+      const avgCost =
+        stockBasisByLot.get(l.id)?.effectiveAvgCost ?? Number(l.avgCost);
       const price = snap?.price ?? null;
       const unrealizedPnl =
         price !== null && Number.isFinite(avgCost)
@@ -571,8 +590,12 @@ export async function GET(request: Request) {
       (s, t) => s + capitalUsedForTrade(t),
       0,
     );
+    // Stock capital uses effective basis (CSP + long-option premiums
+    // captured during the hold reduce the sell-floor). Keeps the portal's
+    // Capital Deployed in sync with what wheel-tracker shows per row.
+    // (stockBasisByLot computed alongside snapshots above.)
     const capitalDeployedStocks = allOpenLots.reduce(
-      (s, l) => s + Number(l.shares ?? 0) * Number(l.avgCost ?? 0),
+      (s, l) => s + (stockBasisByLot.get(l.id)?.effectiveBasis ?? 0),
       0,
     );
     const capitalDeployed = capitalDeployedOptions + capitalDeployedStocks;
@@ -580,7 +603,7 @@ export async function GET(request: Request) {
     const percentDeployed =
       currentCapital > 0 ? (capitalDeployed / currentCapital) * 100 : 0;
 
-    // Per-ticker exposure: CSP collateral + open lot cost basis. Long
+    // Per-ticker exposure: CSP collateral + open lot effective basis. Long
     // options contribute their premium-at-risk via capitalUsedForTrade;
     // CCs contribute 0 (shares are already covered by the underlying lot).
     const exposureByTicker = new Map<string, number>();
@@ -593,7 +616,7 @@ export async function GET(request: Request) {
         );
     }
     for (const l of allOpenLots) {
-      const cap = Number(l.shares ?? 0) * Number(l.avgCost ?? 0);
+      const cap = stockBasisByLot.get(l.id)?.effectiveBasis ?? 0;
       if (cap > 0 && l.ticker)
         exposureByTicker.set(
           l.ticker,

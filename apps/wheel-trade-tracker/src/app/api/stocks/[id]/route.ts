@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/server/prisma";
 import { requireAuth } from "@/server/auth/require-auth";
 import { Prisma } from "@/generated/prisma/client";
+import { loadEffectiveBasisByLot } from "@/lib/effectiveStockBasis";
 
 function badRequest(message: string) {
   return NextResponse.json({ error: message }, { status: 400 });
@@ -41,40 +42,15 @@ export async function GET(
       return NextResponse.json({ error: "StockLot not found" }, { status: 404 });
     }
 
-    // Premium math for the "Cost Basis via Premiums" card. Queries run in
-    // parallel — keeps the GET fast.
+    // Effective basis (closed CSP + long-option premiums during the hold
+    // window) is computed by the shared helper so every endpoint that reports
+    // capital deployed agrees with what the lot detail page shows.
     //
-    //   cspPremiumDuringHold: closed CSPs on the same (portfolio, ticker)
-    //     during this lot's open window, excluding assignments (their net
-    //     basis is already in avgCost from the merge/create on assignment,
-    //     so counting them here would double-count).
-    //
-    //   cspPendingPremium: open CSPs on the same (portfolio, ticker) — the
-    //     max premium still capturable if they all expire worthless. Used by
-    //     the "If All Open Expire" projection alongside open-CC pending.
-    //
-    //   longOptionPnlDuringHold: net realized P&L from closed long Calls/Puts
-    //     on the same (portfolio, ticker) during this lot's hold window.
-    //     Folded into effective basis on the assumption that long options on
-    //     a ticker you own represent additional conviction — wins lower the
-    //     sell-floor, losses raise it.
-    //
-    // All three are display-only and never mutate avgCost.
-    const holdWindow = stockLot.closedAt
-      ? { gte: stockLot.openedAt, lte: stockLot.closedAt }
-      : { gte: stockLot.openedAt };
-    const [cspClosedAgg, openCsps, longAgg] = await Promise.all([
-      prisma.trade.aggregate({
-        _sum: { premiumCaptured: true },
-        where: {
-          portfolioId: stockLot.portfolioId,
-          ticker: stockLot.ticker,
-          type: "CashSecuredPut",
-          status: "closed",
-          closeReason: { not: "assigned" },
-          closedAt: holdWindow,
-        },
-      }),
+    // cspPendingPremium (max still-capturable from currently-open CSPs on the
+    // same ticker, used by the "If All Open Expire" projection) is local to
+    // this detail endpoint, so it's queried alongside.
+    const [basisByLot, openCsps] = await Promise.all([
+      loadEffectiveBasisByLot(prisma, [stockLot]),
       prisma.trade.findMany({
         where: {
           portfolioId: stockLot.portfolioId,
@@ -84,32 +60,16 @@ export async function GET(
         },
         select: { contractPrice: true, contractsOpen: true },
       }),
-      prisma.trade.aggregate({
-        _sum: { premiumCaptured: true },
-        where: {
-          portfolioId: stockLot.portfolioId,
-          ticker: stockLot.ticker,
-          type: { in: ["Call", "Put"] },
-          status: "closed",
-          closedAt: holdWindow,
-        },
-      }),
     ]);
 
-    const cspPremiumDuringHold = Number(cspClosedAgg._sum.premiumCaptured ?? 0);
+    const basis = basisByLot.get(stockLot.id);
+    const cspPremiumDuringHold = basis?.cspPremiumDuringHold ?? 0;
+    const longOptionPnlDuringHold = basis?.longOptionPnlDuringHold ?? 0;
+    const effectiveAvgCost = basis?.effectiveAvgCost ?? Number(stockLot.avgCost);
     const cspPendingPremium = openCsps.reduce(
       (sum, t) => sum + (Number(t.contractPrice) || 0) * (t.contractsOpen ?? 0) * 100,
       0,
     );
-    const longOptionPnlDuringHold = Number(longAgg._sum.premiumCaptured ?? 0);
-    const sharesNum = Number(stockLot.shares);
-    const avgCostNum = Number(stockLot.avgCost);
-    const totalReductionPerShare =
-      sharesNum > 0
-        ? (cspPremiumDuringHold + longOptionPnlDuringHold) / sharesNum
-        : 0;
-    const effectiveAvgCost =
-      sharesNum > 0 ? Math.max(0, avgCostNum - totalReductionPerShare) : avgCostNum;
 
     return NextResponse.json({
       stockLot,

@@ -2,6 +2,7 @@ import { prisma } from "@/server/prisma";
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/server/auth/require-auth";
 import { capitalUsedForTrade } from "@/lib/tradeMetrics";
+import { loadEffectiveBasisByLot } from "@/lib/effectiveStockBasis";
 
 export const revalidate = 0;
 export const dynamic = "force-dynamic";
@@ -108,7 +109,15 @@ export async function GET(
       }),
       prisma.stockLot.findMany({
         where: { status: "OPEN", portfolio: tradePortfolioWhere },
-        select: { shares: true, avgCost: true },
+        select: {
+          id: true,
+          portfolioId: true,
+          ticker: true,
+          openedAt: true,
+          closedAt: true,
+          shares: true,
+          avgCost: true,
+        },
       }),
       prisma.stockLot.findMany({
         where: { status: "CLOSED", portfolio: tradePortfolioWhere },
@@ -129,8 +138,12 @@ export async function GET(
       0,
     );
 
+    // Stock capital used reflects effective basis (CSP + long-option premiums
+    // captured during the hold reduce the sell-floor), so the portfolio total
+    // matches what each row shows on the stocks table.
+    const stockBasisByLot = await loadEffectiveBasisByLot(prisma, openStockLots);
     const capitalUsedStocks = openStockLots.reduce(
-      (sum, lot) => sum + Number(lot.shares ?? 0) * Number(lot.avgCost ?? 0),
+      (sum, lot) => sum + (stockBasisByLot.get(lot.id)?.effectiveBasis ?? 0),
       0,
     );
 
