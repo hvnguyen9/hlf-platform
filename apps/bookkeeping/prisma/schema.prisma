@@ -41,6 +41,32 @@ enum EntrySource {
   trading
 }
 
+// Tax reserve tracker — money the user sets aside for taxes throughout the
+// year, and estimated payments actually sent. Each row is one movement of
+// cash out of operating funds for tax purposes, logged exactly once (no
+// double counting). `kind` is its status: `parked` (sitting in a reserve
+// account) or `paid` (sent to the IRS/FTB). `quarter` tags a paid entry to a
+// 1040-ES quarter; null for plain parked contributions.
+model TaxReserveEntry {
+  id        String         @id @default(cuid())
+  userId    String
+  year      Int
+  date      DateTime
+  amount    Decimal        @db.Decimal(18, 2)
+  kind      TaxReserveKind @default(parked)
+  quarter   Int?
+  note      String?
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+
+  @@index([userId, year])
+}
+
+enum TaxReserveKind {
+  parked
+  paid
+}
+
 model BookkeepingMonthNote {
   id        String   @id @default(cuid())
   userId    String

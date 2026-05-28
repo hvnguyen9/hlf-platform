@@ -8,6 +8,18 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "v1.4.0",
+    date: "2026-05-28",
+    title: "Tax Reserve Tracker",
+    highlights: [
+      "Know exactly how much to set aside for taxes — the Tax Estimate tab now shows a live reserve target alongside what you've actually put away, with an at-a-glance read on whether you're ahead or behind for the year.",
+      "Log money two ways: 'Set aside' when you move cash into your tax savings, and 'Paid to IRS/FTB' when you send an estimated payment. Each dollar is counted once, so the totals always reflect real money handled.",
+      "Quarterly schedule at a glance — see each 1040-ES quarter's recommended amount and due date, with a status tag (Paid, Partial, Due soon, Overdue, Upcoming) and a one-click way to log that quarter's payment.",
+      "The dashboard's Tax Reserve card now tracks set-aside progress against your estimated tax with an 'On track' or 'Behind' badge, and links straight to the tracker to manage it.",
+      "Pacing is tied to the real estimated-tax deadlines, so 'behind' means behind against what should be set aside by today — not just a flat year-end number.",
+    ],
+  },
+  {
     version: "v1.3.0",
     date: "2026-05-09",
     title: "Shared Auth & Single Sign-On",

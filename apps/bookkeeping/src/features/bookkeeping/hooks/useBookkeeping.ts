@@ -1,5 +1,5 @@
 import useSWR from "swr";
-import type { BookkeepingEntry } from "@/types";
+import type { BookkeepingEntry, TaxReserveEntry } from "@/types";
 
 export function useBookkeeping(from?: string, to?: string) {
   const params = new URLSearchParams();
@@ -23,4 +23,8 @@ export function useTradingSummary(from?: string, to?: string) {
       return res.json();
     }),
   );
+}
+
+export function useTaxReserve(year: number) {
+  return useSWR<TaxReserveEntry[]>(`/api/tax-reserve?year=${year}`);
 }

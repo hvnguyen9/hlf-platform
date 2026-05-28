@@ -18,9 +18,10 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AddEntryModal } from "@/features/bookkeeping/components/AddEntryModal";
-import { useBookkeeping, useTradingSummary } from "@/features/bookkeeping/hooks/useBookkeeping";
+import { useBookkeeping, useTradingSummary, useTaxReserve } from "@/features/bookkeeping/hooks/useBookkeeping";
 import { formatCurrency, formatDate, cn, entryAmount } from "@/lib/utils";
 import { estimateTax, SUPPORTED_YEARS } from "@/lib/taxCalc";
+import { computeReserveSummary } from "@/lib/taxReserve";
 import type { TaxYear } from "@/lib/taxCalc";
 import { SE_TAXABLE_CATEGORIES } from "@/types";
 import type { BookkeepingEntry } from "@/types";
@@ -90,6 +91,7 @@ export function BookkeepingDashboard() {
   const { from, to } = getYearRange(selectedYear);
   const { data: entries = [], isLoading } = useBookkeeping(from, to);
   const { data: trading } = useTradingSummary(from, to);
+  const { data: reserveEntries = [] } = useTaxReserve(selectedYear);
 
   const params = new URLSearchParams({ from, to });
   const swrKey = `/api/bookkeeping?${params.toString()}`;
@@ -173,13 +175,19 @@ export function BookkeepingDashboard() {
     const otherInc = entries.filter((e) => e.type === "income" && !SE_TAXABLE_CATEGORIES.includes(e.category)).reduce((s, e) => s + entryAmount(e), 0);
     const bizExpenses = entries.filter((e) => e.type === "expense").reduce((s, e) => s + entryAmount(e), 0);
     const result = estimateTax({ year: taxYear, tradingIncome: tradingPL, businessIncome, otherIncome: otherInc, businessExpenses: bizExpenses });
+    const reserve = computeReserveSummary({
+      year: taxYear,
+      target: result.totalEstimatedTax,
+      entries: reserveEntries,
+    });
     return {
       reserveRate: result.recommendedReserveRate,
-      target: Math.max(0, netIncome * result.recommendedReserveRate),
+      target: result.totalEstimatedTax,
       quarterly: result.quarterlyPayment,
       effectiveRate: result.effectiveTaxRate,
+      reserve,
     };
-  }, [entries, tradingPL, netIncome, selectedYear]);
+  }, [entries, tradingPL, selectedYear, reserveEntries]);
 
   // ── Monthly chart ───────────────────────────────────────────────────────────
   const monthlyData = useMemo(() => {
@@ -426,23 +434,53 @@ export function BookkeepingDashboard() {
             </Card>
           )}
 
-          {/* Tax Reserve */}
+          {/* Tax Reserve — set-aside progress vs target */}
           {taxReserve && (
-            <Card>
-              <CardContent className="p-5">
-                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">Tax Reserve Target</p>
-                <p className="text-2xl font-bold text-amber-600 dark:text-amber-400">
-                  {formatCurrency(taxReserve.target)}
-                </p>
-                <p className="text-xs text-muted-foreground mt-1">
-                  {Math.round(taxReserve.reserveRate * 100)}% of net income · eff. rate {(taxReserve.effectiveRate * 100).toFixed(1)}%
-                </p>
-                <div className="mt-3 flex items-center justify-between text-xs">
-                  <span className="text-muted-foreground">Quarterly payment</span>
-                  <span className="font-semibold tabular-nums">{formatCurrency(taxReserve.quarterly)}</span>
-                </div>
-              </CardContent>
-            </Card>
+            <Link href="/records?tab=tax" className="block group">
+              <Card className="h-full transition-colors group-hover:border-primary/40">
+                <CardContent className="p-5">
+                  <div className="flex items-center justify-between mb-1">
+                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Tax Reserve</p>
+                    {taxReserve.target > 0 && (
+                      <Badge
+                        variant="outline"
+                        className={cn(
+                          "text-[10px] px-1.5 py-0 h-4 font-medium",
+                          taxReserve.reserve.onTrack
+                            ? "border-emerald-500/40 text-emerald-600 dark:text-emerald-400"
+                            : "border-amber-500/40 text-amber-600 dark:text-amber-400"
+                        )}
+                      >
+                        {taxReserve.reserve.onTrack ? "On track" : "Behind"}
+                      </Badge>
+                    )}
+                  </div>
+                  <p className="text-2xl font-bold">
+                    <span className={taxReserve.reserve.onTrack ? "text-emerald-600 dark:text-emerald-400" : "text-amber-600 dark:text-amber-400"}>
+                      {formatCurrency(taxReserve.reserve.coveredTotal)}
+                    </span>
+                    <span className="text-base font-normal text-muted-foreground"> / {formatCurrency(taxReserve.target)}</span>
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Set aside · {Math.round(taxReserve.reserve.pctOfTarget * 100)}% of est. tax · eff. rate {(taxReserve.effectiveRate * 100).toFixed(1)}%
+                  </p>
+                  <div className="mt-3 h-1.5 rounded-full bg-muted overflow-hidden">
+                    <div
+                      className={cn("h-full rounded-full transition-all duration-700", taxReserve.reserve.onTrack ? "bg-emerald-500" : "bg-amber-500")}
+                      style={{ width: `${Math.min(taxReserve.reserve.pctOfTarget * 100, 100)}%` }}
+                    />
+                  </div>
+                  <div className="mt-2 flex items-center justify-between text-xs">
+                    <span className="text-muted-foreground">
+                      {taxReserve.reserve.remainingToTarget > 0
+                        ? `${formatCurrency(taxReserve.reserve.remainingToTarget)} still to set aside`
+                        : "Target fully reserved"}
+                    </span>
+                    <span className="text-primary group-hover:underline">Manage →</span>
+                  </div>
+                </CardContent>
+              </Card>
+            </Link>
           )}
         </div>
       )}
