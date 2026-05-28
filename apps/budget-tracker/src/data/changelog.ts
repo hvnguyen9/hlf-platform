@@ -8,6 +8,19 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "v1.2.0",
+    date: "2026-05-28",
+    title: "Month at a Glance Dashboard",
+    highlights: [
+      "The dashboard is now a single, top-to-bottom story of your month: where money went, what came in, and what's left — no more hunting across five cards and charts to piece it together.",
+      "Expenses come first, grouped by category with recurring items clearly tagged. Categories with a budget show a progress bar and tell you how much is left (or how far over you went).",
+      "Income is laid out the same way, so you can see exactly what you brought in — and a friendly nudge to add any income you haven't logged yet, since that's what makes your surplus accurate.",
+      "One clear bottom line: your surplus to allocate, or a plain warning when you've spent more than you earned. A single bar shows how your income split between spending, savings, and what's left.",
+      "Put your surplus to work — when you finish the month ahead, allocate the leftover straight to a savings goal in one step, with a 'fill to goal' shortcut. No savings goal yet? A quick link to set one up.",
+      "Money set aside in savings categories now shows in its own section, separate from everyday expenses, so your spending picture isn't muddied by intentional saving.",
+    ],
+  },
+  {
     version: "v1.1.0",
     date: "2026-05-09",
     title: "Shared Auth & Single Sign-On",
