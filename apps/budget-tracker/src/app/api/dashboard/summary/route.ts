@@ -1,7 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/server/auth/requireAuth";
 import prisma from "@/server/prisma";
-import { format, subMonths, startOfMonth, endOfMonth } from "date-fns";
+
+// Month-at-a-glance summary. Builds a narrative money flow for one month:
+//   income → expenses (by category, incl. recurring) → savings → surplus.
+// Recurring transactions are always counted toward the month.
+
+type Line = {
+  categoryId: string | null;
+  name: string;
+  color: string;
+  total: number;
+  recurring: number;
+};
 
 export async function GET(req: NextRequest) {
   const auth = await requireAuth();
@@ -18,178 +29,90 @@ export async function GET(req: NextRequest) {
   const [transactions, recurring, categories, monthlyBudgets] = await Promise.all([
     prisma.transaction.findMany({
       where: { userId: auth.userId, date: { gte: start, lt: end } },
-      include: { category: true },
-      orderBy: { date: "desc" },
+      select: { amount: true, type: true, categoryId: true },
     }),
     prisma.recurringTransaction.findMany({
       where: { userId: auth.userId, isActive: true },
-      include: { category: true },
+      select: { amount: true, type: true, categoryId: true },
     }),
     prisma.category.findMany({ where: { userId: auth.userId } }),
     prisma.monthlyBudget.findMany({ where: { userId: auth.userId, year, month } }),
   ]);
 
-  let totalIncome = 0;
-  let totalExpenses = 0;
-  let totalSavings = 0;
-  const spendingMap = new Map<string, number>();
   const categoryMap = new Map(categories.map((c) => [c.id, c]));
+  const UNCATEGORIZED = { name: "Uncategorized", color: "#94a3b8" };
 
-  // One-time transactions
-  for (const t of transactions) {
-    const amount = t.amount.toNumber();
-    if (t.type === "income") {
-      totalIncome += amount;
-    } else {
-      const isSavings = t.categoryId ? (categoryMap.get(t.categoryId)?.isSavings ?? false) : false;
-      if (isSavings) {
-        totalSavings += amount;
-      } else {
-        totalExpenses += amount;
-      }
-      if (t.categoryId) spendingMap.set(t.categoryId, (spendingMap.get(t.categoryId) ?? 0) + amount);
-    }
-  }
+  // Three buckets keyed by categoryId (or "__none__" for uncategorized).
+  const expenseLines = new Map<string, Line>();
+  const savingsLines = new Map<string, Line>();
+  const incomeLines = new Map<string, Line>();
 
-  // Recurring transactions — always included for the month
-  for (const r of recurring) {
-    const amount = r.amount.toNumber();
-    if (r.type === "income") {
-      totalIncome += amount;
-    } else {
-      const isSavings = r.categoryId ? (categoryMap.get(r.categoryId)?.isSavings ?? false) : false;
-      if (isSavings) {
-        totalSavings += amount;
-      } else {
-        totalExpenses += amount;
-      }
-      if (r.categoryId) spendingMap.set(r.categoryId, (spendingMap.get(r.categoryId) ?? 0) + amount);
-    }
-  }
-
-  // netSavings: what to show on the "Saved" card — uses savings categories if set,
-  // falls back to income-minus-expenses when none are configured yet
-  const netSavings = totalSavings > 0
-    ? totalSavings
-    : Math.max(0, totalIncome - totalExpenses);
-  const savingsRate = totalIncome > 0 ? (netSavings / totalIncome) * 100 : 0;
-  // available: unallocated money = income - spending - intentional savings
-  const available = totalIncome - totalExpenses - totalSavings;
-
-  const spendingByCategory = Array.from(spendingMap.entries())
-    .map(([categoryId, amount]) => ({
+  function add(map: Map<string, Line>, categoryId: string | null, amount: number, isRecurring: boolean) {
+    const key = categoryId ?? "__none__";
+    const cat = categoryId ? categoryMap.get(categoryId) : undefined;
+    const line = map.get(key) ?? {
       categoryId,
-      name: categoryMap.get(categoryId)?.name ?? "Uncategorized",
-      color: categoryMap.get(categoryId)?.color ?? "#94a3b8",
-      amount,
-    }))
-    .sort((a, b) => b.amount - a.amount);
-
-  // Last 12 months trend — only months with actual data, never future months
-  const today = new Date();
-  const recurringIncome = recurring.filter((r) => r.type === "income").reduce((sum, r) => sum + r.amount.toNumber(), 0);
-  const recurringExpenses = recurring.filter((r) => r.type === "expense").reduce((sum, r) => sum + r.amount.toNumber(), 0);
-
-  // One query for the entire 12-month window, then bucket by month in-memory.
-  // Previously fired 12 separate groupBy queries — each a Postgres round-trip
-  // and Vercel-function-to-Railway hop. This collapses to one.
-  const windowStart = startOfMonth(subMonths(new Date(year, month - 1, 1), 11));
-  const windowEnd = endOfMonth(new Date(year, month - 1, 1));
-
-  const windowRows = await prisma.transaction.findMany({
-    where: { userId: auth.userId, date: { gte: windowStart, lte: windowEnd } },
-    select: { type: true, amount: true, date: true },
-  });
-
-  const monthlyTotals = new Map<string, { income: number; expenses: number }>();
-  for (const row of windowRows) {
-    const key = format(row.date, "yyyy-MM");
-    const bucket = monthlyTotals.get(key) ?? { income: 0, expenses: 0 };
-    if (row.type === "income") bucket.income += row.amount.toNumber();
-    else if (row.type === "expense") bucket.expenses += row.amount.toNumber();
-    monthlyTotals.set(key, bucket);
+      name: cat?.name ?? UNCATEGORIZED.name,
+      color: cat?.color ?? UNCATEGORIZED.color,
+      total: 0,
+      recurring: 0,
+    };
+    line.total += amount;
+    if (isRecurring) line.recurring += amount;
+    map.set(key, line);
   }
 
-  const monthlyTrend = Array.from({ length: 12 }, (_, i) => {
-    const d = subMonths(new Date(year, month - 1, 1), 11 - i);
-    if (startOfMonth(d) > today) return null;
-    const key = format(d, "yyyy-MM");
-    const bucket = monthlyTotals.get(key) ?? { income: 0, expenses: 0 };
-    const hasData =
-      bucket.income > 0 ||
-      bucket.expenses > 0 ||
-      recurringIncome > 0 ||
-      recurringExpenses > 0;
-    if (!hasData) return null;
-    return {
-      month: format(d, "MMM yy"),
-      income: bucket.income + recurringIncome,
-      expenses: bucket.expenses + recurringExpenses,
-    };
-  }).filter(Boolean) as { month: string; income: number; expenses: number }[];
+  function route(categoryId: string | null, type: string, amount: number, isRecurring: boolean) {
+    if (type === "income") {
+      add(incomeLines, categoryId, amount, isRecurring);
+      return;
+    }
+    const isSavings = categoryId ? (categoryMap.get(categoryId)?.isSavings ?? false) : false;
+    add(isSavings ? savingsLines : expenseLines, categoryId, amount, isRecurring);
+  }
 
-  // Budget progress (recurring counts toward actuals)
+  for (const t of transactions) route(t.categoryId, t.type, t.amount.toNumber(), false);
+  for (const r of recurring) route(r.categoryId, r.type, r.amount.toNumber(), true);
+
+  // Budgets per expense category (monthly override → standing default).
   const budgetOverrides = new Map(monthlyBudgets.map((b) => [b.categoryId, b.budgetAmount.toNumber()]));
-  const expenseCategories = categories.filter((c) => c.type === "expense" || c.type === "both");
-  const budgetProgress = expenseCategories
-    .map((c) => {
-      const budgeted = budgetOverrides.get(c.id) ?? c.monthlyBudget?.toNumber() ?? 0;
-      const actual = spendingMap.get(c.id) ?? 0;
-      if (budgeted === 0 && actual === 0) return null;
-      return { categoryId: c.id, name: c.name, color: c.color, budgeted, actual };
-    })
-    .filter(Boolean) as { categoryId: string; name: string; color: string; budgeted: number; actual: number }[];
+  function budgetFor(categoryId: string | null): number {
+    if (!categoryId) return 0;
+    return budgetOverrides.get(categoryId) ?? categoryMap.get(categoryId)?.monthlyBudget?.toNumber() ?? 0;
+  }
 
-  // Recent: merge one-time + recurring, sort by date desc, take 10
-  const maxDay = new Date(year, month, 0).getDate();
-  const virtualRecurring = recurring.map((r) => ({
-    id: `recurring-${r.id}`,
-    userId: r.userId,
-    amount: r.amount.toNumber(),
-    type: r.type,
-    categoryId: r.categoryId,
-    category: r.category ? {
-      ...r.category,
-      monthlyBudget: r.category.monthlyBudget ? r.category.monthlyBudget.toNumber() : null,
-      createdAt: r.category.createdAt.toISOString(),
-      updatedAt: r.category.updatedAt.toISOString(),
-    } : null,
-    description: r.description,
-    notes: r.notes,
-    date: new Date(year, month - 1, Math.min(r.dayOfMonth, maxDay)).toISOString(),
-    createdAt: r.createdAt.toISOString(),
-    updatedAt: r.updatedAt.toISOString(),
-    isRecurring: true,
-    recurringId: r.id,
-  }));
+  // Include budgeted-but-unspent expense categories so the plan is visible.
+  const expenseCategories = categories.filter((c) => (c.type === "expense" || c.type === "both") && !c.isSavings);
+  for (const c of expenseCategories) {
+    if (budgetFor(c.id) > 0 && !expenseLines.has(c.id)) {
+      expenseLines.set(c.id, { categoryId: c.id, name: c.name, color: c.color, total: 0, recurring: 0 });
+    }
+  }
 
-  const allTxs = [
-    ...transactions.map((t) => ({
-      ...t,
-      amount: t.amount.toNumber(),
-      date: t.date.toISOString(),
-      createdAt: t.createdAt.toISOString(),
-      updatedAt: t.updatedAt.toISOString(),
-      category: t.category ? {
-        ...t.category,
-        monthlyBudget: t.category.monthlyBudget ? t.category.monthlyBudget.toNumber() : null,
-        createdAt: t.category.createdAt.toISOString(),
-        updatedAt: t.category.updatedAt.toISOString(),
-      } : null,
-    })),
-    ...virtualRecurring,
-  ].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  const sortDesc = <T extends { total: number }>(a: T, b: T) => b.total - a.total;
+
+  const expenseBreakdown = Array.from(expenseLines.values())
+    .map((l) => ({ ...l, budget: budgetFor(l.categoryId) }))
+    .sort(sortDesc);
+  const savingsBreakdown = Array.from(savingsLines.values()).sort(sortDesc);
+  const incomeBreakdown = Array.from(incomeLines.values()).sort(sortDesc);
+
+  const totalIncome = incomeBreakdown.reduce((s, l) => s + l.total, 0);
+  const totalExpenses = expenseBreakdown.reduce((s, l) => s + l.total, 0);
+  const totalSavings = savingsBreakdown.reduce((s, l) => s + l.total, 0);
+  const totalBudget = expenseBreakdown.reduce((s, l) => s + l.budget, 0);
+  const surplus = totalIncome - totalExpenses - totalSavings;
 
   return NextResponse.json({
+    year,
+    month,
     totalIncome,
     totalExpenses,
-    netSavings,
-    savingsRate,
-    totalSavings: netSavings,
-    available,
-    spendingByCategory,
-    monthlyTrend,
-    budgetProgress,
-    recentTransactions: allTxs.slice(0, 10),
+    totalSavings,
+    totalBudget,
+    surplus,
+    expenseBreakdown,
+    incomeBreakdown,
+    savingsBreakdown,
   });
 }

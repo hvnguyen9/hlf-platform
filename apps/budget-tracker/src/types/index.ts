@@ -153,17 +153,29 @@ export interface SavingsGoal {
   updatedAt: string;
 }
 
+export interface FlowLine {
+  categoryId: string | null;
+  name: string;
+  color: string;
+  total: number;
+  recurring: number;
+}
+
+export interface ExpenseLine extends FlowLine {
+  budget: number;
+}
+
 export interface DashboardSummary {
+  year: number;
+  month: number;
   totalIncome: number;
   totalExpenses: number;
   totalSavings: number;
-  netSavings: number;
-  savingsRate: number;
-  available: number;
-  spendingByCategory: { categoryId: string; name: string; color: string; amount: number }[];
-  monthlyTrend: { month: string; income: number; expenses: number }[];
-  budgetProgress: { categoryId: string; name: string; color: string; budgeted: number; actual: number }[];
-  recentTransactions: Transaction[];
+  totalBudget: number;
+  surplus: number;
+  expenseBreakdown: ExpenseLine[];
+  incomeBreakdown: FlowLine[];
+  savingsBreakdown: FlowLine[];
 }
 
 export interface MonthlyReport {
