@@ -1,5 +1,5 @@
 "use client";
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import useSWR from "swr";
 import { useSession } from "next-auth/react";
 import type { QuoteResult } from "@/app/api/quotes/route";
@@ -9,13 +9,7 @@ import Link from "next/link";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { ChevronRight, MoreVertical, Shield } from "lucide-react";
+import { ChevronRight } from "lucide-react";
 import type { Metrics } from "@/types";
 import {
   TradeNotesSimple,
@@ -176,6 +170,22 @@ export default function TradeDetailPageClient({ portfolioId, tradeId }: Props) {
   const [closeModalOpen, setCloseModalOpen] = useState(false);
   const [addModalOpen, setAddModalOpen] = useState(false);
   const [adminEditOpen, setAdminEditOpen] = useState(false);
+
+  // Listen for FAB-dispatched events so the floating action button can open
+  // these modals while keeping the mutate callback wired here.
+  useEffect(() => {
+    const openClose = () => setCloseModalOpen(true);
+    const openAdd = () => setAddModalOpen(true);
+    const openAdmin = () => setAdminEditOpen(true);
+    window.addEventListener("trade:open-close", openClose);
+    window.addEventListener("trade:open-add", openAdd);
+    window.addEventListener("trade:open-admin", openAdmin);
+    return () => {
+      window.removeEventListener("trade:open-close", openClose);
+      window.removeEventListener("trade:open-add", openAdd);
+      window.removeEventListener("trade:open-admin", openAdmin);
+    };
+  }, []);
   const [notesEditing, setNotesEditing] = useState(false);
   const notesRef = useRef<TradeNotesHandle>(null);
 
@@ -308,38 +318,6 @@ export default function TradeDetailPageClient({ portfolioId, tradeId }: Props) {
           </Link>
           <ChevronRight className="h-3 w-3 opacity-50 shrink-0" />
           <span className="text-foreground shrink-0">{trade?.ticker ?? "Trade"}</span>
-        </div>
-        <div className="flex flex-wrap items-center gap-2 sm:justify-end">
-          {isOpen && (
-            <>
-              <Button variant="outline" size="sm" className="flex-1 sm:flex-none" onClick={() => setCloseModalOpen(true)}>
-                Close Position
-              </Button>
-              <Button size="sm" className="flex-1 sm:flex-none" onClick={() => setAddModalOpen(true)}>
-                Add to Position
-              </Button>
-            </>
-          )}
-          {isAdmin && (
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  variant="outline"
-                  size="icon"
-                  className="h-8 w-8 text-muted-foreground"
-                  aria-label="Admin actions"
-                >
-                  <MoreVertical className="h-3.5 w-3.5" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={() => setAdminEditOpen(true)}>
-                  <Shield className="h-3.5 w-3.5 mr-2" />
-                  Admin Edit
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          )}
         </div>
       </div>
 

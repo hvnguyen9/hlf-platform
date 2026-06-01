@@ -136,8 +136,8 @@ pnpm --filter @hlf/auth-db db:generate         # regenerate auth Prisma client
 Apps moved into the monorepo:
 
 - [x] `wheel-strat-tracker` — in monorepo, on shared auth DB. Owns the realtime alerts module since 2026-05-13: `/alerts/*` pages, `/api/alerts/*` routes, `/api/alerts/scan` cron endpoint (triggered by GitHub Actions every 2 min during market hours), **in-app toast delivery** via a polling listener mounted in AppShell + tab-title flash for backgrounded windows. Web Push was tried and dropped — see `docs/alerts-module-setup.md`. Inline AlertConfig UI on trade detail + watchlist rows; full configs management + history at `/alerts`.
-- [x] `hlf-bookkeeping` — in monorepo, on shared auth DB (v1.3.0)
-- [x] `hlf-budgettracker` — in monorepo, on shared auth DB (v1.1.0)
+- [x] `hlf-bookkeeping` — in monorepo, on shared auth DB (v1.4.0 — Tax Reserve Tracker)
+- [x] `hlf-budgettracker` — in monorepo, on shared auth DB (v1.2.0 — Month at a Glance dashboard)
 - [x] `stock-alerts` (retired) — deleted from monorepo 2026-05-13. Replaced by the new realtime alerts module inside wheel-strat-tracker. `alerts.hlfinancialstrategies.com` subdomain + its Vercel project + its standalone Railway DB to be retired.
 - [x] `portal` — in monorepo, deployed at `portal.hlfinancialstrategies.com`. Dashboard launcher + KPI strip + alerts inbox (now reads alerts data from wheel-tracker's portal-summary); profile editor + admin user manager backed by `@hlf/auth-db`.
 - [ ] `hlf-website` — not yet moved

@@ -5,7 +5,6 @@ import useSWR from "swr";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Card } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
   type ColumnDef,
@@ -18,16 +17,9 @@ import type { StockLot } from "@/types";
 import type { QuoteResult } from "@/app/api/quotes/route";
 import { CloseStockLotModal } from "./CloseStockModal";
 import { AddSharesModal } from "./AddSharesModal";
-import { AddTradeModal } from "@/features/trades/components/AddTradeModal";
 import { AdminEditStockModal } from "./AdminEditStockModal";
 import { LotNotesCard } from "./LotNotesCard";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { ChevronRight, MoreVertical, Plus, Shield } from "lucide-react";
+import { ChevronRight } from "lucide-react";
 import { useSession } from "next-auth/react";
 
 type StockResponse = {
@@ -345,6 +337,22 @@ export default function StockDetailPageClient(props: {
   const [adminEditOpen, setAdminEditOpen] = React.useState(false);
   const [addSharesOpen, setAddSharesOpen] = React.useState(false);
 
+  // Listen for FAB-dispatched events so the floating action button can open
+  // these modals while keeping the mutate callback wired here.
+  React.useEffect(() => {
+    const openClose = () => setCloseOpen(true);
+    const openAdd = () => setAddSharesOpen(true);
+    const openAdmin = () => setAdminEditOpen(true);
+    window.addEventListener("stock:open-close", openClose);
+    window.addEventListener("stock:open-add", openAdd);
+    window.addEventListener("stock:open-admin", openAdmin);
+    return () => {
+      window.removeEventListener("stock:open-close", openClose);
+      window.removeEventListener("stock:open-add", openAdd);
+      window.removeEventListener("stock:open-admin", openAdmin);
+    };
+  }, []);
+
   const { data, error, isLoading, mutate } = useSWR<StockResponse>(
     `/api/stocks/${stockId}`,
     fetcher,
@@ -449,12 +457,6 @@ export default function StockDetailPageClient(props: {
   }
 
   const s = stockLot;
-  const sharesForContracts = Math.floor(shares / 100);
-  const availableContracts = Math.max(
-    0,
-    sharesForContracts - Math.floor(openCcShares / 100),
-  );
-
   const { totalCaptured, pendingPremium, closedCount } = ccMetrics;
   const originalAvg =
     totalCaptured > 0 ? avg + totalCaptured / shares : null;
@@ -488,56 +490,6 @@ export default function StockDetailPageClient(props: {
           <span className="text-foreground shrink-0">{stockLot?.ticker ?? "Stock"}</span>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2 sm:justify-end">
-          {!isClosed ? (
-            <Button
-              variant="outline"
-              size="sm"
-              className="gap-1.5 flex-1 sm:flex-none"
-              onClick={() => setAddSharesOpen(true)}
-            >
-              <Plus className="h-3.5 w-3.5" />
-              Add Shares
-            </Button>
-          ) : null}
-          {!isClosed && availableContracts >= 1 ? (
-            <AddTradeModal
-              portfolioId={portfolioId}
-              trigger={<Button variant="outline" size="sm" className="flex-1 sm:flex-none">Sell Covered Call</Button>}
-              prefill={{
-                ticker: s.ticker,
-                type: "CoveredCall",
-                stockLotId: s.id,
-              }}
-              lockPrefill
-              defaultContracts={availableContracts}
-              maxContracts={availableContracts}
-            />
-          ) : null}
-          {!isClosed ? (
-            <Button size="sm" className="flex-1 sm:flex-none" onClick={() => setCloseOpen(true)}>Sell Shares</Button>
-          ) : null}
-          {isAdmin && (
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  variant="outline"
-                  size="icon"
-                  className="h-8 w-8 text-muted-foreground"
-                  aria-label="Admin actions"
-                >
-                  <MoreVertical className="h-3.5 w-3.5" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={() => setAdminEditOpen(true)}>
-                  <Shield className="h-3.5 w-3.5 mr-2" />
-                  Admin Edit
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          )}
-        </div>
       </div>
 
       {/* Ticker + status */}

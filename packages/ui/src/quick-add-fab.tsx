@@ -37,6 +37,10 @@ export interface QuickAddAction {
   icon: React.ElementType;
   onSelect: () => void;
   disabled?: boolean;
+  /** "destructive" tints the icon and label rose — use for close/sell actions. */
+  variant?: "default" | "destructive";
+  /** Render a divider above this item (desktop popover only). */
+  divider?: boolean;
 }
 
 export interface QuickAddFabProps {
@@ -53,6 +57,8 @@ export interface QuickAddFabProps {
   desktopBottomOffsetClass?: string;
   /** aria-label for the trigger buttons. Default "Quick add". */
   ariaLabel?: string;
+  /** Override the FAB icon. Defaults to Plus. */
+  fabIcon?: React.ElementType;
 }
 
 // Shared chrome class. NOTE: deliberately no `display` utility here —
@@ -63,15 +69,16 @@ const FAB_SKIN =
 
 function ActionTile({
   action,
-  variant,
+  tileVariant,
 }: {
   action: QuickAddAction;
-  variant: "card" | "row";
+  tileVariant: "card" | "row";
 }) {
   const Icon = action.icon;
   const disabled = !!action.disabled;
+  const isDestructive = action.variant === "destructive";
 
-  if (variant === "card") {
+  if (tileVariant === "card") {
     // Mobile sheet — large tap target
     return (
       <button
@@ -82,11 +89,15 @@ function ActionTile({
           "flex flex-col items-center justify-center gap-2 rounded-xl border bg-card p-5 transition-colors",
           disabled
             ? "opacity-50 cursor-not-allowed"
-            : "hover:bg-accent active:scale-[0.98]",
+            : isDestructive
+              ? "hover:bg-destructive/10 active:scale-[0.98]"
+              : "hover:bg-accent active:scale-[0.98]",
         )}
       >
-        <Icon className="h-6 w-6 text-primary" />
-        <span className="font-semibold text-sm">{action.label}</span>
+        <Icon className={cn("h-6 w-6", isDestructive ? "text-destructive" : "text-primary")} />
+        <span className={cn("font-semibold text-sm", isDestructive && "text-destructive")}>
+          {action.label}
+        </span>
         {action.description && (
           <span className="text-[11px] text-muted-foreground text-center leading-tight">
             {action.description}
@@ -98,28 +109,33 @@ function ActionTile({
 
   // Desktop popover — compact list row
   return (
-    <button
-      type="button"
-      disabled={disabled}
-      onClick={() => !disabled && action.onSelect()}
-      className={cn(
-        "w-full flex items-center gap-2.5 px-2.5 py-2 rounded-md text-sm transition-colors",
-        disabled
-          ? "opacity-50 cursor-not-allowed text-muted-foreground"
-          : "hover:bg-accent text-foreground",
-      )}
-    >
-      <Icon className="h-4 w-4 text-primary flex-shrink-0" />
-      <span className="flex-1 text-left">
-        <span className="block font-medium">{action.label}</span>
-        {action.description && (
-          <span className="block text-[11px] text-muted-foreground">
-            {action.description}
-          </span>
+    <>
+      {action.divider && <div className="mx-2 my-1 border-t" />}
+      <button
+        type="button"
+        disabled={disabled}
+        onClick={() => !disabled && action.onSelect()}
+        className={cn(
+          "w-full flex items-center gap-2.5 px-2.5 py-2 rounded-md text-sm transition-colors",
+          disabled
+            ? "opacity-50 cursor-not-allowed text-muted-foreground"
+            : isDestructive
+              ? "hover:bg-destructive/10 text-destructive"
+              : "hover:bg-accent text-foreground",
         )}
-      </span>
-      <ChevronRight className="h-3.5 w-3.5 text-muted-foreground/50" />
-    </button>
+      >
+        <Icon className={cn("h-4 w-4 flex-shrink-0", isDestructive ? "text-destructive" : "text-primary")} />
+        <span className="flex-1 text-left">
+          <span className="block font-medium">{action.label}</span>
+          {action.description && (
+            <span className={cn("block text-[11px]", isDestructive ? "text-destructive/70" : "text-muted-foreground")}>
+              {action.description}
+            </span>
+          )}
+        </span>
+        <ChevronRight className="h-3.5 w-3.5 text-muted-foreground/50" />
+      </button>
+    </>
   );
 }
 
@@ -134,6 +150,7 @@ export function QuickAddFab(props: QuickAddFabProps) {
     mobileBottomOffsetClass = "bottom-[calc(theme(spacing.16)+env(safe-area-inset-bottom))]",
     desktopBottomOffsetClass = "bottom-6 right-6",
     ariaLabel = "Quick add",
+    fabIcon: FabIcon = Plus,
   } = props;
 
   const [mobileOpen, setMobileOpen] = React.useState(false);
@@ -167,7 +184,7 @@ export function QuickAddFab(props: QuickAddFabProps) {
           FAB_SKIN,
         )}
       >
-        <Plus className="h-6 w-6" strokeWidth={2.5} />
+        <FabIcon className="h-6 w-6" strokeWidth={2.5} />
       </button>
 
       <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
@@ -190,7 +207,7 @@ export function QuickAddFab(props: QuickAddFabProps) {
               )}
             >
               {wrappedActions.map((a) => (
-                <ActionTile key={a.key} action={a} variant="card" />
+                <ActionTile key={a.key} action={a} tileVariant="card" />
               ))}
             </div>
           ) : (
@@ -211,7 +228,7 @@ export function QuickAddFab(props: QuickAddFabProps) {
               FAB_SKIN,
             )}
           >
-            <Plus className="h-5 w-5" strokeWidth={2.5} />
+            <FabIcon className="h-5 w-5" strokeWidth={2.5} />
           </button>
         </PopoverTrigger>
         <PopoverContent align="end" side="top" sideOffset={12} className="w-72 p-0">
@@ -226,7 +243,7 @@ export function QuickAddFab(props: QuickAddFabProps) {
           {hasActions ? (
             <div className="p-1">
               {wrappedActions.map((a) => (
-                <ActionTile key={a.key} action={a} variant="row" />
+                <ActionTile key={a.key} action={a} tileVariant="row" />
               ))}
             </div>
           ) : (
