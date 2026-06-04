@@ -2,7 +2,6 @@
 
 import * as React from "react";
 import useSWR from "swr";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -19,7 +18,6 @@ import { CloseStockLotModal } from "./CloseStockModal";
 import { AddSharesModal } from "./AddSharesModal";
 import { AdminEditStockModal } from "./AdminEditStockModal";
 import { LotNotesCard } from "./LotNotesCard";
-import { ChevronRight } from "lucide-react";
 import { useSession } from "next-auth/react";
 
 type StockResponse = {
@@ -155,11 +153,13 @@ function LotStat({
   label,
   value,
   sub,
+  subNode,
   tone = "default",
 }: {
   label: string;
   value: string;
   sub?: string;
+  subNode?: React.ReactNode;
   tone?: "default" | "success" | "danger";
 }) {
   const valueColor =
@@ -173,7 +173,7 @@ function LotStat({
     <div className="rounded-lg border bg-background p-3">
       <div className="text-xs text-muted-foreground">{label}</div>
       <div className={`text-base font-semibold tabular-nums ${valueColor}`}>{value}</div>
-      {sub ? <div className="text-xs text-muted-foreground mt-0.5">{sub}</div> : null}
+      {subNode ? <div className="mt-0.5">{subNode}</div> : sub ? <div className="text-xs text-muted-foreground mt-0.5">{sub}</div> : null}
     </div>
   );
 }
@@ -358,11 +358,6 @@ export default function StockDetailPageClient(props: {
     fetcher,
   );
 
-  const { data: portfolioData } = useSWR<{ id: string; name: string | null }>(
-    portfolioId ? `/api/portfolios/${portfolioId}` : null,
-    (url: string) => fetch(url).then((r) => r.json()),
-    { dedupingInterval: 60_000 },
-  );
 
   const stockLot = data?.stockLot;
 
@@ -474,24 +469,6 @@ export default function StockDetailPageClient(props: {
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-6 sm:py-8 space-y-6">
-      {/* Page header — stacks on mobile so breadcrumb + actions don't collide */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
-        <div className="flex items-center gap-1.5 text-xs text-muted-foreground min-w-0">
-          <Link href="/summary" className="hover:text-foreground transition-colors shrink-0">All Accounts</Link>
-          <ChevronRight className="h-3 w-3 opacity-50 shrink-0" />
-          <Link
-            href={`/portfolios/${portfolioId}`}
-            className="hover:text-foreground transition-colors truncate"
-            title={portfolioData?.name ?? "Portfolio"}
-          >
-            {portfolioData?.name ?? "Portfolio"}
-          </Link>
-          <ChevronRight className="h-3 w-3 opacity-50 shrink-0" />
-          <span className="text-foreground shrink-0">{stockLot?.ticker ?? "Stock"}</span>
-        </div>
-
-      </div>
-
       {/* Ticker + status */}
       <div className="flex items-center gap-3">
         <h1 className="text-3xl font-semibold tracking-tight">{s.ticker}</h1>
@@ -510,6 +487,18 @@ export default function StockDetailPageClient(props: {
           label="Effective Cost Basis"
           value={money(effectiveAvgCost * shares)}
           tone="success"
+          subNode={(() => {
+            if (isClosed || quote?.price == null) return undefined;
+            const unrealized = (quote.price - effectiveAvgCost) * shares;
+            const unrealizedPct = effectiveAvgCost > 0 ? (unrealized / (effectiveAvgCost * shares)) * 100 : null;
+            const color = unrealized >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400";
+            return (
+              <span className={`text-xs font-medium tabular-nums ${color}`}>
+                {unrealized >= 0 ? "+" : ""}{money(unrealized)}
+                {unrealizedPct != null && <span className="text-muted-foreground font-normal"> ({unrealizedPct >= 0 ? "+" : ""}{unrealizedPct.toFixed(1)}%)</span>}
+              </span>
+            );
+          })()}
         />
         <LotStat
           label={

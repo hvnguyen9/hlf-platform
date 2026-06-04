@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useEffect } from "react";
+import { useMemo, useState } from "react";
 import {
   useReactTable,
   getCoreRowModel,
@@ -27,15 +27,6 @@ import { Info, XCircle } from "lucide-react";
 import { TypeBadge } from "@/features/trades/components/TypeBadge";
 import { useRouter } from "next/navigation";
 import { formatDateOnlyUTC } from "@/lib/formatDateOnly";
-import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectTrigger,
-  SelectValue,
-  SelectContent,
-  SelectItem,
-} from "@/components/ui/select";
-import { Button } from "@/components/ui/button";
 
 // ---------- Helpers ----------
 const formatUSD = (n: number) =>
@@ -318,14 +309,6 @@ export function OpenTradesTable({
   );
   const quotes: QuoteMap = quoteData ?? {};
 
-  // Pagination
-  const [pageSize, setPageSize] = useState<number>(10);
-  const [pageIndex, setPageIndex] = useState<number>(0);
-
-  useEffect(() => {
-    setPageIndex(0);
-  }, [pageSize]);
-
   const columns = useMemo(() => {
     const base = makeOpenColumns() as ColumnDef<Trade, unknown>[];
     const cols: ColumnDef<Trade, unknown>[] = [makeInfoColumn(), ...base];
@@ -350,72 +333,18 @@ export function OpenTradesTable({
     getSortedRowModel: getSortedRowModel(),
   });
 
-  // Rows after sorting
   const allRows = table.getRowModel().rows;
-  const totalRows = allRows.length;
-  const pageCount = Math.max(1, Math.ceil(totalRows / pageSize));
-  const start = pageIndex * pageSize;
-  const end = start + pageSize;
-  const pageRows = allRows.slice(start, end);
 
   return (
     <div className="w-full overflow-x-auto">
-      {/* Mobile pagination */}
-      {pageCount > 1 && (
-        <div className="mb-3 md:hidden px-4 pt-4 flex items-center justify-end gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setPageIndex((p) => Math.max(0, p - 1))}
-            disabled={pageIndex === 0}
-          >
-            ‹ Prev
-          </Button>
-          <span className="text-xs text-muted-foreground">
-            {Math.min(pageIndex + 1, pageCount)}/{pageCount}
-          </span>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setPageIndex((p) => Math.min(pageCount - 1, p + 1))}
-            disabled={pageIndex >= pageCount - 1}
-          >
-            Next ›
-          </Button>
-        </div>
-      )}
-      {/* Desktop rows-per-page control (only show when more than one page) */}
-      {pageCount > 1 && (
-        <div className="mb-3 px-4 pt-4 hidden md:flex md:flex-row md:items-center md:justify-end">
-          <div className="flex items-center gap-2">
-            <Label htmlFor="ot-pagesize" className="text-sm">
-              Rows per page
-            </Label>
-            <Select
-              value={String(pageSize)}
-              onValueChange={(v) => setPageSize(Number(v))}
-            >
-              <SelectTrigger id="ot-pagesize" className="w-28">
-                <SelectValue placeholder="Rows" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="10">10</SelectItem>
-                <SelectItem value="25">25</SelectItem>
-                <SelectItem value="50">50</SelectItem>
-                <SelectItem value="100">100</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
-      )}
       {/* Mobile cards (shown on <md) */}
       <div className="md:hidden space-y-2">
-        {pageRows.length === 0 ? (
+        {allRows.length === 0 ? (
           <div className="rounded border p-3 text-center text-sm text-muted-foreground">
             No trades currently open.
           </div>
         ) : (
-          pageRows.map((row) => {
+          allRows.map((row) => {
             const t = row.original as Trade;
             return (
               <button
@@ -547,7 +476,7 @@ export function OpenTradesTable({
             </thead>
 
             <tbody>
-              {pageRows.length === 0 ? (
+              {allRows.length === 0 ? (
                 <tr>
                   <td
                     colSpan={table.getAllColumns().length}
@@ -557,7 +486,7 @@ export function OpenTradesTable({
                   </td>
                 </tr>
               ) : (
-                pageRows.map((row) => (
+                allRows.map((row) => (
                   <tr
                     key={row.id}
                     className="group border-b border-border/40 last:border-0 hover:bg-muted/40 transition-colors cursor-pointer"
@@ -622,49 +551,6 @@ export function OpenTradesTable({
           </table>
         </TooltipProvider>
       </div>
-      {/* Pagination footer */}
-      {pageCount > 1 && (
-        <div className="mt-3 px-4 pb-4 hidden md:flex items-center justify-between">
-          <div className="text-xs text-gray-600 dark:text-gray-400">
-            Page {Math.min(pageIndex + 1, pageCount)} of {pageCount} • {totalRows}{" "}
-            result{totalRows === 1 ? "" : "s"}
-          </div>
-          <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setPageIndex(0)}
-              disabled={pageIndex === 0}
-            >
-              « First
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setPageIndex((p) => Math.max(0, p - 1))}
-              disabled={pageIndex === 0}
-            >
-              ‹ Prev
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setPageIndex((p) => Math.min(pageCount - 1, p + 1))}
-              disabled={pageIndex >= pageCount - 1}
-            >
-              Next ›
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setPageIndex(pageCount - 1)}
-              disabled={pageIndex >= pageCount - 1}
-            >
-              Last »
-            </Button>
-          </div>
-        </div>
-      )}
       {selectedTrade && (
         <CloseTradeModal
           id={selectedTrade.id}

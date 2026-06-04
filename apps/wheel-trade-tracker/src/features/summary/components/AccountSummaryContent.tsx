@@ -40,6 +40,15 @@ type OpenTradeSummary = {
   portfolioId: string;
   portfolioName: string;
 };
+type OpenStockLotSummary = {
+  id: string;
+  ticker: string;
+  shares: number;
+  avgCost: number;
+  effectiveBasis: number;
+  portfolioId: string;
+  portfolioName: string;
+};
 type QuoteMap = Record<string, { price: number | null; change: number | null; changePct: number | null; marketState?: string | null }>;
 
 type SummaryPortfolio = {
@@ -87,6 +96,7 @@ type SummaryPortfolio = {
   pnlSeriesMonthlyAll: { label: string; realized: number }[];
   pnlSeriesYearly: { label: string; realized: number }[];
   openTradesList: OpenTradeSummary[];
+  openStockLotsList: OpenStockLotSummary[];
 };
 
 type SummaryResponse = {
@@ -121,6 +131,7 @@ type SummaryResponse = {
   pnlSeriesMonthlyAll: { label: string; realized: number }[];
   pnlSeriesYearly: { label: string; realized: number }[];
   openTrades: OpenTradeSummary[];
+  openStockLots: OpenStockLotSummary[];
 };
 
 function formatCompactCurrency(value: number) {
@@ -221,11 +232,13 @@ function DteBadge({ days }: { days: number }) {
 
 function OpenPositionsCard({
   trades,
+  stockLots,
   quotes,
   quotesLoading,
   showPortfolio = false,
 }: {
   trades: OpenTradeSummary[];
+  stockLots: OpenStockLotSummary[];
   quotes: QuoteMap;
   quotesLoading: boolean;
   showPortfolio?: boolean;
@@ -286,7 +299,7 @@ function OpenPositionsCard({
         <div className="flex items-center justify-between gap-3 mb-4 flex-wrap">
           <div className="flex items-center gap-2 flex-wrap">
             <h2 className="text-base font-semibold text-foreground">Open Positions</h2>
-            <span className="text-xs text-muted-foreground bg-muted px-2 py-0.5 rounded-full">{trades.length} active</span>
+            <span className="text-xs text-muted-foreground bg-muted px-2 py-0.5 rounded-full">{trades.length} options{stockLots.length > 0 ? ` · ${stockLots.length} lots` : ""}</span>
             {totalOpenPremium > 0 && (
               <span className="text-xs font-medium text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 px-2 py-0.5 rounded-full tabular-nums">
                 {new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format(totalOpenPremium)} open premium
@@ -302,6 +315,145 @@ function OpenPositionsCard({
             ))}
           </div>
         </div>
+
+        {/* ── Stock Lots section — shown first, fewer rows ── */}
+        {stockLots.length > 0 && (
+          <>
+            <div className="mb-3">
+              <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-widest">Stock Lots</p>
+            </div>
+
+            {/* Mobile */}
+            <div className="sm:hidden space-y-2 mb-4">
+              {stockLots.map((lot) => {
+                const q = quotes[lot.ticker];
+                const price = q?.price ?? null;
+                const change = q?.changePct ?? null;
+                const effectiveCostPerShare = lot.shares > 0 ? lot.effectiveBasis / lot.shares : 0;
+                const unrealized = price != null ? price * lot.shares - lot.effectiveBasis : null;
+                const unrealizedPct = price != null && lot.effectiveBasis > 0 ? (unrealized! / lot.effectiveBasis) * 100 : null;
+                return (
+                  <div
+                    key={lot.id}
+                    className="rounded-lg border border-border/50 p-3 space-y-2 cursor-pointer hover:bg-muted/30 transition-colors"
+                    onClick={() => router.push(`/portfolios/${lot.portfolioId}/stocks/${lot.id}`)}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span className="font-semibold text-sm">{lot.ticker}</span>
+                        <span className="text-[10px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded">{lot.shares} sh</span>
+                        {showPortfolio && (
+                          <span className="text-[10px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded truncate max-w-[80px]">{lot.portfolioName}</span>
+                        )}
+                      </div>
+                      {unrealized != null && (
+                        <span className={`text-xs font-semibold tabular-nums ${unrealized >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-red-500"}`}>
+                          {unrealized >= 0 ? "+" : ""}{new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format(unrealized)}
+                        </span>
+                      )}
+                    </div>
+                    <div className="grid grid-cols-3 gap-2 text-xs">
+                      <div>
+                        <p className="text-[10px] text-muted-foreground mb-0.5">Eff. Cost/sh</p>
+                        <p className="font-medium tabular-nums">{formatPrice(effectiveCostPerShare)}</p>
+                      </div>
+                      <div>
+                        <p className="text-[10px] text-muted-foreground mb-0.5">Price</p>
+                        <p className="font-medium tabular-nums">{price != null ? formatPrice(price) : "—"}</p>
+                        {change != null && (
+                          <p className={`text-[10px] tabular-nums ${change >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-red-500"}`}>
+                            {change >= 0 ? "▲" : "▼"}{Math.abs(change).toFixed(2)}%
+                          </p>
+                        )}
+                      </div>
+                      <div>
+                        <p className="text-[10px] text-muted-foreground mb-0.5">Unreal. %</p>
+                        <p className={`font-semibold tabular-nums ${unrealizedPct != null ? (unrealizedPct >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-red-500") : "text-muted-foreground"}`}>
+                          {unrealizedPct != null ? `${unrealizedPct >= 0 ? "+" : ""}${unrealizedPct.toFixed(1)}%` : "—"}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Desktop */}
+            <div className="hidden sm:block overflow-x-auto mb-4">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-border/50">
+                    {["Ticker", "Shares", "Eff. Cost/sh", marketLabel, "Unrealized P&L"].map((h) => (
+                      <th key={h} className="text-left text-[11px] font-medium text-muted-foreground uppercase tracking-wide pb-2 pr-4 last:pr-0 whitespace-nowrap">{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {stockLots.map((lot) => {
+                    const q = quotes[lot.ticker];
+                    const price = q?.price ?? null;
+                    const change = q?.changePct ?? null;
+                    const effectiveCostPerShare = lot.shares > 0 ? lot.effectiveBasis / lot.shares : 0;
+                    const unrealized = price != null ? price * lot.shares - lot.effectiveBasis : null;
+                    const unrealizedPct = price != null && lot.effectiveBasis > 0 ? (unrealized! / lot.effectiveBasis) * 100 : null;
+                    return (
+                      <tr
+                        key={lot.id}
+                        className="border-b border-border/30 last:border-0 hover:bg-muted/40 transition-colors cursor-pointer"
+                        onClick={() => router.push(`/portfolios/${lot.portfolioId}/stocks/${lot.id}`)}
+                      >
+                        <td className="py-2.5 pr-4">
+                          <span className="font-semibold text-foreground">{lot.ticker}</span>
+                          {showPortfolio && (
+                            <div className="text-[10px] text-muted-foreground leading-tight mt-0.5">{lot.portfolioName}</div>
+                          )}
+                        </td>
+                        <td className="py-2.5 pr-4 tabular-nums text-foreground">{lot.shares.toLocaleString()}</td>
+                        <td className="py-2.5 pr-4 tabular-nums text-foreground">{formatPrice(effectiveCostPerShare)}</td>
+                        <td className="py-2.5 pr-4">
+                          {price != null ? (
+                            <div className="flex flex-col">
+                              <span className="tabular-nums font-medium text-foreground text-xs">{formatPrice(price)}</span>
+                              {change != null && (
+                                <span className={`text-[10px] tabular-nums font-medium ${change >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-red-500"}`}>
+                                  {change >= 0 ? "▲" : "▼"}{Math.abs(change).toFixed(2)}%
+                                </span>
+                              )}
+                            </div>
+                          ) : (
+                            <span className="text-[11px] text-muted-foreground">{quotesLoading ? "—" : "n/a"}</span>
+                          )}
+                        </td>
+                        <td className="py-2.5">
+                          {unrealized != null ? (
+                            <div className="flex flex-col">
+                              <span className={`text-xs font-semibold tabular-nums ${unrealized >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-red-500"}`}>
+                                {unrealized >= 0 ? "+" : ""}{new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format(unrealized)}
+                              </span>
+                              {unrealizedPct != null && (
+                                <span className={`text-[10px] tabular-nums ${unrealizedPct >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-red-500"}`}>
+                                  {unrealizedPct >= 0 ? "+" : ""}{unrealizedPct.toFixed(1)}%
+                                </span>
+                              )}
+                            </div>
+                          ) : (
+                            <span className="text-[11px] text-muted-foreground">—</span>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+
+            {displayed.length > 0 && (
+              <div className="border-t border-border/40 mb-3 pt-3">
+                <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-widest">Option Positions</p>
+              </div>
+            )}
+          </>
+        )}
 
         {displayed.length === 0 ? (
           <p className="text-sm text-muted-foreground py-4 text-center">
@@ -470,6 +622,7 @@ function OpenPositionsCard({
             </div>
           </>
         )}
+
       </CardContent>
     </Card>
   );
@@ -487,7 +640,7 @@ export default function AccountSummaryContent({
   );
 
   const [uiPortfolioId, setUiPortfolioId] = useState<string>("all");
-  const [dashTimeframe, setDashTimeframe] = useState<"7d" | "mtd" | "ytd" | "all">("all");
+  const [dashTimeframe, setDashTimeframe] = useState<"7d" | "mtd" | "ytd" | "all">("7d");
 
   const agg = (() => {
     if (!data) {
@@ -719,10 +872,24 @@ export default function AccountSummaryContent({
     return [...list].sort((a, b) => a.expirationDate.localeCompare(b.expirationDate));
   }, [data, selectedPortfolio]);
 
-  // Unique tickers for live quote fetching
+  // Open stock lots scoped to selected portfolio
+  const openStockLots = useMemo<OpenStockLotSummary[]>(() => {
+    if (!data) return [];
+    const list = selectedPortfolio
+      ? selectedPortfolio.openStockLotsList
+      : (data.openStockLots ?? []);
+    return [...list].sort((a, b) => a.ticker.localeCompare(b.ticker));
+  }, [data, selectedPortfolio]);
+
+  // Unique tickers for live quote fetching (options + stock lots)
   const quoteTickers = useMemo(
-    () => [...new Set(openTrades.map((t) => t.ticker))].join(","),
-    [openTrades],
+    () => [
+      ...new Set([
+        ...openTrades.map((t) => t.ticker),
+        ...openStockLots.map((l) => l.ticker),
+      ]),
+    ].join(","),
+    [openTrades, openStockLots],
   );
 
   const { data: quotesData, isLoading: quotesLoading } = useSWR<QuoteMap>(
@@ -1207,6 +1374,7 @@ export default function AccountSummaryContent({
         <div className="lg:col-span-2">
           <OpenPositionsCard
             trades={openTrades}
+            stockLots={openStockLots}
             quotes={quotes}
             quotesLoading={quotesLoading}
             showPortfolio={!selectedPortfolio}

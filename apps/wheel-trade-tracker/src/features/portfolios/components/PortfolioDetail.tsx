@@ -42,15 +42,10 @@ const AccountsReportContent = dynamic(
 import { Portfolio } from "@/types";
 import { useTrades } from "@/features/trades/hooks/useTrades";
 import { useDetailMetrics } from "@/features/portfolios/hooks/useDetailMetrics";
-import { PortfolioSettings } from "@/features/portfolios/components/PortfolioSettings";
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { motion } from "framer-motion";
 import { useEffect, useState } from "react";
+import { useSearchParams, useRouter } from "next/navigation";
 import { useHorizontalSwipe } from "@hlf/ui/use-horizontal-swipe";
-import { Settings, ChevronRight } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import Link from "next/link";
-import { cn } from "@/lib/utils";
 
 function dollars(n: number | null | undefined) {
   if (n == null || Number.isNaN(n)) return "—";
@@ -68,19 +63,28 @@ export function PortfolioDetail({ portfolio }: { portfolio: Portfolio }) {
   const { trades: openTrades, isLoading: loadingOpen } = useTrades(portfolio.id, "open");
   const { data: m } = useDetailMetrics(portfolio.id);
 
-  const storageKey = `portfolio-tab-${portfolio.id}`;
-  const [activeTab, setActiveTab] = useState<Tab>("Overview");
+  const searchParams = useSearchParams();
+  const router = useRouter();
 
+  const tabParam = searchParams.get("tab") as Tab | null;
+  const [activeTab, setActiveTab] = useState<Tab>(
+    tabParam && TABS.includes(tabParam) ? tabParam : "Overview",
+  );
+
+  // Keep local tab state in sync when the URL param changes (e.g. from the
+  // persistent nav bar clicking a tab while already on this page).
   useEffect(() => {
-    const saved = sessionStorage.getItem(storageKey);
-    if (saved && TABS.includes(saved as Tab) && saved !== "Overview") {
-      setActiveTab(saved as Tab);
-    }
-  }, [storageKey]);
+    const t = (searchParams.get("tab") ?? "Overview") as Tab;
+    const next = TABS.includes(t) ? t : "Overview";
+    if (next !== activeTab) setActiveTab(next);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
 
   function switchTab(tab: Tab) {
     setActiveTab(tab);
-    sessionStorage.setItem(storageKey, tab);
+    // Sync to URL so PortfolioSubNav stays in sync; replace avoids stacking
+    // history entries for every tab switch.
+    router.replace(`/portfolios/${portfolio.id}?tab=${tab}`, { scroll: false });
   }
 
   const swipeHandlers = useHorizontalSwipe({
@@ -103,75 +107,20 @@ export function PortfolioDetail({ portfolio }: { portfolio: Portfolio }) {
   return (
     <div className="py-6 px-4 sm:px-6 space-y-5">
 
-      {/* ── Header — always visible ── */}
+      {/* ── Header — portfolio name + capital baseline ── */}
       <motion.div
-        className="flex items-start justify-between gap-3"
         initial={{ opacity: 0, y: 5 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.22 }}
         style={{ willChange: "opacity, transform" }}
       >
-        <div>
-          <div className="flex items-center gap-1.5 mb-1">
-            <Link href="/summary" className="text-xs text-muted-foreground hover:text-foreground transition-colors">
-              All Accounts
-            </Link>
-            <ChevronRight className="h-3 w-3 text-muted-foreground/50" />
-            <span className="text-xs text-muted-foreground">{portfolio.name || "Unnamed Portfolio"}</span>
-          </div>
-          <h1 className="text-2xl font-bold text-foreground leading-tight">
-            {portfolio.name || "Unnamed Portfolio"}
-          </h1>
-          <p className="text-xs text-muted-foreground mt-0.5">
-            Base capital {dollars(capitalBase)}
-          </p>
-        </div>
-
-        <Sheet>
-          <SheetTrigger asChild>
-            <Button variant="ghost" size="icon" className="h-8 w-8 mt-0.5 shrink-0" title="Portfolio settings">
-              <Settings className="h-4 w-4" />
-            </Button>
-          </SheetTrigger>
-          <SheetContent className="flex flex-col overflow-hidden w-full sm:max-w-[480px]">
-            <SheetHeader className="pb-2 shrink-0">
-              <SheetTitle>Portfolio Settings</SheetTitle>
-            </SheetHeader>
-            <div className="flex-1 overflow-y-auto px-4 pb-6">
-              <PortfolioSettings portfolio={portfolio} />
-            </div>
-          </SheetContent>
-        </Sheet>
-
+        <h1 className="text-2xl font-bold text-foreground leading-tight">
+          {portfolio.name || "Unnamed Portfolio"}
+        </h1>
+        <p className="text-xs text-muted-foreground mt-0.5">
+          Base capital {dollars(capitalBase)}
+        </p>
       </motion.div>
-
-      {/* ── Pill tab switcher — sticks to top of scroll container so it stays
-              reachable while scrolling through tab content. The bg + bottom
-              border give it a visible "stuck" appearance. ── */}
-      <div className="sticky top-0 z-30 -mx-4 sm:-mx-6 px-4 sm:px-6 py-2 bg-muted/95 dark:bg-gray-950/95 backdrop-blur supports-[backdrop-filter]:bg-muted/70 dark:supports-[backdrop-filter]:bg-gray-950/70 border-b border-border/40">
-        <div className="flex gap-1 bg-background/80 dark:bg-background/60 p-1 rounded-lg w-fit overflow-x-auto">
-          {TABS.map((tab) => (
-            <button
-              key={tab}
-              type="button"
-              onClick={() => switchTab(tab)}
-              className={cn(
-                "flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-md transition-all whitespace-nowrap",
-                activeTab === tab
-                  ? "bg-background text-foreground shadow-sm"
-                  : "text-muted-foreground hover:text-foreground"
-              )}
-            >
-              {tab}
-              {tab === "Positions" && openTrades.length > 0 && (
-                <span className="text-[10px] font-semibold bg-muted text-muted-foreground rounded-full px-1.5 py-0.5 leading-none">
-                  {openTrades.length}
-                </span>
-              )}
-            </button>
-          ))}
-        </div>
-      </div>
 
       {/* ── Tab content panel — horizontal swipe switches between tabs ── */}
       <div className="rounded-xl border border-border bg-card overflow-hidden" {...swipeHandlers}>

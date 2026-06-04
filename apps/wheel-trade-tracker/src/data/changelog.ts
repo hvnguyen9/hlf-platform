@@ -6,6 +6,18 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    date: "2026-06-04",
+    version: "v2.19.3",
+    highlights: [
+      "Portfolio sub-nav now persists across trade and stock detail pages — the Overview / Positions / Activity / Report tabs stay visible and interactive no matter how deep you drill. Clicking a tab from a detail page brings you straight back to that tab. Settings gear also accessible from detail pages now.",
+      "All modals slide up from the bottom on mobile (Add Trade, Close Trade, Close Stock, Add Shares, Admin Edit, Create Portfolio). Desktop remains a centered dialog — no change there.",
+      "Open Positions on the Overview tab now includes stock lots above option trades. Shows effective cost per share, live price, and unrealized P&L per lot. Clicking a lot navigates to its detail page.",
+      "Stock lot detail page now shows unrealized P&L below the Effective Cost Basis card — colored green or red with the dollar amount and percentage.",
+      "Overview timeframe filter now defaults to 7D instead of All Time — better snapshot of recent activity.",
+      "Open Positions table on the Positions tab no longer limits to 10 rows — all open trades show without pagination.",
+    ],
+  },
+  {
     date: "2026-05-22",
     version: "v2.19.2",
     highlights: [

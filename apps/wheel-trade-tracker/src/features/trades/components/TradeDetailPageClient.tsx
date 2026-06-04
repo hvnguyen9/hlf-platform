@@ -5,11 +5,9 @@ import { useSession } from "next-auth/react";
 import type { QuoteResult } from "@/app/api/quotes/route";
 import { Trade } from "@/types";
 import { Skeleton } from "@/components/ui/skeleton";
-import Link from "next/link";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { ChevronRight } from "lucide-react";
 import type { Metrics } from "@/types";
 import {
   TradeNotesSimple,
@@ -202,11 +200,6 @@ export default function TradeDetailPageClient({ portfolioId, tradeId }: Props) {
     { dedupingInterval: 60_000 },
   );
 
-  const { data: portfolio } = useSWR<{ id: string; name: string | null }>(
-    portfolioId ? `/api/portfolios/${portfolioId}` : null,
-    fetcher,
-    { dedupingInterval: 60_000 },
-  );
 
   const daysUntilExpiration = useMemo(() => {
     if (!trade || trade.status !== "open") return null;
@@ -304,23 +297,6 @@ export default function TradeDetailPageClient({ portfolioId, tradeId }: Props) {
 
   return (
     <div className="max-w-3xl mx-auto py-6 sm:py-10 px-4 sm:px-6 space-y-6">
-      {/* Header — stacks on mobile so breadcrumb + actions never collide */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
-        <div className="flex items-center gap-1.5 text-xs text-muted-foreground min-w-0">
-          <Link href="/summary" className="hover:text-foreground transition-colors shrink-0">All Accounts</Link>
-          <ChevronRight className="h-3 w-3 opacity-50 shrink-0" />
-          <Link
-            href={`/portfolios/${portfolioId}`}
-            className="hover:text-foreground transition-colors truncate"
-            title={portfolio?.name ?? "Portfolio"}
-          >
-            {portfolio?.name ?? "Portfolio"}
-          </Link>
-          <ChevronRight className="h-3 w-3 opacity-50 shrink-0" />
-          <span className="text-foreground shrink-0">{trade?.ticker ?? "Trade"}</span>
-        </div>
-      </div>
-
       {/* Ticker + badges */}
       <div className="flex items-center gap-3 flex-wrap">
         <h1 className="text-3xl font-semibold tracking-tight">{trade.ticker}</h1>

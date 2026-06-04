@@ -4,13 +4,13 @@ import { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import useSWR from "swr";
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+  ResponsiveModal as Dialog,
+  ResponsiveModalContent as DialogContent,
+  ResponsiveModalDescription as DialogDescription,
+  ResponsiveModalFooter as DialogFooter,
+  ResponsiveModalHeader as DialogHeader,
+  ResponsiveModalTitle as DialogTitle,
+} from "@hlf/ui/responsive-modal";
 import {
   Popover,
   PopoverContent,

@@ -760,6 +760,15 @@ export async function GET() {
             portfolioId: p.id,
             portfolioName: p.name,
           })),
+          openStockLotsList: openStockLots.map((lot) => ({
+            id: lot.id,
+            ticker: lot.ticker,
+            shares: Number(lot.shares),
+            avgCost: Number(lot.avgCost),
+            effectiveBasis: stockBasisByLot.get(lot.id)?.effectiveBasis ?? Number(lot.avgCost) * Number(lot.shares),
+            portfolioId: p.id,
+            portfolioName: p.name,
+          })),
         },
       ] as const;
     }),
@@ -774,6 +783,11 @@ export async function GET() {
       const dateDiff = a.expirationDate.localeCompare(b.expirationDate);
       return dateDiff !== 0 ? dateDiff : b.collateral - a.collateral;
     });
+
+  // Global open stock lots list (all portfolios, sorted by ticker)
+  const openStockLots = Object.values(perPortfolio)
+    .flatMap((p) => p.openStockLotsList)
+    .sort((a, b) => a.ticker.localeCompare(b.ticker));
 
   // Global premium-by-ticker recomputed from per-portfolio arrays (idempotent per request)
   const globalPremiumMap = new Map<string, number>();
@@ -1049,5 +1063,6 @@ export async function GET() {
     pnlSeriesMonthlyAll: globalMonthlyAllSeries,
     pnlSeriesYearly: globalYearlySeries,
     openTrades,
+    openStockLots,
   });
 }
