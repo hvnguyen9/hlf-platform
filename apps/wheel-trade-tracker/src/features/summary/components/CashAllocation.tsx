@@ -336,15 +336,9 @@ function LadderSection({
       </div>
 
       <div className="space-y-px">
-        {visibleRows.map((row) => (
-          <div
-            key={row.date}
-            className="grid grid-cols-2 sm:grid-cols-[88px_1fr_110px_120px] gap-x-3 gap-y-1.5 items-center px-2 py-2.5 border-t border-border/40"
-          >
-            <span className="text-[13px] font-semibold text-foreground tabular-nums">
-              {formatDateOnlyUTC(row.date)}
-            </span>
-            <div className="flex flex-wrap gap-1.5 order-last sm:order-none col-span-2 sm:col-span-1">
+        {visibleRows.map((row) => {
+          const pills = (
+            <div className="flex flex-wrap gap-1.5">
               {row.positions.map((p) => (
                 <span
                   key={p.id}
@@ -367,18 +361,52 @@ function LadderSection({
                 </span>
               ))}
             </div>
-            <span className="text-[13px] text-foreground tabular-nums text-right">{fmtCompact(row.deploys)}</span>
+          );
+          const freeAfter = (
             <span
               className={cn(
-                "text-[13px] font-medium tabular-nums text-right",
+                "text-[13px] font-medium tabular-nums",
                 row.breached ? "text-red-600 dark:text-red-400" : "text-foreground",
               )}
             >
               {row.freeAfter < 0 ? "−" : ""}
               {fmtCompact(Math.abs(row.freeAfter))}
             </span>
-          </div>
-        ))}
+          );
+
+          return (
+            <div
+              key={row.date}
+              className="border-t border-border/40 px-2 py-2.5 sm:grid sm:grid-cols-[88px_1fr_110px_120px] sm:gap-3 sm:items-center"
+            >
+              {/* Date — on mobile pairs with the free-after figure */}
+              <div className="flex items-baseline justify-between gap-2 sm:block">
+                <span className="text-[13px] font-semibold text-foreground tabular-nums">
+                  {formatDateOnlyUTC(row.date)}
+                </span>
+                <span className="sm:hidden text-[11px] text-muted-foreground">
+                  Free after {freeAfter}
+                </span>
+              </div>
+
+              {/* Positions */}
+              <div className="mt-2 sm:mt-0">{pills}</div>
+
+              {/* Desktop-only numeric columns */}
+              <span className="hidden sm:block text-[13px] text-foreground tabular-nums text-right">
+                {fmtCompact(row.deploys)}
+              </span>
+              <span className="hidden sm:block text-right">{freeAfter}</span>
+
+              {/* Mobile-only deploys line */}
+              <p className="sm:hidden mt-2 text-[11px] text-muted-foreground">
+                Deploys{" "}
+                <span className="font-medium text-foreground tabular-nums">{fmtCompact(row.deploys)}</span>
+                {" if assigned"}
+              </p>
+            </div>
+          );
+        })}
       </div>
 
       {initialRows != null && ladder.rows.length > initialRows && (
