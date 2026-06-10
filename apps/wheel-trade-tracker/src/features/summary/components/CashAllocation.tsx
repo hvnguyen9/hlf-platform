@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
@@ -186,8 +187,7 @@ export function CashAllocationCard({
   reserved,
   trades,
   quotes,
-  maxRows,
-  detailHref,
+  initialRows,
   capitalLabel = "Account capital",
 }: {
   currentCapital: number;
@@ -195,8 +195,7 @@ export function CashAllocationCard({
   reserved: number;
   trades?: AllocTrade[];
   quotes?: QuoteMap;
-  maxRows?: number; // cap ladder rows; show "Full ladder →" when exceeded
-  detailHref?: string;
+  initialRows?: number; // collapse the ladder to this many dates with a Show all toggle
   capitalLabel?: string;
 }) {
   const free = currentCapital - committed - reserved;
@@ -236,8 +235,7 @@ export function CashAllocationCard({
               committed={committed}
               trades={trades}
               quotes={quotes}
-              maxRows={maxRows}
-              detailHref={detailHref}
+              initialRows={initialRows}
             />
           </div>
         )}
@@ -252,16 +250,15 @@ function LadderSection({
   committed,
   trades,
   quotes,
-  maxRows,
-  detailHref,
+  initialRows,
 }: {
   currentCapital: number;
   committed: number;
   trades: AllocTrade[];
   quotes: QuoteMap;
-  maxRows?: number;
-  detailHref?: string;
+  initialRows?: number;
 }) {
+  const [showAll, setShowAll] = useState(false);
   const csps: LadderCsp[] = trades
     .filter((t) => isCSP(t.type))
     .map((t) => ({
@@ -300,17 +297,30 @@ function LadderSection({
     );
   }
 
-  const capped = maxRows != null && ladder.rows.length > maxRows;
-  const visibleRows = capped ? ladder.rows.slice(0, maxRows) : ladder.rows;
-  const hiddenCount = ladder.rows.length - visibleRows.length;
+  const collapsed = initialRows != null && ladder.rows.length > initialRows && !showAll;
+  const visibleRows = collapsed ? ladder.rows.slice(0, initialRows) : ladder.rows;
+  const hiddenCount = ladder.rows.length - (initialRows ?? 0);
 
   return (
     <div>
       {sectionHeader}
-      <p className="text-[11px] text-muted-foreground mb-4">
+      <p className="text-[11px] text-muted-foreground mb-3">
         Liquid cash today {fmtLong(ladder.baseline)} · {fmtLong(ladder.totalReserved)} reserved across{" "}
         {csps.length} put{csps.length !== 1 ? "s" : ""}. Running free assumes each assigns on its date.
       </p>
+
+      {/* Legend — clarifies the pill colors */}
+      <div className="flex items-center gap-3 mb-3 text-[10px] text-muted-foreground">
+        <span className="inline-flex items-center gap-1">
+          <span className="w-2 h-2 rounded-sm bg-rose-200 dark:bg-rose-900/60" /> ITM (likely to assign)
+        </span>
+        <span className="inline-flex items-center gap-1">
+          <span className="w-2 h-2 rounded-sm bg-muted-foreground/30" /> OTM
+        </span>
+        <span className="inline-flex items-center gap-1">
+          <span className="w-2 h-2 rounded-sm border border-dashed border-muted-foreground/50" /> no quote
+        </span>
+      </div>
 
       <div className="hidden sm:grid grid-cols-[88px_1fr_110px_120px] gap-3 px-2 pb-2 text-[10px] font-medium text-muted-foreground uppercase tracking-wide">
         <span>Expiry</span>
@@ -333,15 +343,21 @@ function LadderSection({
                 <span
                   key={p.id}
                   className={cn(
-                    "inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[11px] tabular-nums",
-                    p.itm
-                      ? "bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-300"
-                      : "bg-muted text-muted-foreground",
+                    "inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[11px] tabular-nums border border-transparent",
+                    p.itm === true && "bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-300",
+                    p.itm === false && "bg-muted text-muted-foreground",
+                    p.itm == null && "border-dashed border-muted-foreground/40 text-muted-foreground",
                   )}
-                  title={p.itm ? "In the money — likely to assign" : p.itm === false ? "Out of the money" : "Quote unavailable"}
+                  title={
+                    p.itm
+                      ? "In the money — likely to assign"
+                      : p.itm === false
+                        ? "Out of the money"
+                        : "No live quote — moneyness unknown"
+                  }
                 >
                   {p.ticker} ${p.strikePrice}p ×{p.contractsOpen}
-                  {p.itm ? " ITM" : ""}
+                  {p.itm ? " ITM" : p.itm === false ? " OTM" : ""}
                 </span>
               ))}
             </div>
@@ -359,10 +375,14 @@ function LadderSection({
         ))}
       </div>
 
-      {capped && detailHref && (
-        <Link href={detailHref} className="mt-3 inline-block text-[12px] text-primary hover:underline">
-          {hiddenCount} more {hiddenCount === 1 ? "date" : "dates"} · full ladder →
-        </Link>
+      {initialRows != null && ladder.rows.length > initialRows && (
+        <button
+          type="button"
+          onClick={() => setShowAll((v) => !v)}
+          className="mt-3 text-[12px] text-primary hover:underline"
+        >
+          {collapsed ? `Show all ${ladder.rows.length} dates (${hiddenCount} more) →` : "Show less"}
+        </button>
       )}
 
       {ladder.breachDate && (

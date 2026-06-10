@@ -148,7 +148,7 @@ export function PortfolioDetail({ portfolio }: { portfolio: Portfolio }) {
                       currentCapital={currentCapital}
                       committed={committed}
                       reserved={reserved}
-                      href={`/ladder?portfolio=${portfolio.id}&name=${encodeURIComponent(portfolio.name ?? "")}`}
+                      href={`/portfolios/${portfolio.id}?tab=Overview`}
                     />
                   )}
                 </div>

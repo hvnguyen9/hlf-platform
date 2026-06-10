@@ -1290,12 +1290,7 @@ export default function AccountSummaryContent({
           capitalLabel={selectedPortfolio ? "Portfolio capital" : "Account capital"}
           trades={openTrades}
           quotes={quotes}
-          maxRows={5}
-          detailHref={
-            selectedPortfolio
-              ? `/ladder?portfolio=${selectedPortfolio.portfolioId}&name=${encodeURIComponent(selectedPortfolio.name)}`
-              : "/ladder"
-          }
+          initialRows={5}
         />
       </motion.div>
 
