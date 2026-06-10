@@ -25,6 +25,7 @@ const AccountsReportContent = dynamic(
   },
 );
 import { TypeBadge } from "@/features/trades/components/TypeBadge";
+import { CashAllocationCard } from "./CashAllocation";
 
 type ExposureEntry = { ticker: string; capital: number; pct: number };
 type TickerPremium = { ticker: string; premium: number };
@@ -61,6 +62,8 @@ type SummaryPortfolio = {
   totalProfitAll: number;
   openCount: number;
   capitalInUse: number;
+  committed: number;
+  reserved: number;
   cashAvailable: number;
   biggest: {
     ticker: string;
@@ -106,6 +109,8 @@ type SummaryResponse = {
     capitalBase: number;
     currentCapital: number;
     capitalInUse: number;
+    committed: number;
+    reserved: number;
     cashAvailable: number;
     percentUsed: number;
     realizedMTD: number;
@@ -141,18 +146,6 @@ function formatCompactCurrency(value: number) {
     notation: "compact",
     maximumFractionDigits: 2,
   }).format(value);
-}
-function formatLongCurrency(value: number) {
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "USD",
-    maximumFractionDigits: 0,
-  }).format(value);
-}
-function pctColor(p: number) {
-  if (p > 85) return "text-destructive";
-  if (p >= 60) return "text-amber-600 dark:text-amber-400";
-  return "text-emerald-700 dark:text-emerald-400";
 }
 function moneyColor(v: number) {
   if (v > 0) return "text-emerald-700 dark:text-emerald-400";
@@ -651,6 +644,8 @@ export default function AccountSummaryContent({
         accountProfit: 0,
         accountCurrentCapital: 0,
         accountCapitalUsed: 0,
+        accountCommitted: 0,
+        accountReserved: 0,
         accountPercentUsed: 0,
         accountCashAvailable: 0,
         totalOpenTrades: 0,
@@ -692,6 +687,8 @@ export default function AccountSummaryContent({
     const accountCurrentCapital = data.totals.currentCapital;
     const accountProfit = portfolios.reduce((s, p) => s + p.totalProfitAll, 0);
     const accountCapitalUsed = data.totals.capitalInUse;
+    const accountCommitted = data.totals.committed;
+    const accountReserved = data.totals.reserved;
     const accountPercentUsed = data.totals.percentUsed;
     const accountCashAvailable = data.totals.cashAvailable;
 
@@ -740,6 +737,8 @@ export default function AccountSummaryContent({
       accountProfit,
       accountCurrentCapital,
       accountCapitalUsed,
+      accountCommitted,
+      accountReserved,
       accountPercentUsed,
       accountCashAvailable,
       totalOpenTrades,
@@ -781,6 +780,8 @@ export default function AccountSummaryContent({
     const accountCurrentCapital = p.currentCapital;
     const accountProfit = p.totalProfitAll;
     const accountCapitalUsed = p.capitalInUse;
+    const accountCommitted = p.committed;
+    const accountReserved = p.reserved;
     const accountPercentUsed =
       accountCurrentCapital > 0
         ? (p.capitalInUse / accountCurrentCapital) * 100
@@ -803,6 +804,8 @@ export default function AccountSummaryContent({
       accountProfit,
       accountCurrentCapital,
       accountCapitalUsed,
+      accountCommitted,
+      accountReserved,
       accountPercentUsed,
       accountCashAvailable,
       totalOpenTrades,
@@ -1216,81 +1219,23 @@ export default function AccountSummaryContent({
         </div>
       </div>
 
-      {/* ── KPI Strip ── */}
+      {/* ── Cash allocation + assignment ladder (leads the overview) ── */}
       <motion.div
-        className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3"
         initial={{ opacity: 0, y: 6 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.24, delay: 0.06 }}
         style={{ willChange: "opacity, transform" }}
       >
-        {/* Current Capital */}
-        <div className="rounded-xl border bg-card p-4 space-y-1">
-          <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">Current Capital</p>
-          <p className="text-xl font-bold text-foreground tabular-nums">{formatLongCurrency(view.accountCurrentCapital)}</p>
-          <p className="text-[11px] text-muted-foreground">Base {formatCompactCurrency(view.accountBase)}</p>
-        </div>
-
-        {/* Total P&L — period-filtered */}
-        <div className="rounded-xl border bg-card p-4 space-y-1">
-          <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">
-            {periodMetrics.label === "All Time" ? "Total P&L" : `P&L (${periodMetrics.label})`}
-          </p>
-          <p className={`text-xl font-bold tabular-nums ${moneyColor(periodMetrics.realized)}`}>
-            {periodMetrics.realized >= 0 ? "+" : ""}{formatCompactCurrency(periodMetrics.realized)}
-          </p>
-          <div className="flex items-center justify-between">
-            <p className="text-[11px] text-muted-foreground">
-              {dashTimeframe === "all"
-                ? <>MTD {view.totalRealizedMTD >= 0 ? "+" : ""}{formatCompactCurrency(view.totalRealizedMTD)}</>
-                : <>All time {view.accountProfit >= 0 ? "+" : ""}{formatCompactCurrency(view.accountProfit)}</>}
-            </p>
-            <Link href="/journal" className="text-[11px] text-primary hover:underline">
-              View trades →
-            </Link>
-          </div>
-        </div>
-
-        {/* Cash Available */}
-        <div className="rounded-xl border bg-card p-4 space-y-1">
-          <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">Cash Available</p>
-          <p className={`text-xl font-bold tabular-nums ${view.accountCashAvailable < 0 ? "text-red-600 dark:text-red-400" : "text-emerald-700 dark:text-emerald-400"}`}>
-            {formatLongCurrency(view.accountCashAvailable)}
-          </p>
-          <p className="text-[11px] text-muted-foreground">
-            In use {formatCompactCurrency(view.accountCapitalUsed)}
-          </p>
-        </div>
-
-        {/* % Deployed */}
-        <div className="rounded-xl border bg-card p-4 space-y-1">
-          <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">Deployed</p>
-          <p className={`text-xl font-bold tabular-nums ${pctColor(view.accountPercentUsed)}`}>
-            {view.accountPercentUsed.toFixed(1)}%
-          </p>
-          <div className="h-1.5 bg-muted rounded-full overflow-hidden mt-1">
-            <div
-              className={`h-full rounded-full ${
-                view.accountPercentUsed >= 85 ? "bg-red-500" : view.accountPercentUsed >= 60 ? "bg-amber-500" : "bg-emerald-500"
-              }`}
-              style={{ width: `${Math.min(view.accountPercentUsed, 100)}%` }}
-            />
-          </div>
-        </div>
-
-        {/* Open Trades */}
-        <div className="rounded-xl border bg-card p-4 space-y-1">
-          <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">Open Trades</p>
-          <p className="text-xl font-bold text-foreground tabular-nums">{view.totalOpenTrades}</p>
-          {view.totalExpiringSoon > 0 && (
-            <p className="text-[11px] text-rose-600 dark:text-rose-400 font-medium">
-              {view.totalExpiringSoon} expiring ≤7d
-            </p>
-          )}
-          {view.totalExpiringSoon === 0 && (
-            <p className="text-[11px] text-muted-foreground">None expiring soon</p>
-          )}
-        </div>
+        <CashAllocationCard
+          currentCapital={view.accountCurrentCapital}
+          committed={view.accountCommitted}
+          reserved={view.accountReserved}
+          capitalBase={view.accountBase}
+          capitalLabel={selectedPortfolio ? "Portfolio capital" : "Account capital"}
+          trades={openTrades}
+          quotes={quotes}
+          initialRows={5}
+        />
       </motion.div>
 
       {/* ── Activity strip ── */}

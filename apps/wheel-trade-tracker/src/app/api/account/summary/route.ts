@@ -142,6 +142,8 @@ export async function GET() {
         capitalBase: 0,
         currentCapital: 0,
         capitalInUse: 0,
+        committed: 0,
+        reserved: 0,
         cashAvailable: 0,
         percentUsed: 0,
         realizedMTD: 0,
@@ -264,6 +266,16 @@ export async function GET() {
       );
       const capitalInUse = capitalInUseOptions + capitalInUseStocks;
 
+      // Three-way cash split for the allocation bar + assignment ladder:
+      //   reserved  — CSP collateral; liquid today, only deploys ON assignment
+      //   committed — long-option premium paid + open stock lot basis (cash gone)
+      //   free      — currentCapital − committed − reserved (computed below)
+      const reserved = cspOpen.reduce(
+        (sum, t) => sum + collateralFor(t.strikePrice, t.contractsOpen),
+        0,
+      );
+      const committed = capitalInUse - reserved;
+
       // Biggest CSP by collateral
       const biggestRaw = cspOpen
         .map((t) => ({
@@ -285,11 +297,19 @@ export async function GET() {
           }
         : null;
 
-      // Capital concentration by ticker — CSP collateral + open stock lot cost basis
+      // Capital concentration by ticker — CSP collateral + long-option premium
+      // at risk (LEAPs/long calls, CC = 0) + open stock lot cost basis. Mirrors
+      // capitalInUse so the % shares add up against the same denominator.
       const exposureByTicker = new Map<string, number>();
-      for (const t of cspOpen) {
-        const cap = collateralFor(t.strikePrice, t.contractsOpen);
-        if (t.ticker) exposureByTicker.set(t.ticker, (exposureByTicker.get(t.ticker) ?? 0) + cap);
+      for (const t of openTrades) {
+        const cap = capitalUsedForTrade({
+          type: t.type,
+          strikePrice: t.strikePrice,
+          contractsOpen: t.contractsOpen,
+          contractPrice: t.contractPrice,
+        });
+        if (t.ticker && cap > 0)
+          exposureByTicker.set(t.ticker, (exposureByTicker.get(t.ticker) ?? 0) + cap);
       }
       for (const lot of openStockLots) {
         const cap = stockBasisByLot.get(lot.id)?.effectiveBasis ?? 0;
@@ -714,6 +734,8 @@ export async function GET() {
           capitalInUse,
           capitalInUseOptions,
           capitalInUseStocks,
+          committed,
+          reserved,
           cashAvailable,
           biggest,
           topTickers,
@@ -815,6 +837,8 @@ export async function GET() {
       acc.capitalBase += p.capitalBase;
       acc.currentCapital += p.currentCapital;
       acc.capitalInUse += p.capitalInUse;
+      acc.committed += p.committed;
+      acc.reserved += p.reserved;
       acc.cashAvailable += p.cashAvailable;
       acc.realizedMTD += p.realizedMTD;
       acc.realizedYTD += p.realizedYTD;
@@ -829,6 +853,8 @@ export async function GET() {
       capitalBase: 0,
       currentCapital: 0,
       capitalInUse: 0,
+      committed: 0,
+      reserved: 0,
       cashAvailable: 0,
       realizedMTD: 0,
       realizedYTD: 0,
