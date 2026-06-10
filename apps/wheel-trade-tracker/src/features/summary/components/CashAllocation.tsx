@@ -95,7 +95,7 @@ export function CashAllocationBar({
   );
 }
 
-// ── Compact meter for the Positions header — thin bar + inline legend ──
+// ── Compact meter for the Positions header — thin bar + stacked legend ──
 export function CashAllocationMini({
   currentCapital,
   committed,
@@ -107,18 +107,23 @@ export function CashAllocationMini({
 }) {
   const free = currentCapital - committed - reserved;
   return (
-    <div className="w-44 sm:w-56 space-y-1.5">
+    <div className="w-full sm:w-72 space-y-2">
       <CashAllocationBar
         currentCapital={currentCapital}
         committed={committed}
         reserved={reserved}
-        height="h-2"
+        height="h-2.5"
         showPctLabels={false}
       />
-      <div className="flex items-center justify-between gap-2 text-[10px] tabular-nums">
+      <div className="grid grid-cols-3 gap-2">
         <MiniLegend color={COMMITTED_COLOR} label="Committed" value={committed} />
         <MiniLegend stripes label="Reserved" value={reserved} />
-        <MiniLegend muted label="Free" value={free} valueClass={free < 0 ? "text-red-600 dark:text-red-400" : undefined} />
+        <MiniLegend
+          muted
+          label="Free"
+          value={free}
+          valueClass={free < 0 ? "text-red-600 dark:text-red-400" : undefined}
+        />
       </div>
     </div>
   );
@@ -140,19 +145,23 @@ function MiniLegend({
   valueClass?: string;
 }) {
   return (
-    <div className="flex items-center gap-1 min-w-0">
-      <span
-        className={cn("w-1.5 h-1.5 rounded-sm shrink-0", muted && "bg-muted-foreground/40")}
-        style={
-          stripes
-            ? { backgroundImage: RESERVED_STRIPES }
-            : color
-              ? { backgroundColor: color }
-              : undefined
-        }
-      />
-      <span className="text-muted-foreground truncate">{label}</span>
-      <span className={cn("font-medium text-foreground", valueClass)}>{fmtCompact(value)}</span>
+    <div className="min-w-0">
+      <div className="flex items-center gap-1">
+        <span
+          className={cn("w-1.5 h-1.5 rounded-sm shrink-0", muted && "bg-muted-foreground/40")}
+          style={
+            stripes
+              ? { backgroundImage: RESERVED_STRIPES }
+              : color
+                ? { backgroundColor: color }
+                : undefined
+          }
+        />
+        <span className="text-[10px] text-muted-foreground truncate">{label}</span>
+      </div>
+      <span className={cn("text-[12px] font-semibold tabular-nums text-foreground", valueClass)}>
+        {fmtCompact(value)}
+      </span>
     </div>
   );
 }

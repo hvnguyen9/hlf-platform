@@ -1226,30 +1226,6 @@ export default function AccountSummaryContent({
         </div>
       </div>
 
-      {/* ── Cash allocation + assignment ladder — leads the overview ── */}
-      <motion.div
-        className="space-y-4"
-        initial={{ opacity: 0, y: 6 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.24, delay: 0.04 }}
-        style={{ willChange: "opacity, transform" }}
-      >
-        <CashAllocationCard
-          currentCapital={view.accountCurrentCapital}
-          committed={view.accountCommitted}
-          reserved={view.accountReserved}
-        />
-        <AssignmentLadderCard
-          currentCapital={view.accountCurrentCapital}
-          committed={view.accountCommitted}
-          trades={openTrades}
-          quotes={quotes}
-          detailHref="/ladder"
-          cardCollapsible
-          defaultOpen={false}
-        />
-      </motion.div>
-
       {/* ── KPI Strip ── */}
       <motion.div
         className="grid grid-cols-1 sm:grid-cols-3 gap-3"
@@ -1298,6 +1274,30 @@ export default function AccountSummaryContent({
             <p className="text-[11px] text-muted-foreground">None expiring soon</p>
           )}
         </div>
+      </motion.div>
+
+      {/* ── Cash allocation + assignment ladder ── */}
+      <motion.div
+        className="space-y-4"
+        initial={{ opacity: 0, y: 6 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.24, delay: 0.08 }}
+        style={{ willChange: "opacity, transform" }}
+      >
+        <CashAllocationCard
+          currentCapital={view.accountCurrentCapital}
+          committed={view.accountCommitted}
+          reserved={view.accountReserved}
+        />
+        <AssignmentLadderCard
+          currentCapital={view.accountCurrentCapital}
+          committed={view.accountCommitted}
+          trades={openTrades}
+          quotes={quotes}
+          detailHref="/ladder"
+          cardCollapsible
+          defaultOpen={false}
+        />
       </motion.div>
 
       {/* ── Activity strip ── */}
