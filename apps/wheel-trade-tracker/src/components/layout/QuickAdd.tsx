@@ -345,7 +345,11 @@ export function QuickAddFab() {
           portfolioId={activeLot.portfolioId}
           open={sellCCOpen}
           onOpenChange={setSellCCOpen}
-          prefill={{ ticker: activeLot.ticker, type: "CoveredCall" }}
+          prefill={{
+            ticker: activeLot.ticker,
+            type: "CoveredCall",
+            stockLotId: activeLot.id,
+          }}
         />
       )}
 

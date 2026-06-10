@@ -25,6 +25,7 @@ const AccountsReportContent = dynamic(
   },
 );
 import { TypeBadge } from "@/features/trades/components/TypeBadge";
+import { CashAllocationCard, AssignmentLadderCard } from "./CashAllocation";
 
 type ExposureEntry = { ticker: string; capital: number; pct: number };
 type TickerPremium = { ticker: string; premium: number };
@@ -61,6 +62,8 @@ type SummaryPortfolio = {
   totalProfitAll: number;
   openCount: number;
   capitalInUse: number;
+  committed: number;
+  reserved: number;
   cashAvailable: number;
   biggest: {
     ticker: string;
@@ -106,6 +109,8 @@ type SummaryResponse = {
     capitalBase: number;
     currentCapital: number;
     capitalInUse: number;
+    committed: number;
+    reserved: number;
     cashAvailable: number;
     percentUsed: number;
     realizedMTD: number;
@@ -651,6 +656,8 @@ export default function AccountSummaryContent({
         accountProfit: 0,
         accountCurrentCapital: 0,
         accountCapitalUsed: 0,
+        accountCommitted: 0,
+        accountReserved: 0,
         accountPercentUsed: 0,
         accountCashAvailable: 0,
         totalOpenTrades: 0,
@@ -692,6 +699,8 @@ export default function AccountSummaryContent({
     const accountCurrentCapital = data.totals.currentCapital;
     const accountProfit = portfolios.reduce((s, p) => s + p.totalProfitAll, 0);
     const accountCapitalUsed = data.totals.capitalInUse;
+    const accountCommitted = data.totals.committed;
+    const accountReserved = data.totals.reserved;
     const accountPercentUsed = data.totals.percentUsed;
     const accountCashAvailable = data.totals.cashAvailable;
 
@@ -740,6 +749,8 @@ export default function AccountSummaryContent({
       accountProfit,
       accountCurrentCapital,
       accountCapitalUsed,
+      accountCommitted,
+      accountReserved,
       accountPercentUsed,
       accountCashAvailable,
       totalOpenTrades,
@@ -781,6 +792,8 @@ export default function AccountSummaryContent({
     const accountCurrentCapital = p.currentCapital;
     const accountProfit = p.totalProfitAll;
     const accountCapitalUsed = p.capitalInUse;
+    const accountCommitted = p.committed;
+    const accountReserved = p.reserved;
     const accountPercentUsed =
       accountCurrentCapital > 0
         ? (p.capitalInUse / accountCurrentCapital) * 100
@@ -803,6 +816,8 @@ export default function AccountSummaryContent({
       accountProfit,
       accountCurrentCapital,
       accountCapitalUsed,
+      accountCommitted,
+      accountReserved,
       accountPercentUsed,
       accountCashAvailable,
       totalOpenTrades,
@@ -1360,6 +1375,28 @@ export default function AccountSummaryContent({
             </div>
           </CardContent>
         </Card>
+      </motion.div>
+
+      {/* ── Cash allocation + assignment ladder ── */}
+      <motion.div
+        className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-start"
+        initial={{ opacity: 0, y: 6 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.24, delay: 0.12 }}
+        style={{ willChange: "opacity, transform" }}
+      >
+        <CashAllocationCard
+          currentCapital={view.accountCurrentCapital}
+          committed={view.accountCommitted}
+          reserved={view.accountReserved}
+        />
+        <AssignmentLadderCard
+          currentCapital={view.accountCurrentCapital}
+          committed={view.accountCommitted}
+          trades={openTrades}
+          quotes={quotes}
+          detailHref="/ladder"
+        />
       </motion.div>
 
       {/* ── Middle row: Open Positions (2/3) + Exposures & Premium stacked (1/3) ── */}
