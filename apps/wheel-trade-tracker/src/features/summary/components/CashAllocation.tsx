@@ -1,8 +1,6 @@
 "use client";
 
-import { useState } from "react";
 import Link from "next/link";
-import { ChevronDown } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { formatDateOnlyUTC } from "@/lib/formatDateOnly";
@@ -100,14 +98,16 @@ export function CashAllocationMini({
   currentCapital,
   committed,
   reserved,
+  href,
 }: {
   currentCapital: number;
   committed: number;
   reserved: number;
+  href?: string;
 }) {
   const free = currentCapital - committed - reserved;
-  return (
-    <div className="w-full sm:w-72 space-y-2">
+  const inner = (
+    <>
       <CashAllocationBar
         currentCapital={currentCapital}
         committed={committed}
@@ -125,8 +125,21 @@ export function CashAllocationMini({
           valueClass={free < 0 ? "text-red-600 dark:text-red-400" : undefined}
         />
       </div>
-    </div>
+    </>
   );
+
+  if (href) {
+    return (
+      <Link
+        href={href}
+        className="block w-full sm:w-72 space-y-2 group"
+        title="View assignment ladder"
+      >
+        <div className="space-y-2 transition-opacity group-hover:opacity-80">{inner}</div>
+      </Link>
+    );
+  }
+  return <div className="w-full sm:w-72 space-y-2">{inner}</div>;
 }
 
 function MiniLegend({
@@ -166,15 +179,25 @@ function MiniLegend({
   );
 }
 
-// ── Segmented cash allocation bar + three metric tiles ──
+// ── Cash allocation bar + tiles + the assignment ladder, all in one card ──
 export function CashAllocationCard({
   currentCapital,
   committed,
   reserved,
+  trades,
+  quotes,
+  maxRows,
+  detailHref,
+  capitalLabel = "Account capital",
 }: {
   currentCapital: number;
   committed: number;
   reserved: number;
+  trades?: AllocTrade[];
+  quotes?: QuoteMap;
+  maxRows?: number; // cap ladder rows; show "Full ladder →" when exceeded
+  detailHref?: string;
+  capitalLabel?: string;
 }) {
   const free = currentCapital - committed - reserved;
   const negativeFree = free < 0;
@@ -185,7 +208,7 @@ export function CashAllocationCard({
         <div className="flex items-baseline justify-between mb-3 flex-wrap gap-2">
           <h2 className="text-base font-semibold text-foreground">Cash Allocation</h2>
           <span className="text-[11px] text-muted-foreground tabular-nums">
-            Account capital {fmtLong(currentCapital)}
+            {capitalLabel} {fmtLong(currentCapital)}
           </span>
         </div>
 
@@ -195,18 +218,8 @@ export function CashAllocationCard({
 
         {/* Three tiles */}
         <div className="grid grid-cols-3 gap-3">
-          <AllocTile
-            dot={COMMITTED_COLOR}
-            label="Committed"
-            value={committed}
-            hint="Stock lots + LEAPs"
-          />
-          <AllocTile
-            dot={RESERVED_COLOR}
-            label="Reserved"
-            value={reserved}
-            hint="CSPs — if assigned"
-          />
+          <AllocTile dot={COMMITTED_COLOR} label="Committed" value={committed} hint="Stock lots + LEAPs" />
+          <AllocTile dot={RESERVED_COLOR} label="Reserved" value={reserved} hint="CSPs — if assigned" />
           <AllocTile
             dotMuted
             label="Free"
@@ -215,8 +228,152 @@ export function CashAllocationCard({
             valueClass={negativeFree ? "text-red-600 dark:text-red-400" : undefined}
           />
         </div>
+
+        {trades && quotes && (
+          <div className="mt-5 pt-5 border-t border-border/50">
+            <LadderSection
+              currentCapital={currentCapital}
+              committed={committed}
+              trades={trades}
+              quotes={quotes}
+              maxRows={maxRows}
+              detailHref={detailHref}
+            />
+          </div>
+        )}
       </CardContent>
     </Card>
+  );
+}
+
+// ── Assignment ladder — forward CSP expirations and running liquid cash ──
+function LadderSection({
+  currentCapital,
+  committed,
+  trades,
+  quotes,
+  maxRows,
+  detailHref,
+}: {
+  currentCapital: number;
+  committed: number;
+  trades: AllocTrade[];
+  quotes: QuoteMap;
+  maxRows?: number;
+  detailHref?: string;
+}) {
+  const csps: LadderCsp[] = trades
+    .filter((t) => isCSP(t.type))
+    .map((t) => ({
+      id: t.id,
+      ticker: t.ticker,
+      strikePrice: t.strikePrice,
+      contractsOpen: t.contractsOpen,
+      expirationDate: t.expirationDate,
+      collateral: t.collateral,
+    }));
+
+  const ladder = buildAssignmentLadder({
+    currentCapital,
+    committed,
+    csps,
+    itmFor: (c) => {
+      const price = quotes[c.ticker]?.price;
+      if (price == null) return null;
+      return price < c.strikePrice; // a put is ITM when the stock is below strike
+    },
+  });
+
+  const sectionHeader = (
+    <div className="flex items-baseline justify-between flex-wrap gap-2 mb-1">
+      <h3 className="text-sm font-semibold text-foreground">Assignment Ladder</h3>
+      <span className="text-[11px] text-muted-foreground">If assigned, in order of expiry</span>
+    </div>
+  );
+
+  if (csps.length === 0) {
+    return (
+      <div>
+        {sectionHeader}
+        <p className="text-sm text-muted-foreground py-3 text-center">No open cash-secured puts.</p>
+      </div>
+    );
+  }
+
+  const capped = maxRows != null && ladder.rows.length > maxRows;
+  const visibleRows = capped ? ladder.rows.slice(0, maxRows) : ladder.rows;
+  const hiddenCount = ladder.rows.length - visibleRows.length;
+
+  return (
+    <div>
+      {sectionHeader}
+      <p className="text-[11px] text-muted-foreground mb-4">
+        Liquid cash today {fmtLong(ladder.baseline)} · {fmtLong(ladder.totalReserved)} reserved across{" "}
+        {csps.length} put{csps.length !== 1 ? "s" : ""}. Running free assumes each assigns on its date.
+      </p>
+
+      <div className="hidden sm:grid grid-cols-[88px_1fr_110px_120px] gap-3 px-2 pb-2 text-[10px] font-medium text-muted-foreground uppercase tracking-wide">
+        <span>Expiry</span>
+        <span>Positions</span>
+        <span className="text-right">Deploys</span>
+        <span className="text-right">Free after</span>
+      </div>
+
+      <div className="space-y-px">
+        {visibleRows.map((row) => (
+          <div
+            key={row.date}
+            className="grid grid-cols-2 sm:grid-cols-[88px_1fr_110px_120px] gap-x-3 gap-y-1.5 items-center px-2 py-2.5 border-t border-border/40"
+          >
+            <span className="text-[13px] font-semibold text-foreground tabular-nums">
+              {formatDateOnlyUTC(row.date)}
+            </span>
+            <div className="flex flex-wrap gap-1.5 order-last sm:order-none col-span-2 sm:col-span-1">
+              {row.positions.map((p) => (
+                <span
+                  key={p.id}
+                  className={cn(
+                    "inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[11px] tabular-nums",
+                    p.itm
+                      ? "bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-300"
+                      : "bg-muted text-muted-foreground",
+                  )}
+                  title={p.itm ? "In the money — likely to assign" : p.itm === false ? "Out of the money" : "Quote unavailable"}
+                >
+                  {p.ticker} ${p.strikePrice}p ×{p.contractsOpen}
+                  {p.itm ? " ITM" : ""}
+                </span>
+              ))}
+            </div>
+            <span className="text-[13px] text-foreground tabular-nums text-right">{fmtCompact(row.deploys)}</span>
+            <span
+              className={cn(
+                "text-[13px] font-medium tabular-nums text-right",
+                row.breached ? "text-red-600 dark:text-red-400" : "text-foreground",
+              )}
+            >
+              {row.freeAfter < 0 ? "−" : ""}
+              {fmtCompact(Math.abs(row.freeAfter))}
+            </span>
+          </div>
+        ))}
+      </div>
+
+      {capped && detailHref && (
+        <Link href={detailHref} className="mt-3 inline-block text-[12px] text-primary hover:underline">
+          {hiddenCount} more {hiddenCount === 1 ? "date" : "dates"} · full ladder →
+        </Link>
+      )}
+
+      {ladder.breachDate && (
+        <div className="mt-4 flex items-start gap-2 rounded-lg bg-red-50 dark:bg-red-950/40 px-3 py-2.5 text-[12px] text-red-700 dark:text-red-300">
+          <span className="font-medium">
+            Full assignment exceeds liquid cash by {fmtLong(Math.abs(ladder.endFree))} past{" "}
+            {formatDateOnlyUTC(ladder.breachDate)} — would need margin or a roll.
+          </span>
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -247,201 +404,5 @@ function AllocTile({
       <p className={cn("text-lg font-bold tabular-nums text-foreground", valueClass)}>{fmtLong(value)}</p>
       <p className="text-[10px] text-muted-foreground">{hint}</p>
     </div>
-  );
-}
-
-// ── Assignment ladder: forward CSP expirations and the running liquid cash ──
-export function AssignmentLadderCard({
-  currentCapital,
-  committed,
-  trades,
-  quotes,
-  collapsible = true,
-  detailHref,
-  cardCollapsible = false,
-  defaultOpen = true,
-}: {
-  currentCapital: number;
-  committed: number;
-  trades: AllocTrade[];
-  quotes: QuoteMap;
-  collapsible?: boolean;
-  detailHref?: string;
-  cardCollapsible?: boolean;
-  defaultOpen?: boolean;
-}) {
-  const [expanded, setExpanded] = useState(false);
-  const [cardOpen, setCardOpen] = useState(defaultOpen);
-
-  const csps: LadderCsp[] = trades
-    .filter((t) => isCSP(t.type))
-    .map((t) => ({
-      id: t.id,
-      ticker: t.ticker,
-      strikePrice: t.strikePrice,
-      contractsOpen: t.contractsOpen,
-      expirationDate: t.expirationDate,
-      collateral: t.collateral,
-    }));
-
-  const ladder = buildAssignmentLadder({
-    currentCapital,
-    committed,
-    csps,
-    itmFor: (c) => {
-      const price = quotes[c.ticker]?.price;
-      if (price == null) return null;
-      return price < c.strikePrice; // a put is ITM when the stock is below strike
-    },
-  });
-
-  if (csps.length === 0) {
-    return (
-      <Card className="rounded-xl">
-        <CardContent className="p-5">
-          <h2 className="text-base font-semibold text-foreground mb-1">Assignment Ladder</h2>
-          <p className="text-sm text-muted-foreground py-4 text-center">No open cash-secured puts.</p>
-        </CardContent>
-      </Card>
-    );
-  }
-
-  const visibleRows = collapsible && !expanded ? ladder.rows.slice(0, 4) : ladder.rows;
-  const hiddenCount = ladder.rows.length - visibleRows.length;
-
-  const body = (
-    <>
-        <p className="text-[11px] text-muted-foreground mb-4">
-          Liquid cash today {fmtLong(ladder.baseline)} · {fmtLong(ladder.totalReserved)} reserved across{" "}
-          {csps.length} put{csps.length !== 1 ? "s" : ""}. Running free assumes each assigns on its date.
-        </p>
-
-        {/* Header */}
-        <div className="hidden sm:grid grid-cols-[88px_1fr_110px_120px] gap-3 px-2 pb-2 text-[10px] font-medium text-muted-foreground uppercase tracking-wide">
-          <span>Expiry</span>
-          <span>Positions</span>
-          <span className="text-right">Deploys</span>
-          <span className="text-right">Free after</span>
-        </div>
-
-        <div className="space-y-px">
-          {visibleRows.map((row) => (
-            <div
-              key={row.date}
-              className="grid grid-cols-2 sm:grid-cols-[88px_1fr_110px_120px] gap-x-3 gap-y-1.5 items-center px-2 py-2.5 border-t border-border/40"
-            >
-              <span className="text-[13px] font-semibold text-foreground tabular-nums">
-                {formatDateOnlyUTC(row.date)}
-              </span>
-              <div className="flex flex-wrap gap-1.5 order-last sm:order-none col-span-2 sm:col-span-1">
-                {row.positions.map((p) => (
-                  <span
-                    key={p.id}
-                    className={cn(
-                      "inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[11px] tabular-nums",
-                      p.itm
-                        ? "bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-300"
-                        : "bg-muted text-muted-foreground",
-                    )}
-                    title={p.itm ? "In the money — likely to assign" : p.itm === false ? "Out of the money" : "Quote unavailable"}
-                  >
-                    {p.ticker} ${p.strikePrice}p ×{p.contractsOpen}
-                    {p.itm ? " ITM" : ""}
-                  </span>
-                ))}
-              </div>
-              <span className="text-[13px] text-foreground tabular-nums text-right">{fmtCompact(row.deploys)}</span>
-              <span
-                className={cn(
-                  "text-[13px] font-medium tabular-nums text-right",
-                  row.breached ? "text-red-600 dark:text-red-400" : "text-foreground",
-                )}
-              >
-                {row.freeAfter < 0 ? "−" : ""}
-                {fmtCompact(Math.abs(row.freeAfter))}
-              </span>
-            </div>
-          ))}
-        </div>
-
-        {collapsible && hiddenCount > 0 && (
-          <button
-            onClick={() => setExpanded(true)}
-            className="mt-2 text-[12px] text-primary hover:underline"
-          >
-            Show {hiddenCount} more {hiddenCount === 1 ? "date" : "dates"} →
-          </button>
-        )}
-        {collapsible && expanded && ladder.rows.length > 4 && (
-          <button
-            onClick={() => setExpanded(false)}
-            className="mt-2 text-[12px] text-muted-foreground hover:underline"
-          >
-            Show less
-          </button>
-        )}
-
-        {ladder.breachDate && (
-          <div className="mt-4 flex items-start gap-2 rounded-lg bg-red-50 dark:bg-red-950/40 px-3 py-2.5 text-[12px] text-red-700 dark:text-red-300">
-            <span className="font-medium">
-              Full assignment exceeds liquid cash by {fmtLong(Math.abs(ladder.endFree))} past{" "}
-              {formatDateOnlyUTC(ladder.breachDate)} — would need margin or a roll.
-            </span>
-          </div>
-        )}
-    </>
-  );
-
-  const header = (
-    <div className="flex items-baseline justify-between flex-wrap gap-2">
-      <div className="flex items-center gap-2">
-        {cardCollapsible && (
-          <ChevronDown
-            className={cn("w-4 h-4 text-muted-foreground transition-transform", !cardOpen && "-rotate-90")}
-          />
-        )}
-        <h2 className="text-base font-semibold text-foreground">Assignment Ladder</h2>
-      </div>
-      {detailHref ? (
-        <Link
-          href={detailHref}
-          className="text-[11px] text-primary hover:underline"
-          onClick={(e) => e.stopPropagation()}
-        >
-          Full ladder →
-        </Link>
-      ) : (
-        <span className="text-[11px] text-muted-foreground">
-          {cardCollapsible && !cardOpen
-            ? `${fmtLong(ladder.totalReserved)} reserved · ${csps.length} put${csps.length !== 1 ? "s" : ""}`
-            : "If assigned, in order of expiry"}
-        </span>
-      )}
-    </div>
-  );
-
-  return (
-    <Card className="rounded-xl">
-      <CardContent className="p-5">
-        {cardCollapsible ? (
-          <button
-            type="button"
-            onClick={() => setCardOpen((v) => !v)}
-            className="w-full text-left mb-1"
-            aria-expanded={cardOpen}
-          >
-            {header}
-          </button>
-        ) : (
-          <div className="mb-1">{header}</div>
-        )}
-        {(!cardCollapsible || cardOpen) && body}
-        {cardCollapsible && !cardOpen && ladder.breachDate && (
-          <p className="mt-2 text-[11px] font-medium text-red-600 dark:text-red-400">
-            ⚠ Full assignment would need margin past {formatDateOnlyUTC(ladder.breachDate)}.
-          </p>
-        )}
-      </CardContent>
-    </Card>
   );
 }

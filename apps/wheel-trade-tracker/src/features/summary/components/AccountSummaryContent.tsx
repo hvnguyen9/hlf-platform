@@ -25,7 +25,7 @@ const AccountsReportContent = dynamic(
   },
 );
 import { TypeBadge } from "@/features/trades/components/TypeBadge";
-import { CashAllocationCard, AssignmentLadderCard } from "./CashAllocation";
+import { CashAllocationCard } from "./CashAllocation";
 
 type ExposureEntry = { ticker: string; capital: number; pct: number };
 type TickerPremium = { ticker: string; premium: number };
@@ -1276,9 +1276,8 @@ export default function AccountSummaryContent({
         </div>
       </motion.div>
 
-      {/* ── Cash allocation + assignment ladder ── */}
+      {/* ── Cash allocation + assignment ladder (one card) ── */}
       <motion.div
-        className="space-y-4"
         initial={{ opacity: 0, y: 6 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.24, delay: 0.08 }}
@@ -1288,15 +1287,15 @@ export default function AccountSummaryContent({
           currentCapital={view.accountCurrentCapital}
           committed={view.accountCommitted}
           reserved={view.accountReserved}
-        />
-        <AssignmentLadderCard
-          currentCapital={view.accountCurrentCapital}
-          committed={view.accountCommitted}
+          capitalLabel={selectedPortfolio ? "Portfolio capital" : "Account capital"}
           trades={openTrades}
           quotes={quotes}
-          detailHref="/ladder"
-          cardCollapsible
-          defaultOpen={false}
+          maxRows={5}
+          detailHref={
+            selectedPortfolio
+              ? `/ladder?portfolio=${selectedPortfolio.portfolioId}&name=${encodeURIComponent(selectedPortfolio.name)}`
+              : "/ladder"
+          }
         />
       </motion.div>
 
