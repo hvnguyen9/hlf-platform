@@ -189,6 +189,7 @@ export function CashAllocationCard({
   quotes,
   initialRows,
   capitalLabel = "Account capital",
+  capitalBase,
 }: {
   currentCapital: number;
   committed: number;
@@ -197,6 +198,7 @@ export function CashAllocationCard({
   quotes?: QuoteMap;
   initialRows?: number; // collapse the ladder to this many dates with a Show all toggle
   capitalLabel?: string;
+  capitalBase?: number;
 }) {
   const free = currentCapital - committed - reserved;
   const negativeFree = free < 0;
@@ -204,11 +206,15 @@ export function CashAllocationCard({
   return (
     <Card className="rounded-xl">
       <CardContent className="p-5">
-        <div className="flex items-baseline justify-between mb-3 flex-wrap gap-2">
+        <div className="flex items-end justify-between mb-3 flex-wrap gap-2">
           <h2 className="text-base font-semibold text-foreground">Cash Allocation</h2>
-          <span className="text-[11px] text-muted-foreground tabular-nums">
-            {capitalLabel} {fmtLong(currentCapital)}
-          </span>
+          <div className="text-right">
+            <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide">{capitalLabel}</p>
+            <p className="text-lg font-bold text-foreground tabular-nums leading-tight">{fmtLong(currentCapital)}</p>
+            {capitalBase != null && (
+              <p className="text-[10px] text-muted-foreground tabular-nums">Base {fmtLong(capitalBase)}</p>
+            )}
+          </div>
         </div>
 
         <div className="mb-4">

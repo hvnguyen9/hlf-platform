@@ -147,13 +147,6 @@ function formatCompactCurrency(value: number) {
     maximumFractionDigits: 2,
   }).format(value);
 }
-function formatLongCurrency(value: number) {
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "USD",
-    maximumFractionDigits: 0,
-  }).format(value);
-}
 function moneyColor(v: number) {
   if (v > 0) return "text-emerald-700 dark:text-emerald-400";
   if (v < 0) return "text-destructive";
@@ -1226,67 +1219,18 @@ export default function AccountSummaryContent({
         </div>
       </div>
 
-      {/* ── KPI Strip ── */}
+      {/* ── Cash allocation + assignment ladder (leads the overview) ── */}
       <motion.div
-        className="grid grid-cols-1 sm:grid-cols-3 gap-3"
         initial={{ opacity: 0, y: 6 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.24, delay: 0.06 }}
-        style={{ willChange: "opacity, transform" }}
-      >
-        {/* Current Capital */}
-        <div className="rounded-xl border bg-card p-4 space-y-1">
-          <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">Current Capital</p>
-          <p className="text-xl font-bold text-foreground tabular-nums">{formatLongCurrency(view.accountCurrentCapital)}</p>
-          <p className="text-[11px] text-muted-foreground">Base {formatCompactCurrency(view.accountBase)}</p>
-        </div>
-
-        {/* Total P&L — period-filtered */}
-        <div className="rounded-xl border bg-card p-4 space-y-1">
-          <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">
-            {periodMetrics.label === "All Time" ? "Total P&L" : `P&L (${periodMetrics.label})`}
-          </p>
-          <p className={`text-xl font-bold tabular-nums ${moneyColor(periodMetrics.realized)}`}>
-            {periodMetrics.realized >= 0 ? "+" : ""}{formatCompactCurrency(periodMetrics.realized)}
-          </p>
-          <div className="flex items-center justify-between">
-            <p className="text-[11px] text-muted-foreground">
-              {dashTimeframe === "all"
-                ? <>MTD {view.totalRealizedMTD >= 0 ? "+" : ""}{formatCompactCurrency(view.totalRealizedMTD)}</>
-                : <>All time {view.accountProfit >= 0 ? "+" : ""}{formatCompactCurrency(view.accountProfit)}</>}
-            </p>
-            <Link href="/journal" className="text-[11px] text-primary hover:underline">
-              View trades →
-            </Link>
-          </div>
-        </div>
-
-        {/* Open Trades */}
-        <div className="rounded-xl border bg-card p-4 space-y-1">
-          <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">Open Trades</p>
-          <p className="text-xl font-bold text-foreground tabular-nums">{view.totalOpenTrades}</p>
-          {view.totalExpiringSoon > 0 && (
-            <p className="text-[11px] text-rose-600 dark:text-rose-400 font-medium">
-              {view.totalExpiringSoon} expiring ≤7d
-            </p>
-          )}
-          {view.totalExpiringSoon === 0 && (
-            <p className="text-[11px] text-muted-foreground">None expiring soon</p>
-          )}
-        </div>
-      </motion.div>
-
-      {/* ── Cash allocation + assignment ladder (one card) ── */}
-      <motion.div
-        initial={{ opacity: 0, y: 6 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.24, delay: 0.08 }}
         style={{ willChange: "opacity, transform" }}
       >
         <CashAllocationCard
           currentCapital={view.accountCurrentCapital}
           committed={view.accountCommitted}
           reserved={view.accountReserved}
+          capitalBase={view.accountBase}
           capitalLabel={selectedPortfolio ? "Portfolio capital" : "Account capital"}
           trades={openTrades}
           quotes={quotes}
