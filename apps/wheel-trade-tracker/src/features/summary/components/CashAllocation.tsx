@@ -321,7 +321,7 @@ function LadderSection({
           <span className="w-2 h-2 rounded-sm bg-rose-200 dark:bg-rose-900/60" /> ITM (likely to assign)
         </span>
         <span className="inline-flex items-center gap-1">
-          <span className="w-2 h-2 rounded-sm bg-muted-foreground/30" /> OTM
+          <span className="w-2 h-2 rounded-sm bg-emerald-300 dark:bg-emerald-700/70" /> OTM (safe)
         </span>
         <span className="inline-flex items-center gap-1">
           <span className="w-2 h-2 rounded-sm border border-dashed border-muted-foreground/50" /> no quote
@@ -351,7 +351,7 @@ function LadderSection({
                   className={cn(
                     "inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[11px] tabular-nums border border-transparent",
                     p.itm === true && "bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-300",
-                    p.itm === false && "bg-muted text-muted-foreground",
+                    p.itm === false && "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300",
                     p.itm == null && "border-dashed border-muted-foreground/40 text-muted-foreground",
                   )}
                   title={
