@@ -149,6 +149,15 @@ export async function GET(
 
     const capitalUsed = capitalUsedOptions + capitalUsedStocks;
 
+    // Three-way split for the cash allocation meter:
+    //   reserved  — CSP collateral (liquid until assigned)
+    //   committed — long-option premium + stock lot basis (cash already out)
+    const reserved = openTrades.reduce(
+      (sum, t) => sum + (isCSP(t.type) ? lockedCollateral(t.strikePrice, t.contractsOpen) : 0),
+      0,
+    );
+    const committed = capitalUsed - reserved;
+
     // Open trade metrics
     const openTradesCount = openTrades.length;
 
@@ -258,6 +267,8 @@ export async function GET(
       capitalUsed,
       capitalUsedOptions,
       capitalUsedStocks,
+      committed,
+      reserved,
 
       // realized P&L
       totalProfit,

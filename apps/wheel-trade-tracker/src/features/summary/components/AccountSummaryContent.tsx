@@ -154,11 +154,6 @@ function formatLongCurrency(value: number) {
     maximumFractionDigits: 0,
   }).format(value);
 }
-function pctColor(p: number) {
-  if (p > 85) return "text-destructive";
-  if (p >= 60) return "text-amber-600 dark:text-amber-400";
-  return "text-emerald-700 dark:text-emerald-400";
-}
 function moneyColor(v: number) {
   if (v > 0) return "text-emerald-700 dark:text-emerald-400";
   if (v < 0) return "text-destructive";
@@ -1231,9 +1226,33 @@ export default function AccountSummaryContent({
         </div>
       </div>
 
+      {/* ── Cash allocation + assignment ladder — leads the overview ── */}
+      <motion.div
+        className="space-y-4"
+        initial={{ opacity: 0, y: 6 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.24, delay: 0.04 }}
+        style={{ willChange: "opacity, transform" }}
+      >
+        <CashAllocationCard
+          currentCapital={view.accountCurrentCapital}
+          committed={view.accountCommitted}
+          reserved={view.accountReserved}
+        />
+        <AssignmentLadderCard
+          currentCapital={view.accountCurrentCapital}
+          committed={view.accountCommitted}
+          trades={openTrades}
+          quotes={quotes}
+          detailHref="/ladder"
+          cardCollapsible
+          defaultOpen={false}
+        />
+      </motion.div>
+
       {/* ── KPI Strip ── */}
       <motion.div
-        className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3"
+        className="grid grid-cols-1 sm:grid-cols-3 gap-3"
         initial={{ opacity: 0, y: 6 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.24, delay: 0.06 }}
@@ -1263,33 +1282,6 @@ export default function AccountSummaryContent({
             <Link href="/journal" className="text-[11px] text-primary hover:underline">
               View trades →
             </Link>
-          </div>
-        </div>
-
-        {/* Cash Available */}
-        <div className="rounded-xl border bg-card p-4 space-y-1">
-          <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">Cash Available</p>
-          <p className={`text-xl font-bold tabular-nums ${view.accountCashAvailable < 0 ? "text-red-600 dark:text-red-400" : "text-emerald-700 dark:text-emerald-400"}`}>
-            {formatLongCurrency(view.accountCashAvailable)}
-          </p>
-          <p className="text-[11px] text-muted-foreground">
-            In use {formatCompactCurrency(view.accountCapitalUsed)}
-          </p>
-        </div>
-
-        {/* % Deployed */}
-        <div className="rounded-xl border bg-card p-4 space-y-1">
-          <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">Deployed</p>
-          <p className={`text-xl font-bold tabular-nums ${pctColor(view.accountPercentUsed)}`}>
-            {view.accountPercentUsed.toFixed(1)}%
-          </p>
-          <div className="h-1.5 bg-muted rounded-full overflow-hidden mt-1">
-            <div
-              className={`h-full rounded-full ${
-                view.accountPercentUsed >= 85 ? "bg-red-500" : view.accountPercentUsed >= 60 ? "bg-amber-500" : "bg-emerald-500"
-              }`}
-              style={{ width: `${Math.min(view.accountPercentUsed, 100)}%` }}
-            />
           </div>
         </div>
 
@@ -1375,28 +1367,6 @@ export default function AccountSummaryContent({
             </div>
           </CardContent>
         </Card>
-      </motion.div>
-
-      {/* ── Cash allocation + assignment ladder ── */}
-      <motion.div
-        className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-start"
-        initial={{ opacity: 0, y: 6 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.24, delay: 0.12 }}
-        style={{ willChange: "opacity, transform" }}
-      >
-        <CashAllocationCard
-          currentCapital={view.accountCurrentCapital}
-          committed={view.accountCommitted}
-          reserved={view.accountReserved}
-        />
-        <AssignmentLadderCard
-          currentCapital={view.accountCurrentCapital}
-          committed={view.accountCommitted}
-          trades={openTrades}
-          quotes={quotes}
-          detailHref="/ladder"
-        />
       </motion.div>
 
       {/* ── Middle row: Open Positions (2/3) + Exposures & Premium stacked (1/3) ── */}

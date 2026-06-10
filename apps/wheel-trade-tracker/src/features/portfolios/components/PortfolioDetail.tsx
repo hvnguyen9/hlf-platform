@@ -42,6 +42,7 @@ const AccountsReportContent = dynamic(
 import { Portfolio } from "@/types";
 import { useTrades } from "@/features/trades/hooks/useTrades";
 import { useDetailMetrics } from "@/features/portfolios/hooks/useDetailMetrics";
+import { CashAllocationMini } from "@/features/summary/components/CashAllocation";
 import { motion } from "framer-motion";
 import { useEffect, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
@@ -134,31 +135,20 @@ export function PortfolioDetail({ portfolio }: { portfolio: Portfolio }) {
         {activeTab === "Positions" && (
           <div className="p-5 sm:p-6 space-y-5">
 
-            {/* ── Section header: Open Positions + deployed bar ── */}
+            {/* ── Section header: Open Positions + cash allocation meter ── */}
             {(() => {
               const capitalUsed = m?.capitalUsed != null ? Number(m.capitalUsed) : 0;
-              const pct = currentCapital > 0 ? (capitalUsed / currentCapital) * 100 : 0;
-              const barColor = pct >= 85 ? "bg-red-500" : pct >= 60 ? "bg-amber-500" : "bg-emerald-500";
-              const textColor = pct >= 85 ? "text-red-600 dark:text-red-400" : pct >= 60 ? "text-amber-600 dark:text-amber-400" : "text-emerald-700 dark:text-emerald-400";
-              const compact = (n: number) => n.toLocaleString("en-US", { style: "currency", currency: "USD", notation: "compact", maximumFractionDigits: 1 } as Intl.NumberFormatOptions);
+              const committed = m?.committed != null ? Number(m.committed) : 0;
+              const reserved = m?.reserved != null ? Number(m.reserved) : 0;
               return (
-                <div className="flex items-center justify-between gap-4">
+                <div className="flex items-center justify-between gap-4 flex-wrap">
                   <h2 className="text-base font-semibold text-foreground">Open Positions</h2>
                   {capitalUsed > 0 && (
-                    <div className="flex items-center gap-3">
-                      <div className="text-right">
-                        <div className="flex items-center justify-end gap-1.5">
-                          <span className={`text-sm font-bold tabular-nums ${textColor}`}>{pct.toFixed(1)}%</span>
-                          <span className="text-xs text-muted-foreground">deployed</span>
-                        </div>
-                        <p className="text-[10px] text-muted-foreground tabular-nums">
-                          {compact(capitalUsed)} of {compact(currentCapital)}
-                        </p>
-                      </div>
-                      <div className="w-20 h-1.5 bg-muted rounded-full overflow-hidden">
-                        <div className={`h-full rounded-full ${barColor}`} style={{ width: `${Math.min(pct, 100)}%` }} />
-                      </div>
-                    </div>
+                    <CashAllocationMini
+                      currentCapital={currentCapital}
+                      committed={committed}
+                      reserved={reserved}
+                    />
                   )}
                 </div>
               );
