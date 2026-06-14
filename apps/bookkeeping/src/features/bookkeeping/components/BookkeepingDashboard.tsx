@@ -157,15 +157,61 @@ export function BookkeepingDashboard() {
   }, [entries, trading, selectedYear, currentMonth, isCurrentYear]);
 
   // ── YTD Run Rate / Final Year Summary ──────────────────────────────────────
+  // For the current year we annualize at the YTD pace, then run that projected
+  // full-year income through the tax model so we can show what to reserve.
+  // Recurring entries already represent a full-year figure (amount × 12), so we
+  // keep them as-is and only pace-project the one-off (non-recurring) flows.
   const ytdRunRate = useMemo(() => {
-    if (isCurrentYear) {
-      const monthsElapsed = currentMonth + 1;
-      const projected = Math.round((netIncome / monthsElapsed) * 12);
-      return { isProjection: true, value: projected, monthsElapsed };
+    if (!isCurrentYear) {
+      // Past year: show the final net as a completed summary
+      return { isProjection: false as const, value: netIncome, monthsElapsed: 12, tax: null };
     }
-    // Past year: show the final net as a completed summary
-    return { isProjection: false, value: netIncome, monthsElapsed: 12 };
-  }, [netIncome, currentMonth, isCurrentYear]);
+
+    const monthsElapsed = currentMonth + 1;
+    const annualize = (v: number) => (v / monthsElapsed) * 12;
+
+    const recurSum = (pred: (e: BookkeepingEntry) => boolean) =>
+      entries.filter((e) => e.recurring && pred(e)).reduce((s, e) => s + e.amount * 12, 0);
+    const oneOffSum = (pred: (e: BookkeepingEntry) => boolean) =>
+      entries.filter((e) => !e.recurring && pred(e)).reduce((s, e) => s + e.amount, 0);
+    // Recurring portion is already annual; pace-project the one-off portion.
+    const projectComponent = (pred: (e: BookkeepingEntry) => boolean) =>
+      recurSum(pred) + annualize(oneOffSum(pred));
+
+    const isBiz = (e: BookkeepingEntry) => e.type === "income" && SE_TAXABLE_CATEGORIES.includes(e.category);
+    const isOther = (e: BookkeepingEntry) => e.type === "income" && !SE_TAXABLE_CATEGORIES.includes(e.category);
+    const isExp = (e: BookkeepingEntry) => e.type === "expense";
+
+    const projBusinessIncome = projectComponent(isBiz);
+    const projOtherIncome = projectComponent(isOther);
+    const projExpenses = projectComponent(isExp);
+    const projTradingIncome = annualize(tradingPL);
+
+    // Headline projected net, derived from the same component basis so the
+    // after-tax figure ties out exactly.
+    const projectedNet = Math.round(projTradingIncome + projBusinessIncome + projOtherIncome - projExpenses);
+
+    const taxYear = selectedYear as TaxYear;
+    let tax: { liability: number; effectiveRate: number; reserve: number; aimFor: number; afterTax: number } | null = null;
+    if (SUPPORTED_YEARS.includes(taxYear)) {
+      const result = estimateTax({
+        year: taxYear,
+        tradingIncome: projTradingIncome,
+        businessIncome: projBusinessIncome,
+        otherIncome: projOtherIncome,
+        businessExpenses: projExpenses,
+      });
+      tax = {
+        liability: result.totalEstimatedTax,
+        effectiveRate: result.effectiveTaxRate,
+        reserve: result.totalEstimatedTax,
+        aimFor: result.totalEstimatedTax * 1.1, // est. tax + 10% buffer
+        afterTax: projectedNet - result.totalEstimatedTax,
+      };
+    }
+
+    return { isProjection: true as const, value: projectedNet, monthsElapsed, tax };
+  }, [entries, tradingPL, netIncome, selectedYear, currentMonth, isCurrentYear]);
 
   // ── Tax Reserve ─────────────────────────────────────────────────────────────
   const taxReserve = useMemo(() => {
@@ -430,6 +476,31 @@ export function BookkeepingDashboard() {
                     style={{ width: `${(ytdRunRate.monthsElapsed / 12) * 100}%` }}
                   />
                 </div>
+
+                {/* Projected tax implications — what to reserve at this pace */}
+                {ytdRunRate.isProjection && ytdRunRate.tax && ytdRunRate.value > 0 && (
+                  <div className="mt-4 pt-3 border-t border-border space-y-2">
+                    <div className="flex items-baseline justify-between">
+                      <span className="text-xs text-muted-foreground">Est. tax at this pace</span>
+                      <span className="text-sm font-semibold tabular-nums text-amber-600 dark:text-amber-400">
+                        {formatCurrency(ytdRunRate.tax.liability)}
+                        <span className="text-[11px] font-normal text-muted-foreground ml-1">
+                          ~{(ytdRunRate.tax.effectiveRate * 100).toFixed(1)}%
+                        </span>
+                      </span>
+                    </div>
+                    <div className="flex items-baseline justify-between">
+                      <span className="text-xs text-muted-foreground">Projected take-home</span>
+                      <span className="text-sm font-semibold tabular-nums text-emerald-600 dark:text-emerald-400">
+                        {formatCurrency(ytdRunRate.tax.afterTax)}
+                      </span>
+                    </div>
+                    <div className="rounded-md bg-amber-500/10 px-2.5 py-2 text-xs text-amber-700 dark:text-amber-300">
+                      Reserve <span className="font-semibold">{formatCurrency(ytdRunRate.tax.reserve)}</span> to cover it —
+                      aim for <span className="font-semibold">{formatCurrency(ytdRunRate.tax.aimFor)}</span> with a 10% cushion.
+                    </div>
+                  </div>
+                )}
               </CardContent>
             </Card>
           )}

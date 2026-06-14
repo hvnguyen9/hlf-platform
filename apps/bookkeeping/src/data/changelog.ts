@@ -8,6 +8,16 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "v1.5.0",
+    date: "2026-06-13",
+    title: "Projected Tax on the Dashboard",
+    highlights: [
+      "The dashboard's full-year projection now shows the tax side of your pace — alongside projected net income you'll see the estimated tax you'd owe at year-end, your projected take-home after tax, and a clear amount to reserve.",
+      "Two numbers to plan around: what you actually need to set aside to cover the bill, plus a suggested target with a 10% cushion to aim for.",
+      "The projection annualizes your year-to-date pace correctly — recurring entries count as a full year while one-off income and expenses are scaled to the months elapsed, so the tax estimate reflects where you're likely to land.",
+    ],
+  },
+  {
     version: "v1.4.0",
     date: "2026-05-28",
     title: "Tax Reserve Tracker",
