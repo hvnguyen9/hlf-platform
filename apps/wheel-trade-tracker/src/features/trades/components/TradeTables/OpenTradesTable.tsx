@@ -23,7 +23,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { Info, XCircle } from "lucide-react";
+import { XCircle } from "lucide-react";
 import { TypeBadge } from "@/features/trades/components/TypeBadge";
 import { useRouter } from "next/navigation";
 import { formatDateOnlyUTC } from "@/lib/formatDateOnly";
@@ -121,69 +121,18 @@ const calcBreakeven = (t: Trade) => {
   return undefined;
 };
 
-const buildTooltipContent = (t: Trade) => {
-  return (
-  <div className="text-xs space-y-1">
-    {calcCapitalInUse(t) > 0 && (
-      <div>
-        Capital in use:{" "}
-        <span className="font-medium">{formatUSD(calcCapitalInUse(t))}</span>
-      </div>
-    )}
-    {typeof t.entryPrice === "number" && isFinite(t.entryPrice) && (
-      <div>
-        Entry Price:{" "}
-        <span className="font-medium">{formatUSD(t.entryPrice)}</span>
-      </div>
-    )}
-    {typeof calcBreakeven(t) === "number" && (
-      <div>
-        Breakeven:{" "}
-        <span className="font-medium">{formatUSD(calcBreakeven(t)!)}</span>
-      </div>
-    )}
-    {t.createdAt && (
-      <div>
-        Opened on:{" "}
-        <span className="font-medium">
-          {formatDateOnlyUTC(new Date(t.createdAt))}
-        </span>
-      </div>
-    )}
-  </div>
-  );
-};
-
-const makeInfoColumn = (): ColumnDef<Trade> => ({
-  id: "info",
-  header: "",
-  enableSorting: false,
-  size: 28,
-  minSize: 28,
-  maxSize: 32,
-  cell: ({ row }) => (
-    <Tooltip>
-      <TooltipTrigger asChild>
-        <button
-          type="button"
-          onClick={(e) => e.stopPropagation()}
-          className="text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300 p-1"
-          aria-label="More info"
-        >
-          <Info className="h-4 w-4" />
-        </button>
-      </TooltipTrigger>
-      <TooltipContent
-        side="top"
-        align="start"
-        sideOffset={10}
-        collisionPadding={8}
-        className="max-w-xs"
-      >
-        {buildTooltipContent(row.original)}
-      </TooltipContent>
-    </Tooltip>
-  ),
+const makeBreakevenColumn = (): ColumnDef<Trade> => ({
+  id: "breakeven",
+  header: "Breakeven",
+  enableSorting: true,
+  accessorFn: (row) => calcBreakeven(row) ?? Number.POSITIVE_INFINITY,
+  cell: ({ row }) => {
+    const be = calcBreakeven(row.original);
+    if (typeof be !== "number" || !isFinite(be))
+      return <span className="text-muted-foreground">—</span>;
+    return <span className="tabular-nums">{formatUSD(be)}</span>;
+  },
+  meta: { align: "right" },
 });
 
 const makeOpenPremiumColumn = (): ColumnDef<Trade> => ({
@@ -311,7 +260,13 @@ export function OpenTradesTable({
 
   const columns = useMemo(() => {
     const base = makeOpenColumns() as ColumnDef<Trade, unknown>[];
-    const cols: ColumnDef<Trade, unknown>[] = [makeInfoColumn(), ...base];
+    // Surface Breakeven right after Strike — it's the key price the tooltip used to hide.
+    const strikeIdx = base.findIndex(
+      (c) => "accessorKey" in c && c.accessorKey === "strikePrice",
+    );
+    const insertAt = strikeIdx >= 0 ? strikeIdx + 1 : base.length;
+    base.splice(insertAt, 0, makeBreakevenColumn() as ColumnDef<Trade, unknown>);
+    const cols: ColumnDef<Trade, unknown>[] = [...base];
     if (totalCapital != null && totalCapital > 0) {
       cols.push(makeAllocationColumn(totalCapital));
     }
@@ -363,6 +318,16 @@ export function OpenTradesTable({
                     <span className="text-muted-foreground">Strike</span> $
                     {t.strikePrice.toFixed(2)}
                   </div>
+                  {(() => {
+                    const be = calcBreakeven(t);
+                    if (typeof be !== "number" || !isFinite(be)) return null;
+                    return (
+                      <div>
+                        <span className="text-muted-foreground">Breakeven</span>{" "}
+                        {formatUSD(be)}
+                      </div>
+                    );
+                  })()}
                   <div>
                     <span className="text-muted-foreground">Exp</span>{" "}
                     {formatDateOnlyUTC(new Date(t.expirationDate))}
