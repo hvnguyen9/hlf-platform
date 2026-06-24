@@ -121,16 +121,26 @@ const calcBreakeven = (t: Trade) => {
   return undefined;
 };
 
-const makeBreakevenColumn = (): ColumnDef<Trade> => ({
+const makeBreakevenColumn = (quotes: QuoteMap): ColumnDef<Trade> => ({
   id: "breakeven",
   header: "Breakeven",
   enableSorting: true,
   accessorFn: (row) => calcBreakeven(row) ?? Number.POSITIVE_INFINITY,
   cell: ({ row }) => {
-    const be = calcBreakeven(row.original);
+    const t = row.original;
+    const be = calcBreakeven(t);
     if (typeof be !== "number" || !isFinite(be))
       return <span className="text-muted-foreground">—</span>;
-    return <span className="tabular-nums">{formatUSD(be)}</span>;
+    // For the CSP/CC breakevens this column shows, the stock trading above your
+    // breakeven is the favorable side — you're still ahead of your real cost.
+    const price = quotes[t.ticker]?.price ?? null;
+    const cls =
+      price == null
+        ? "tabular-nums"
+        : price >= be
+          ? "tabular-nums text-emerald-600 dark:text-emerald-400"
+          : "tabular-nums text-red-500 dark:text-red-400";
+    return <span className={cls}>{formatUSD(be)}</span>;
   },
   meta: { align: "right" },
 });
@@ -265,7 +275,7 @@ export function OpenTradesTable({
       (c) => "accessorKey" in c && c.accessorKey === "strikePrice",
     );
     const insertAt = strikeIdx >= 0 ? strikeIdx + 1 : base.length;
-    base.splice(insertAt, 0, makeBreakevenColumn() as ColumnDef<Trade, unknown>);
+    base.splice(insertAt, 0, makeBreakevenColumn(quotes) as ColumnDef<Trade, unknown>);
     const cols: ColumnDef<Trade, unknown>[] = [...base];
     if (totalCapital != null && totalCapital > 0) {
       cols.push(makeAllocationColumn(totalCapital));
@@ -321,10 +331,17 @@ export function OpenTradesTable({
                   {(() => {
                     const be = calcBreakeven(t);
                     if (typeof be !== "number" || !isFinite(be)) return null;
+                    const price = quotes[t.ticker]?.price ?? null;
+                    const cls =
+                      price == null
+                        ? ""
+                        : price >= be
+                          ? "text-emerald-600 dark:text-emerald-400"
+                          : "text-red-500 dark:text-red-400";
                     return (
                       <div>
                         <span className="text-muted-foreground">Breakeven</span>{" "}
-                        {formatUSD(be)}
+                        <span className={cls}>{formatUSD(be)}</span>
                       </div>
                     );
                   })()}
