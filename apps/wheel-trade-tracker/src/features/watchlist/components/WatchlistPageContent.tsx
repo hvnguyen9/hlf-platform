@@ -16,6 +16,7 @@ import type { WatchlistResponse, WatchlistPosition } from "@/app/api/watchlist/r
 import type { QuoteResult } from "@/app/api/quotes/route";
 import type { ChartsResponse } from "@/app/api/charts/route";
 import { WatchlistAlertButton } from "@/features/alerts/components/WatchlistAlertButton";
+import { IntradaySparkline } from "@/components/IntradaySparkline";
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
 
@@ -64,82 +65,8 @@ function RangeBar({
   );
 }
 
-// Lightweight SVG sparkline — replaces a Recharts AreaChart that pulled
-// recharts (~200kb min) into the watchlist bundle just for these tiny lines.
-function Sparkline({
-  closes,
-  up,
-  width = 130,
-  height = 40,
-}: {
-  closes: number[];
-  up: boolean;
-  width?: number;
-  height?: number;
-}) {
-  if (closes.length < 3) {
-    return (
-      <div
-        className="flex items-center justify-center"
-        style={{ width, height }}
-      >
-        <span className="text-[10px] text-muted-foreground/50">—</span>
-      </div>
-    );
-  }
-
-  const color = up ? "#10b981" : "#ef4444";
-  const padTop = 3;
-  const padBottom = 3;
-  const padX = 2;
-  const usableW = width - padX * 2;
-  const usableH = height - padTop - padBottom;
-
-  let min = Infinity;
-  let max = -Infinity;
-  for (const v of closes) {
-    if (v < min) min = v;
-    if (v > max) max = v;
-  }
-  // Avoid divide-by-zero when the line is flat.
-  const range = max - min || 1;
-
-  const step = usableW / (closes.length - 1);
-  const points = closes.map((v, i) => {
-    const x = padX + i * step;
-    const y = padTop + (1 - (v - min) / range) * usableH;
-    return [x, y] as const;
-  });
-
-  const linePath = points
-    .map(([x, y], i) => `${i === 0 ? "M" : "L"}${x.toFixed(2)},${y.toFixed(2)}`)
-    .join(" ");
-
-  const [firstX] = points[0];
-  const [lastX] = points[points.length - 1];
-  const baselineY = padTop + usableH;
-  const areaPath = `${linePath} L${lastX.toFixed(2)},${baselineY} L${firstX.toFixed(2)},${baselineY} Z`;
-
-  return (
-    <svg
-      width={width}
-      height={height}
-      viewBox={`0 0 ${width} ${height}`}
-      preserveAspectRatio="none"
-      aria-hidden
-    >
-      <path d={areaPath} fill={color} fillOpacity={0.08} />
-      <path
-        d={linePath}
-        fill="none"
-        stroke={color}
-        strokeWidth={1.5}
-        strokeLinejoin="round"
-        strokeLinecap="round"
-      />
-    </svg>
-  );
-}
+// The intraday line lives in the shared IntradaySparkline component now, so the
+// watchlist, trade detail, and stock-lot detail pages all render the same chart.
 
 function SparklineSkeleton() {
   return (
@@ -489,7 +416,7 @@ function DraggableWatchlistRow({
       <td className="px-2 py-1">
         {chartsLoading
           ? <SparklineSkeleton />
-          : <Sparkline closes={chartData?.closes ?? []} up={up} />}
+          : <IntradaySparkline closes={chartData?.closes ?? []} up={up} prevClose={quote?.previousClose ?? null} width={130} height={40} />}
       </td>
       {/* Day Range */}
       <td className="px-4 py-3">
@@ -592,9 +519,10 @@ function DraggableMobileRow({
             <SparklineSkeleton />
           </div>
         ) : (chartData?.closes?.length ?? 0) >= 3 ? (
-          <Sparkline
+          <IntradaySparkline
             closes={chartData?.closes ?? []}
             up={up}
+            prevClose={quote?.previousClose ?? null}
             width={320}
             height={44}
           />

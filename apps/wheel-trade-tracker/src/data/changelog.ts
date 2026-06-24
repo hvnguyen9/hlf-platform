@@ -6,6 +6,25 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    date: "2026-06-24",
+    version: "v2.20.1",
+    highlights: [
+      "Stock lot detail page redesigned. The top now leads with the ticker, status, and the live price (with today's change) side by side, plus a quick 'X shares · opened · N days held' line so you get the gist at a glance.",
+      "The stat row up top is more useful: Market Value (what the shares are worth right now), Cost Basis (your effective sell-floor), Unrealized P/L (green/red with percent), and Premium Income (total CC + CSP premium collected on the lot, shown as a yield on what you paid). Closed lots show Realized P/L, Premium Income, effective cost, and how long you held.",
+      "New Share Coverage bar shows how many of your shares are written against open covered calls versus free — and tells you how many more covered calls you could still sell against the lot.",
+      "Everything that was on the page before is still there — the Cost Basis via Premiums breakdown, notes, and the covered-calls history — just laid out cleaner.",
+      "Trade detail page got the same redesign. The top leads with the ticker, type, and status alongside the live price and today's change, plus a 'X contracts · expires {date} · N days left' line (held time and close date for closed trades).",
+      "Days to expiry is now a headline stat instead of fine print — color-coded red when 7 days or fewer, amber when three weeks or fewer. Strike now shows how far in or out of the money it is right next to it.",
+      "New Return on Capital stat on closed trades shows what you earned on the collateral that was tied up, plus the annualized rate — so a quick weekly put and a long-dated one are comparable at a glance. Open cash-secured puts show the same return figure under the premium.",
+      "Trade details and notes are unchanged in substance — just reorganized so the numbers you act on are up top and the reference details sit below.",
+      "Both detail pages now show a small intraday price graph right under the live price, with a dashed line marking yesterday's close so you can see where today's move sits.",
+      "The Details panel on a trade is now a tighter two-column table — same information, about half the height, easier to scan.",
+      "Breakeven is now a headline stat instead of a buried row. On a cash-secured put it reads 'If Assigned' — your real cost per share if the shares get put to you (strike minus premium) — with a line showing how far below the current price that sits. Covered calls and long options show their breakeven the same way. Capital In Use moved down into the details table.",
+      "The Premium stat now shows an annualized return for open positions held to expiry (e.g. '2.1% · 31%/yr'), so a quick weekly put and a longer-dated one are comparable at a glance.",
+      "The breakeven / If-Assigned price is now color-coded green when the stock is trading on the favorable side of it (above your assigned cost on a put) and red when it's underwater — a quick read on whether you're still sitting pretty even when the strike is in the money. The strike's own green/red now respects the trade too: short puts and calls are happy out of the money, long calls and puts are happy in the money, so the colors flip accordingly.",
+    ],
+  },
+  {
     date: "2026-06-09",
     version: "v2.20.0",
     highlights: [

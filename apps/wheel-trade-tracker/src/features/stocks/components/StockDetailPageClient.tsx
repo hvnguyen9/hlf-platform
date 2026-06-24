@@ -14,6 +14,8 @@ import {
 
 import type { StockLot } from "@/types";
 import type { QuoteResult } from "@/app/api/quotes/route";
+import type { ChartsResponse } from "@/app/api/charts/route";
+import { IntradaySparkline } from "@/components/IntradaySparkline";
 import { CloseStockLotModal } from "./CloseStockModal";
 import { AddSharesModal } from "./AddSharesModal";
 import { AdminEditStockModal } from "./AdminEditStockModal";
@@ -80,6 +82,12 @@ const quoteFetcher = async (url: string): Promise<Record<string, QuoteResult>> =
   const res = await fetch(url);
   if (!res.ok) throw new Error("Failed to fetch");
   return res.json() as Promise<Record<string, QuoteResult>>;
+};
+
+const chartFetcher = async (url: string): Promise<ChartsResponse> => {
+  const res = await fetch(url);
+  if (!res.ok) throw new Error("Failed to fetch charts");
+  return res.json() as Promise<ChartsResponse>;
 };
 
 function toNumber(v: string | number): number {
@@ -396,6 +404,15 @@ export default function StockDetailPageClient(props: {
   );
   const quote = stockLot?.ticker ? quoteData?.[stockLot.ticker] : undefined;
 
+  const { data: chartData } = useSWR<ChartsResponse>(
+    stockLot?.ticker ? `/api/charts?tickers=${stockLot.ticker}` : null,
+    chartFetcher,
+    { refreshInterval: 300_000, dedupingInterval: 120_000 },
+  );
+  const intradayCloses = stockLot?.ticker
+    ? chartData?.[stockLot.ticker]?.closes ?? []
+    : [];
+
   const avgCostHistory = React.useMemo(
     () => buildAvgCostHistory(coveredCalls, avg, shares),
     [coveredCalls, avg, shares],
@@ -467,83 +484,187 @@ export default function StockDetailPageClient(props: {
   const isClosed = String(s.status).toUpperCase() === "CLOSED";
   const realizedPnl = safeNumber(s.realizedPnl);
 
+  // Headline position metrics — all derived from data already on the page so
+  // the detail view tells the whole story at a glance.
+  const price = quote?.price ?? null;
+  const displayedOriginal = originalAvg ?? avg;
+  const originalCostTotal = displayedOriginal * shares;
+  const effectiveBasisTotal = effectiveAvgCost * shares;
+  const marketValue = price != null ? price * shares : null;
+  const unrealized =
+    !isClosed && marketValue != null ? marketValue - effectiveBasisTotal : null;
+  const unrealizedPct =
+    unrealized != null && effectiveBasisTotal > 0
+      ? (unrealized / effectiveBasisTotal) * 100
+      : null;
+  // Money in the door from selling premium against this lot — closed CC
+  // premiums (already baked into avgCost) plus CSP premium captured during hold.
+  const premiumIncome = totalCaptured + cspPremiumDuringHold;
+  const yieldOnCost =
+    originalCostTotal > 0 ? (premiumIncome / originalCostTotal) * 100 : null;
+  const holdEnd = isClosed && s.closedAt ? new Date(s.closedAt) : new Date();
+  const daysHeld = Math.max(
+    0,
+    Math.round((holdEnd.getTime() - new Date(s.openedAt).getTime()) / 86_400_000),
+  );
+  const freeShares = Math.max(0, shares - openCcShares);
+  const coveredPct = shares > 0 ? Math.min(100, (openCcShares / shares) * 100) : 0;
+  const closePriceNum = s.closePrice != null ? toNumber(s.closePrice) : null;
+  const writableCcs = Math.floor(freeShares / 100);
+
+  const priceLabel =
+    quote?.marketState && quote.marketState !== "REGULAR"
+      ? quote.marketState === "PRE"
+        ? "Pre-Market"
+        : quote.marketState === "POST" || quote.marketState === "POSTPOST"
+          ? "After Hours"
+          : "Last Close"
+      : "Live Price";
+  const dayChangeColor =
+    quote?.change == null
+      ? "text-muted-foreground"
+      : quote.change > 0
+        ? "text-emerald-600 dark:text-emerald-400"
+        : quote.change < 0
+          ? "text-rose-600 dark:text-rose-400"
+          : "text-muted-foreground";
+
   return (
-    <div className="mx-auto max-w-6xl px-4 py-6 sm:py-8 space-y-6">
-      {/* Ticker + status */}
-      <div className="flex items-center gap-3">
-        <h1 className="text-3xl font-semibold tracking-tight">{s.ticker}</h1>
-        <StatusBadge status={String(s.status)} />
+    <div className="mx-auto max-w-5xl px-4 py-6 sm:py-8 space-y-6">
+      {/* Hero — identity on the left, live price (or close price) on the right */}
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div className="space-y-1.5">
+          <div className="flex items-center gap-3">
+            <h1 className="text-3xl font-semibold tracking-tight">{s.ticker}</h1>
+            <StatusBadge status={String(s.status)} />
+          </div>
+          <div className="text-sm text-muted-foreground">
+            {shares} share{shares !== 1 ? "s" : ""}
+            <span className="px-1.5 text-muted-foreground/40">·</span>
+            Opened {new Date(s.openedAt).toLocaleDateString()}
+            <span className="px-1.5 text-muted-foreground/40">·</span>
+            {daysHeld}d held
+          </div>
+        </div>
+
+        {!isClosed ? (
+          <div className="sm:text-right">
+            <div className="text-xs text-muted-foreground">{priceLabel}</div>
+            <div className="text-2xl font-semibold tabular-nums leading-tight">
+              {price != null ? moneyCompact(price) : "—"}
+            </div>
+            {quote?.change != null && quote?.changePct != null ? (
+              <div className={`text-sm font-medium tabular-nums ${dayChangeColor}`}>
+                {quote.change >= 0 ? "+" : ""}
+                {moneyCompact(quote.change)} ({quote.changePct >= 0 ? "+" : ""}
+                {quote.changePct.toFixed(2)}%)
+              </div>
+            ) : null}
+            {intradayCloses.length >= 3 ? (
+              <div className="mt-2 flex sm:justify-end">
+                <IntradaySparkline
+                  closes={intradayCloses}
+                  up={(quote?.change ?? 0) >= 0}
+                  prevClose={quote?.previousClose ?? null}
+                />
+              </div>
+            ) : null}
+          </div>
+        ) : (
+          <div className="sm:text-right">
+            <div className="text-xs text-muted-foreground">Close Price</div>
+            <div className="text-2xl font-semibold tabular-nums leading-tight">
+              {closePriceNum != null ? moneyCompact(closePriceNum) : "—"}
+            </div>
+            <div className="text-sm text-muted-foreground">
+              Closed {s.closedAt ? new Date(s.closedAt).toLocaleDateString() : "—"}
+            </div>
+          </div>
+        )}
       </div>
 
-      {/* Stat cards */}
+      {/* KPI strip */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        <LotStat label="Shares" value={String(shares)} />
-        <LotStat
-          label="Effective Cost / Share"
-          value={moneyCompact(effectiveAvgCost)}
-          tone="success"
-        />
-        <LotStat
-          label="Effective Cost Basis"
-          value={money(effectiveAvgCost * shares)}
-          tone="success"
-          subNode={(() => {
-            if (isClosed || quote?.price == null) return undefined;
-            const unrealized = (quote.price - effectiveAvgCost) * shares;
-            const unrealizedPct = effectiveAvgCost > 0 ? (unrealized / (effectiveAvgCost * shares)) * 100 : null;
-            const color = unrealized >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400";
-            return (
-              <span className={`text-xs font-medium tabular-nums ${color}`}>
-                {unrealized >= 0 ? "+" : ""}{money(unrealized)}
-                {unrealizedPct != null && <span className="text-muted-foreground font-normal"> ({unrealizedPct >= 0 ? "+" : ""}{unrealizedPct.toFixed(1)}%)</span>}
-              </span>
-            );
-          })()}
-        />
-        <LotStat
-          label={
-            quote?.marketState && quote.marketState !== "REGULAR"
-              ? quote.marketState === "PRE"
-                ? "Pre-Market"
-                : quote.marketState === "POST" || quote.marketState === "POSTPOST"
-                  ? "After Hours"
-                  : "Last Close"
-              : "Live Price"
-          }
-          value={quote?.price != null ? moneyCompact(quote.price) : "—"}
-          sub={
-            quote?.change != null && quote?.changePct != null
-              ? `${quote.change >= 0 ? "+" : ""}${moneyCompact(quote.change)} (${quote.changePct >= 0 ? "+" : ""}${quote.changePct.toFixed(2)}%)`
-              : undefined
-          }
-          tone={
-            quote?.change == null ? "default" : quote.change > 0 ? "success" : quote.change < 0 ? "danger" : "default"
-          }
-        />
-        {isClosed ? (
+        {!isClosed ? (
           <>
             <LotStat
-              label="Close Price"
-              value={s.closePrice != null ? moneyCompact(toNumber(s.closePrice)) : "—"}
+              label="Market Value"
+              value={marketValue != null ? money(marketValue) : "—"}
+              sub={
+                price != null
+                  ? `${shares} × ${moneyCompact(price)}`
+                  : `${shares} shares`
+              }
             />
+            <LotStat
+              label="Cost Basis"
+              value={money(effectiveBasisTotal)}
+              sub={`${moneyCompact(effectiveAvgCost)}/sh · sell floor`}
+            />
+            <LotStat
+              label="Unrealized P/L"
+              value={
+                unrealized != null
+                  ? `${unrealized >= 0 ? "+" : ""}${money(unrealized)}`
+                  : "—"
+              }
+              tone={
+                unrealized == null ? "default" : unrealized >= 0 ? "success" : "danger"
+              }
+              sub={
+                unrealizedPct != null
+                  ? `${unrealizedPct >= 0 ? "+" : ""}${unrealizedPct.toFixed(1)}% vs basis`
+                  : undefined
+              }
+            />
+            <LotStat
+              label="Premium Income"
+              value={premiumIncome !== 0 ? money(premiumIncome) : "—"}
+              tone={premiumIncome > 0 ? "success" : "default"}
+              sub={
+                yieldOnCost != null && premiumIncome !== 0
+                  ? `${yieldOnCost.toFixed(1)}% yield on cost`
+                  : "CC + CSP captured"
+              }
+            />
+            {realizedPnl !== 0 ? (
+              <LotStat
+                label="Realized P/L"
+                value={formatMoney(realizedPnl)}
+                tone={
+                  realizedPnl > 0 ? "success" : realizedPnl < 0 ? "danger" : "default"
+                }
+                sub="from partial sells"
+              />
+            ) : null}
+          </>
+        ) : (
+          <>
             <LotStat
               label="Realized P/L"
               value={formatMoney(realizedPnl)}
-              tone={realizedPnl > 0 ? "success" : realizedPnl < 0 ? "danger" : "default"}
+              tone={
+                realizedPnl > 0 ? "success" : realizedPnl < 0 ? "danger" : "default"
+              }
             />
             <LotStat
-              label="Closed"
-              value={s.closedAt ? new Date(s.closedAt).toLocaleDateString() : "—"}
+              label="Premium Income"
+              value={premiumIncome !== 0 ? money(premiumIncome) : "—"}
+              tone={premiumIncome > 0 ? "success" : "default"}
+              sub={
+                yieldOnCost != null && premiumIncome !== 0
+                  ? `${yieldOnCost.toFixed(1)}% yield on cost`
+                  : "CC + CSP captured"
+              }
             />
+            <LotStat
+              label="Effective Cost / Share"
+              value={moneyCompact(effectiveAvgCost)}
+              sub={`${money(effectiveBasisTotal)} basis`}
+            />
+            <LotStat label="Days Held" value={`${daysHeld}d`} sub={`${shares} shares`} />
           </>
-        ) : realizedPnl !== 0 ? (
-          <LotStat
-            label="Realized P/L (partial)"
-            value={formatMoney(realizedPnl)}
-            tone={realizedPnl > 0 ? "success" : realizedPnl < 0 ? "danger" : "default"}
-            sub="from partial sells"
-          />
-        ) : null}
+        )}
       </div>
 
       {/* Cost Basis via Premiums — Original Avg (tax basis) → Effective Basis
@@ -685,6 +806,39 @@ export default function StockDetailPageClient(props: {
             })()
           )}
 
+        </Card>
+      ) : null}
+
+      {/* Share coverage — how many shares are written against vs free to sell
+          another covered call. Surfaces the next actionable move on the lot. */}
+      {!isClosed && shares > 0 ? (
+        <Card className="p-5">
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
+              Share Coverage
+            </h2>
+            <span className="text-xs text-muted-foreground tabular-nums">
+              {openCcShares} of {shares} covered
+            </span>
+          </div>
+          <div className="flex h-2.5 w-full overflow-hidden rounded-full bg-muted">
+            <div
+              className="h-full rounded-full bg-emerald-500/70"
+              style={{ width: `${coveredPct}%` }}
+            />
+          </div>
+          <div className="mt-2.5 flex items-center justify-between text-xs">
+            <span className="flex items-center gap-1.5 text-muted-foreground">
+              <span className="inline-block h-2 w-2 rounded-full bg-emerald-500/70" />
+              {openCcShares} covered by open CCs
+            </span>
+            <span className="text-muted-foreground tabular-nums">
+              {freeShares} free
+              {writableCcs >= 1
+                ? ` · can write ${writableCcs} more CC${writableCcs !== 1 ? "s" : ""}`
+                : ""}
+            </span>
+          </div>
         </Card>
       ) : null}
 
