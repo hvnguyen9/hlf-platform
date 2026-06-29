@@ -27,6 +27,25 @@ async function fetchStocks(url: string): Promise<StocksListResponse> {
   return (await res.json()) as StocksListResponse;
 }
 
+// Minimal shape we need from /api/trades to populate the PMCC long-call picker.
+type OpenTrade = {
+  id: string;
+  ticker: string;
+  type: string;
+  strikePrice: number;
+  expirationDate: string;
+  contractsOpen: number;
+};
+
+async function fetchTrades(url: string): Promise<OpenTrade[]> {
+  const res = await fetch(url, { method: "GET" });
+  if (!res.ok) return [];
+  return (await res.json()) as OpenTrade[];
+}
+
+// Coverage backing for a covered call: real shares (classic) or a long call (PMCC).
+type CoverageSource = "lot" | "call";
+
 type QuoteMap = Record<string, { price: number | null }>;
 
 async function fetchQuote(url: string): Promise<QuoteMap> {
@@ -132,10 +151,22 @@ export function AddTradeModal({
   );
 
   const [stockLotId, setStockLotId] = useState<string>(prefill?.stockLotId ?? "");
+  // Covered-call coverage: a stock lot (classic) or a long call (PMCC). A
+  // stockLotId prefill (e.g. "Sell Covered Call" from a lot) starts on "lot".
+  const [coverageSource, setCoverageSource] = useState<CoverageSource>("lot");
+  const [coveringTradeId, setCoveringTradeId] = useState<string>("");
 
   const { data: stocksData } = useSWR<StocksListResponse>(
     open ? `/api/stocks?portfolioId=${portfolioId}&status=open` : null,
     fetchStocks,
+  );
+
+  // Open long calls (LEAPs) for the PMCC picker — only fetched while writing a CC.
+  const { data: openTradesData } = useSWR<OpenTrade[]>(
+    open && type === "CoveredCall"
+      ? `/api/trades?portfolioId=${portfolioId}&status=open`
+      : null,
+    fetchTrades,
   );
 
   const openStockLots = stocksData?.stockLots ?? [];
@@ -143,6 +174,11 @@ export function AddTradeModal({
   const matchingStockLots = tickerUpper
     ? openStockLots.filter((l) => l.ticker.toUpperCase() === tickerUpper)
     : openStockLots;
+  const matchingLongCalls = (openTradesData ?? []).filter(
+    (t) =>
+      t.type === "Call" &&
+      (!tickerUpper || t.ticker.toUpperCase() === tickerUpper),
+  );
 
   const [contracts, setContracts] = useState<number>(prefill?.contracts ?? 1);
   const [contractPrice, setContractPrice] = useState({ formatted: "", raw: 0 });
@@ -189,9 +225,15 @@ export function AddTradeModal({
       if (prefill?.ticker != null) setTicker(prefill.ticker.toUpperCase());
       if (prefill?.type != null) {
         setType(prefill.type);
-        if (prefill.type !== "CoveredCall") setStockLotId("");
+        if (prefill.type !== "CoveredCall") {
+          setStockLotId("");
+          setCoveringTradeId("");
+        }
       }
-      if (prefill?.stockLotId != null) setStockLotId(prefill.stockLotId);
+      if (prefill?.stockLotId != null) {
+        setStockLotId(prefill.stockLotId);
+        setCoverageSource("lot");
+      }
       if (prefill?.contracts != null) setContracts(prefill.contracts);
       else if (defaultContracts != null) setContracts(defaultContracts);
       return;
@@ -202,6 +244,8 @@ export function AddTradeModal({
     setExpirationDate(undefined);
     setType("CashSecuredPut");
     setStockLotId("");
+    setCoverageSource("lot");
+    setCoveringTradeId("");
     setContracts(1);
     setContractPrice({ formatted: "", raw: 0 });
     setEntryPrice({ formatted: "", raw: 0 });
@@ -216,6 +260,8 @@ export function AddTradeModal({
     setType(casted);
     if (casted !== "CoveredCall") {
       setStockLotId("");
+      setCoveringTradeId("");
+      setCoverageSource("lot");
     }
   }
 
@@ -227,10 +273,19 @@ export function AddTradeModal({
       return;
     }
 
-    if (type === "CoveredCall" && !stockLotId) {
-      toast.error("Please select an underlying stock lot for covered calls.");
-      return;
+    if (type === "CoveredCall") {
+      if (coverageSource === "lot" && !stockLotId) {
+        toast.error("Please select an underlying stock lot for the covered call.");
+        return;
+      }
+      if (coverageSource === "call" && !coveringTradeId) {
+        toast.error("Please select a long call to cover (PMCC).");
+        return;
+      }
     }
+
+    const usesLot = type === "CoveredCall" && coverageSource === "lot";
+    const usesCall = type === "CoveredCall" && coverageSource === "call";
 
     setIsLoading(true);
 
@@ -246,7 +301,8 @@ export function AddTradeModal({
           contracts: Number(contracts),
           contractPrice: contractPrice.raw,
           entryPrice: entryPrice.raw,
-          stockLotId: type === "CoveredCall" ? stockLotId : undefined,
+          stockLotId: usesLot ? stockLotId : undefined,
+          coveringTradeId: usesCall ? coveringTradeId : undefined,
         }),
         headers: {
           "Content-Type": "application/json",
@@ -265,8 +321,11 @@ export function AddTradeModal({
       mutate(`/api/portfolios/${portfolioId}/detail-metrics`);
       mutate("/api/account/summary");
       mutate("/api/portfolios");
-      if (type === "CoveredCall" && stockLotId) {
+      if (usesLot && stockLotId) {
         mutate(`/api/stocks/${stockLotId}`);
+      }
+      if (usesCall && coveringTradeId) {
+        mutate(`/api/trades/${coveringTradeId}`);
       }
     } catch (err) {
       toast.error("Failed to add trade");
@@ -394,27 +453,83 @@ export function AddTradeModal({
 
           {type === "CoveredCall" && (
             <div className="space-y-1.5">
-              <Label htmlFor="stockLotId">Underlying Stock Lot</Label>
-              <Select
-                value={stockLotId}
-                onValueChange={setStockLotId}
-                disabled={lockPrefill && !!prefill?.stockLotId}
-              >
-                <SelectTrigger id="stockLotId" className="w-full">
-                  <SelectValue placeholder="Select a stock lot…" />
-                </SelectTrigger>
-                <SelectContent>
-                  {matchingStockLots.map((lot) => (
-                    <SelectItem key={lot.id} value={lot.id}>
-                      {lot.ticker} — {lot.shares} sh @ ${formatAvgCost(lot.avgCost)}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {tickerUpper && matchingStockLots.length === 0 && (
-                <p className="text-xs text-muted-foreground">
-                  No open stock lots found for {tickerUpper}. Add a stock position first.
-                </p>
+              <Label>Coverage</Label>
+              {/* Coverage source: 100 real shares (classic) or a long call (PMCC). */}
+              <div className="grid grid-cols-2 gap-2">
+                <Button
+                  type="button"
+                  variant={coverageSource === "lot" ? "default" : "outline"}
+                  className="w-full"
+                  disabled={lockPrefill && !!prefill?.stockLotId}
+                  onClick={() => {
+                    setCoverageSource("lot");
+                    setCoveringTradeId("");
+                  }}
+                >
+                  Stock lot
+                </Button>
+                <Button
+                  type="button"
+                  variant={coverageSource === "call" ? "default" : "outline"}
+                  className="w-full"
+                  disabled={lockPrefill && !!prefill?.stockLotId}
+                  onClick={() => {
+                    setCoverageSource("call");
+                    setStockLotId("");
+                  }}
+                >
+                  Long call (PMCC)
+                </Button>
+              </div>
+
+              {coverageSource === "lot" ? (
+                <>
+                  <Select
+                    value={stockLotId}
+                    onValueChange={setStockLotId}
+                    disabled={lockPrefill && !!prefill?.stockLotId}
+                  >
+                    <SelectTrigger id="stockLotId" className="w-full">
+                      <SelectValue placeholder="Select a stock lot…" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {matchingStockLots.map((lot) => (
+                        <SelectItem key={lot.id} value={lot.id}>
+                          {lot.ticker} — {lot.shares} sh @ ${formatAvgCost(lot.avgCost)}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {tickerUpper && matchingStockLots.length === 0 && (
+                    <p className="text-xs text-muted-foreground">
+                      No open stock lots found for {tickerUpper}. Add a stock position
+                      first, or cover with a long call.
+                    </p>
+                  )}
+                </>
+              ) : (
+                <>
+                  <Select value={coveringTradeId} onValueChange={setCoveringTradeId}>
+                    <SelectTrigger id="coveringTradeId" className="w-full">
+                      <SelectValue placeholder="Select a long call…" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {matchingLongCalls.map((c) => (
+                        <SelectItem key={c.id} value={c.id}>
+                          {c.ticker} ${c.strikePrice} Call exp{" "}
+                          {format(new Date(c.expirationDate), "MMM d, yyyy")} ·{" "}
+                          {c.contractsOpen} contract{c.contractsOpen !== 1 ? "s" : ""}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {tickerUpper && matchingLongCalls.length === 0 && (
+                    <p className="text-xs text-muted-foreground">
+                      No open long calls found for {tickerUpper}. Add a long call first
+                      to write a PMCC against it.
+                    </p>
+                  )}
+                </>
               )}
             </div>
           )}

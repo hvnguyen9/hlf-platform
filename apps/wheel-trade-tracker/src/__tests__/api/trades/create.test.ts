@@ -10,11 +10,13 @@ const {
   mockStockLotFindFirst,
   mockTradeCreate,
   mockTradeFindMany,
+  mockTradeFindFirst,
 } = vi.hoisted(() => ({
   mockAuth: vi.fn(),
   mockStockLotFindFirst: vi.fn(),
   mockTradeCreate: vi.fn(),
   mockTradeFindMany: vi.fn(),
+  mockTradeFindFirst: vi.fn(),
 }));
 
 vi.mock("@/server/auth/auth", () => ({
@@ -24,7 +26,11 @@ vi.mock("@/server/auth/auth", () => ({
 vi.mock("@/server/db", () => ({
   db: {
     stockLot: { findFirst: mockStockLotFindFirst },
-    trade: { create: mockTradeCreate, findMany: mockTradeFindMany },
+    trade: {
+      create: mockTradeCreate,
+      findMany: mockTradeFindMany,
+      findFirst: mockTradeFindFirst,
+    },
   },
 }));
 
@@ -60,6 +66,14 @@ const validCCBody = {
   stockLotId: "lot-1",
 };
 
+// PMCC: covered by a long call (LEAP) instead of a stock lot.
+const validPmccBody = {
+  ...validCSPBody,
+  type: "CoveredCall",
+  strikePrice: 210,
+  coveringTradeId: "call-1",
+};
+
 beforeEach(() => {
   vi.clearAllMocks();
   mockAuth.mockResolvedValue(mockSession());
@@ -88,10 +102,44 @@ describe("validation", () => {
     expect(res.status).toBe(400);
   });
 
-  it("returns 400 for CC without stockLotId", async () => {
+  it("returns 400 for CC with neither stockLotId nor coveringTradeId", async () => {
     const { stockLotId: _omit, ...body } = validCCBody;
     void _omit;
     const res = await POST(makeReq(body));
+    expect(res.status).toBe(400);
+  });
+
+  it("returns 400 for CC with both stockLotId and coveringTradeId", async () => {
+    const res = await POST(makeReq({ ...validCCBody, coveringTradeId: "call-1" }));
+    expect(res.status).toBe(400);
+  });
+
+  it("returns 400 when PMCC long call not found", async () => {
+    mockTradeFindFirst.mockResolvedValue(null);
+    const res = await POST(makeReq(validPmccBody));
+    expect(res.status).toBe(400);
+  });
+
+  it("returns 400 when PMCC long-call ticker does not match", async () => {
+    mockTradeFindFirst.mockResolvedValue({
+      id: "call-1",
+      ticker: "GOOGL",
+      contractsOpen: 4,
+      coveredCalls: [],
+    });
+    const res = await POST(makeReq(validPmccBody)); // ticker is AAPL
+    expect(res.status).toBe(400);
+  });
+
+  it("returns 400 when not enough uncovered long-call contracts", async () => {
+    // 2 contracts requested, long call has 2 total but 1 already covered → only 1 free
+    mockTradeFindFirst.mockResolvedValue({
+      id: "call-1",
+      ticker: "AAPL",
+      contractsOpen: 2,
+      coveredCalls: [{ contractsOpen: 1 }],
+    });
+    const res = await POST(makeReq(validPmccBody));
     expect(res.status).toBe(400);
   });
 
@@ -145,6 +193,22 @@ describe("success", () => {
 
     const call = mockTradeCreate.mock.calls[0][0] as { data: Record<string, unknown> };
     expect(call.data.stockLotId).toBe("lot-1");
+    expect(call.data.coveringTradeId).toBeNull();
+  });
+
+  it("creates a PMCC against a long call, links coveringTradeId", async () => {
+    mockTradeFindFirst.mockResolvedValue({
+      id: "call-1",
+      ticker: "AAPL",
+      contractsOpen: 4,
+      coveredCalls: [],
+    });
+    const res = await POST(makeReq(validPmccBody));
+    expect(res.status).toBe(201);
+
+    const call = mockTradeCreate.mock.calls[0][0] as { data: Record<string, unknown> };
+    expect(call.data.coveringTradeId).toBe("call-1");
+    expect(call.data.stockLotId).toBeNull();
   });
 
   it("normalizes ticker to uppercase", async () => {

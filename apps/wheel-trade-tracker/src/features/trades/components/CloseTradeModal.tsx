@@ -104,6 +104,12 @@ export function CloseTradeModal({
   const isCSP = tradeType === "CashSecuredPut";
   const isCC = tradeType === "CoveredCall";
   const isShortOption = isCSP || isCC;
+  // A CC backed by real shares (classic) vs. by a long call (PMCC). PMCC CCs
+  // have no stock lot, so the "sell shares" / "stock called away" affordances
+  // don't apply. tradeData loads async — treat as PMCC only once we know it
+  // has no stockLotId.
+  const isPmccCC = isCC && !!tradeData && !tradeData.stockLotId;
+  const isLotBackedCC = isCC && !isPmccCC;
 
   const displayAvgPrice = tradeData?.contractPrice;
   const displayExpiration =
@@ -120,7 +126,7 @@ export function CloseTradeModal({
   const sharesToSell = Number(effectiveContracts) * 100;
   const sharesSellValid =
     !sellShares ||
-    !isCC ||
+    !isLotBackedCC ||
     (Number.isFinite(sharesSellPrice.raw) && sharesSellPrice.raw > 0);
   const canSubmit = contractsValid && priceValid && sharesSellValid;
 
@@ -158,8 +164,8 @@ export function CloseTradeModal({
           fullClose: forcedZero ? true : fullClose,
           assignment: assigned ? true : undefined,
           closeReason: assigned ? "assigned" : expiredWorthless ? "expiredWorthless" : "manual",
-          sellSharesPrice: sellShares && isCC && !assigned ? sharesSellPrice.raw : undefined,
-          sharesToSell: sellShares && isCC && !assigned ? sharesToSell : undefined,
+          sellSharesPrice: sellShares && isLotBackedCC && !assigned ? sharesSellPrice.raw : undefined,
+          sharesToSell: sellShares && isLotBackedCC && !assigned ? sharesToSell : undefined,
         }),
       });
 
@@ -352,7 +358,9 @@ export function CloseTradeModal({
                 }}
               />
               <span className="text-xs text-muted-foreground">
-                Assigned — stock called away (closes the stock lot)
+                {isPmccCC
+                  ? "Assigned — short call exercised (PMCC)"
+                  : "Assigned — stock called away (closes the stock lot)"}
               </span>
             </label>
           )}
@@ -378,15 +386,20 @@ export function CloseTradeModal({
               Closes the CSP at 100% premium capture and opens a stock lot at the net basis (strike − premium).
             </p>
           )}
-          {assigned && isCC && (
+          {assigned && isLotBackedCC && (
             <p className="text-xs text-muted-foreground pl-6">
               Closes the covered call and marks the linked stock lot as sold at the strike price.
             </p>
           )}
+          {assigned && isPmccCC && (
+            <p className="text-xs text-muted-foreground pl-6">
+              Closes the short call at 100% premium capture. The long call leg is unaffected — manage it separately.
+            </p>
+          )}
         </div>
 
-        {/* Sell shares alongside CC close */}
-        {isCC && !assigned && (
+        {/* Sell shares alongside CC close — lot-backed CCs only */}
+        {isLotBackedCC && !assigned && (
           <div className="border-t pt-3 space-y-2">
             <label className="flex items-center gap-2 cursor-pointer">
               <Checkbox

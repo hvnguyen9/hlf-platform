@@ -20,6 +20,10 @@ export interface Trade {
   totalContracts?: number;
   createdAt: string;
   closeReason?: "manual" | "expiredWorthless" | "assigned" | null;
+  stockLotId?: string | null;
+  // PMCC: set when this covered call is covered by a long call (LEAP) instead
+  // of a stock lot. Exactly one of stockLotId / coveringTradeId is set on a CC.
+  coveringTradeId?: string | null;
 }
 
 export interface Portfolio {

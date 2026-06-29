@@ -7,6 +7,15 @@ export interface ChangelogEntry {
 export const changelog: ChangelogEntry[] = [
   {
     date: "2026-06-29",
+    version: "v2.22.0",
+    highlights: [
+      "Covered calls can now be backed by a long call instead of 100 shares — full support for poor man's covered calls (PMCCs). When you add a covered call, you pick the coverage: a stock lot (as before) or one of your open long calls (LEAPs).",
+      "It won't let you oversell: if a long call is 2 contracts and you've already written 1 covered call against it, you can only sell 1 more.",
+      "Closing a PMCC works as you'd expect — buy-to-close or let it expire realizes the premium, and 'assigned' just closes the short call (your long call is left alone for you to manage). The 'sell shares at close' option only shows up for share-backed covered calls now, since a PMCC has no shares.",
+    ],
+  },
+  {
+    date: "2026-06-29",
     version: "v2.21.0",
     highlights: [
       "Retired the realtime Alerts feature. The Alerts page, the per-trade and per-watchlist alert setup, and the toast pop-ups are all gone. In practice the alerts rarely got used and the background price-checking added overhead, so the app is leaner and faster without it.",

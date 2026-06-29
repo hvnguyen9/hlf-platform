@@ -215,12 +215,32 @@ export async function PATCH(
         }),
         { status: 200, headers: { "Content-Type": "application/json" } },
       );
+    } else if (!stockLotId) {
+      // PMCC CC assigned (covered by a long call, not shares): there's no stock
+      // lot to call away. Just close the short call and realize its premium —
+      // the user manages the long-call leg separately.
+      await prisma.trade.update({
+        where: { id },
+        data: {
+          status: "closed",
+          closedAt: now,
+          closingPrice: 0,
+          contractsOpen: 0,
+          premiumCaptured: (trade.premiumCaptured ?? 0) + realizedAssigned,
+          percentPL: 100,
+          closeReason: "assigned",
+          notes: trade.notes
+            ? `${trade.notes}\nAssigned (PMCC) → short call exercised @ $${strike}`
+            : `Assigned (PMCC) → short call exercised @ $${strike}`,
+        },
+      });
+
+      return new Response(
+        JSON.stringify({ realizedNow: realizedAssigned, feesTotal, assigned: true, shares, salePrice: strike }),
+        { status: 200, headers: { "Content-Type": "application/json" } },
+      );
     } else {
       // CC assigned: stock called away → close the underlying StockLot
-      if (!stockLotId) {
-        return new Response("CoveredCall has no linked StockLot to close", { status: 400 });
-      }
-
       await prisma.$transaction(async (tx) => {
         const lot = await tx.stockLot.findUnique({
           where: { id: stockLotId },

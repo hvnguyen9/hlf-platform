@@ -91,10 +91,18 @@ model Trade {
   stockLot         StockLot?   @relation(fields: [stockLotId], references: [id])
   stockLotId       String?
 
+  // PMCC: a CoveredCall may be covered by a long Call (LEAP) instead of a stock
+  // lot. coveringTrade points at that long Call; coveredCalls is the inverse.
+  // A CC carries exactly one of stockLotId / coveringTradeId.
+  coveringTrade    Trade?      @relation("PmccCoverage", fields: [coveringTradeId], references: [id], onDelete: SetNull)
+  coveringTradeId  String?
+  coveredCalls     Trade[]     @relation("PmccCoverage")
+
   @@index([status, portfolioId])
   @@index([portfolioId, status, closedAt])
   @@index([expirationDate, portfolioId])
   @@index([ticker, portfolioId])
+  @@index([coveringTradeId])
 }
 
 enum TradeType {

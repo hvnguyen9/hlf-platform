@@ -25,6 +25,7 @@ export async function POST(req: Request) {
     contractPrice,
     entryPrice,
     stockLotId,
+    coveringTradeId,
   } = body;
 
   if (
@@ -46,54 +47,110 @@ export async function POST(req: Request) {
   const normalizedType = String(type).toLowerCase();
 
   if (normalizedType === "coveredcall" || normalizedType === "covered call" || normalizedType === "cc") {
-    if (!stockLotId) {
+    // A covered call must be backed by exactly one of: an open stock lot
+    // (classic CC) or an open long call (PMCC). Reject neither/both.
+    if (!stockLotId && !coveringTradeId) {
       return NextResponse.json(
-        { error: "Covered calls must be linked to an underlying stock lot" },
+        { error: "Covered calls must be backed by a stock lot or a long call (PMCC)" },
+        { status: 400 },
+      );
+    }
+    if (stockLotId && coveringTradeId) {
+      return NextResponse.json(
+        { error: "Pick either a stock lot or a long call to cover the call, not both" },
         { status: 400 },
       );
     }
 
-    const stockLot = await db.stockLot.findFirst({
-      where: {
-        id: stockLotId,
-        portfolioId,
-        status: "OPEN",
-      },
-      include: {
-        trades: {
-          where: { type: "CoveredCall", status: "open" },
-          select: { contractsOpen: true },
+    if (stockLotId) {
+      const stockLot = await db.stockLot.findFirst({
+        where: {
+          id: stockLotId,
+          portfolioId,
+          status: "OPEN",
         },
-      },
-    });
-
-    if (!stockLot) {
-      return NextResponse.json(
-        { error: "Invalid or closed stock lot for covered call" },
-        { status: 400 },
-      );
-    }
-
-    if (stockLot.ticker.toUpperCase() !== ticker.toUpperCase()) {
-      return NextResponse.json(
-        { error: "Covered call ticker must match stock lot ticker" },
-        { status: 400 },
-      );
-    }
-
-    const coveredShares = stockLot.trades.reduce(
-      (sum, t) => sum + t.contractsOpen * 100,
-      0,
-    );
-    const availableShares = stockLot.shares - coveredShares;
-    const requiredShares = Number(contracts) * 100;
-    if (availableShares < requiredShares) {
-      return NextResponse.json(
-        {
-          error: `Not enough uncovered shares: ${availableShares} available (${stockLot.shares} total − ${coveredShares} already covered), ${requiredShares} requested`,
+        include: {
+          trades: {
+            where: { type: "CoveredCall", status: "open" },
+            select: { contractsOpen: true },
+          },
         },
-        { status: 400 },
+      });
+
+      if (!stockLot) {
+        return NextResponse.json(
+          { error: "Invalid or closed stock lot for covered call" },
+          { status: 400 },
+        );
+      }
+
+      if (stockLot.ticker.toUpperCase() !== ticker.toUpperCase()) {
+        return NextResponse.json(
+          { error: "Covered call ticker must match stock lot ticker" },
+          { status: 400 },
+        );
+      }
+
+      const coveredShares = stockLot.trades.reduce(
+        (sum, t) => sum + t.contractsOpen * 100,
+        0,
       );
+      const availableShares = stockLot.shares - coveredShares;
+      const requiredShares = Number(contracts) * 100;
+      if (availableShares < requiredShares) {
+        return NextResponse.json(
+          {
+            error: `Not enough uncovered shares: ${availableShares} available (${stockLot.shares} total − ${coveredShares} already covered), ${requiredShares} requested`,
+          },
+          { status: 400 },
+        );
+      }
+    } else {
+      // PMCC: covered by a long call. Validate it's an open long Call in this
+      // portfolio with a matching ticker and enough uncovered contracts.
+      const longCall = await db.trade.findFirst({
+        where: {
+          id: coveringTradeId,
+          portfolioId,
+          type: "Call",
+          status: "open",
+        },
+        include: {
+          coveredCalls: {
+            where: { type: "CoveredCall", status: "open" },
+            select: { contractsOpen: true },
+          },
+        },
+      });
+
+      if (!longCall) {
+        return NextResponse.json(
+          { error: "Invalid or closed long call for PMCC" },
+          { status: 400 },
+        );
+      }
+
+      if (longCall.ticker.toUpperCase() !== ticker.toUpperCase()) {
+        return NextResponse.json(
+          { error: "Covered call ticker must match the long call ticker" },
+          { status: 400 },
+        );
+      }
+
+      const coveredContracts = longCall.coveredCalls.reduce(
+        (sum, t) => sum + t.contractsOpen,
+        0,
+      );
+      const availableContracts = longCall.contractsOpen - coveredContracts;
+      const requiredContracts = Number(contracts);
+      if (availableContracts < requiredContracts) {
+        return NextResponse.json(
+          {
+            error: `Not enough uncovered long-call contracts: ${availableContracts} available (${longCall.contractsOpen} total − ${coveredContracts} already covered), ${requiredContracts} requested`,
+          },
+          { status: 400 },
+        );
+      }
     }
   }
 
@@ -102,6 +159,7 @@ export async function POST(req: Request) {
       data: {
         portfolioId,
         stockLotId: stockLotId ?? null,
+        coveringTradeId: coveringTradeId ?? null,
         ticker: ticker.toUpperCase(),
         strikePrice,
         expirationDate: new Date(expirationDate),
@@ -165,6 +223,7 @@ export async function GET(req: Request) {
         status: true,
         portfolioId: true,
         stockLotId: true,
+        coveringTradeId: true,
         createdAt: true,
         // closed-only fields
         closedAt: true,
