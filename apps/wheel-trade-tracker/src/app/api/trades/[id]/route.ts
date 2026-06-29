@@ -3,6 +3,7 @@ import { prisma } from "@/server/prisma";
 import { requireAuth } from "@/server/auth/require-auth";
 import { NextResponse } from "next/server";
 import { CloseReason, Prisma, TradeType } from "@/generated/prisma/client";
+import { loadPmccBasisForCall } from "@/lib/pmccBasis";
 
 export async function GET(
   req: Request,
@@ -21,6 +22,13 @@ export async function GET(
 
   if (!trade) {
     return new NextResponse("Not found", { status: 404 });
+  }
+
+  // For a long call, attach the PMCC cost-basis bundle so the detail page can
+  // show how covered-call premium has lowered the LEAP's effective cost.
+  if (trade.type === "Call") {
+    const pmcc = await loadPmccBasisForCall(prisma, trade);
+    return NextResponse.json({ ...trade, pmcc });
   }
 
   return NextResponse.json(trade);

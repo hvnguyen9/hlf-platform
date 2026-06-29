@@ -454,6 +454,28 @@ export default function TradeDetailPageClient({ portfolioId, tradeId }: Props) {
           : []),
       ];
 
+  // PMCC cost-basis breakdown — only for a long call that has covered calls
+  // written against it. Mirrors the stock lot's "Cost Basis via Premiums".
+  const pmcc = isLongCall ? trade.pmcc ?? null : null;
+  const showPmcc = !!pmcc?.hasCoveredCalls;
+  const pmccItems: Spec[] = pmcc
+    ? [
+        {
+          label: "Original Cost",
+          value: `${fmt(pmcc.originalCost)} · ${fmt(pmcc.originalCostPerShare)}/sh`,
+        },
+        { label: "CC Premium Captured", value: fmt(pmcc.realizedPremium) },
+        {
+          label: "Effective Cost",
+          value: `${fmt(pmcc.effectiveCost)} · ${fmt(pmcc.effectiveCostPerShare)}/sh`,
+        },
+        {
+          label: "Breakeven",
+          value: `${fmt(pmcc.breakeven)} → ${fmt(pmcc.effectiveBreakeven)}`,
+        },
+      ]
+    : [];
+
   return (
     <div className="max-w-3xl mx-auto py-6 sm:py-10 px-4 sm:px-6 space-y-6">
       {/* Hero — identity on the left, live price (or close price) on the right */}
@@ -623,6 +645,27 @@ export default function TradeDetailPageClient({ portfolioId, tradeId }: Props) {
         </div>
         <SpecList items={detailItems} />
       </Card>
+
+      {/* PMCC cost-basis card — long calls with covered calls written against them */}
+      {showPmcc && pmcc && (
+        <Card className="p-4 sm:p-5">
+          <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
+            Cost Basis via Covered Calls (PMCC)
+          </div>
+          <p className="text-sm text-muted-foreground mb-3">
+            Covered calls written against this LEAP have recovered{" "}
+            <span className="font-medium text-emerald-600 dark:text-emerald-400">
+              {fmt(pmcc.realizedPremium)}
+            </span>{" "}
+            ({pmcc.recoveredPct.toFixed(1)}%) of what you paid
+            {pmcc.openCcCount > 0
+              ? `, with ${pmcc.openCcCount} still open`
+              : ""}
+            .
+          </p>
+          <SpecList items={pmccItems} />
+        </Card>
+      )}
 
       {/* Notes card */}
       <Card className="p-4">

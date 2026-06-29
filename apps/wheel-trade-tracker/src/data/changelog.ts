@@ -13,6 +13,7 @@ export const changelog: ChangelogEntry[] = [
       "It won't let you oversell: if a long call is 2 contracts and you've already written 1 covered call against it, you can only sell 1 more.",
       "Closing a PMCC works as you'd expect — buy-to-close or let it expire realizes the premium, and 'assigned' just closes the short call (your long call is left alone for you to manage). The 'sell shares at close' option only shows up for share-backed covered calls now, since a PMCC has no shares.",
       "Admin edit can now re-point a covered call's coverage — link it to a stock lot or a long call, or switch between them — so existing covered calls can be corrected after the fact.",
+      "A long call's detail page now shows a 'Cost Basis via Covered Calls' breakdown when you've sold PMCCs against it — original cost, premium captured, your effective cost, and how your breakeven drops as the premium comes in. Same idea as covered-call premium lowering a stock lot's cost basis, now for your LEAPs.",
     ],
   },
   {

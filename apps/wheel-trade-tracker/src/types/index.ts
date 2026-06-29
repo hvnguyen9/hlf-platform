@@ -1,4 +1,6 @@
 // types/index.ts
+import type { PmccBasis } from "@/lib/pmccBasis";
+
 export interface Trade {
   id: string;
   portfolioId: string;
@@ -24,6 +26,9 @@ export interface Trade {
   // PMCC: set when this covered call is covered by a long call (LEAP) instead
   // of a stock lot. Exactly one of stockLotId / coveringTradeId is set on a CC.
   coveringTradeId?: string | null;
+  // Only present on long calls (from GET /api/trades/[id]) — how much covered-
+  // call premium has reduced this LEAP's effective cost.
+  pmcc?: PmccBasis | null;
 }
 
 export interface Portfolio {
