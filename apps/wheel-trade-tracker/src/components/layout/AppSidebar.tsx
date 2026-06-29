@@ -12,7 +12,6 @@ import {
   Shield,
   Eye,
   BookOpen,
-  Bell,
   LogOut,
   Moon,
   Sun,
@@ -246,17 +245,6 @@ function UserMenuPopover({
 
         {/* Nav links */}
         <div className="p-1 space-y-0.5">
-          <Link
-            href="/alerts"
-            onClick={onNavigate}
-            className={cn(
-              "flex items-center gap-2.5 px-2.5 py-1.5 text-sm rounded-md transition-colors w-full",
-              pathname.startsWith("/alerts") ? "bg-accent text-accent-foreground" : "text-foreground hover:bg-accent"
-            )}
-          >
-            <Bell className="h-4 w-4 text-muted-foreground" />
-            Alerts
-          </Link>
           <Link
             href="/settings"
             onClick={onNavigate}

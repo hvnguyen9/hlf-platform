@@ -1,18 +1,4 @@
 // Shapes returned by each app's /api/internal/v1/portal-summary endpoint.
-//
-// Wheel Tracker's portal-summary also returns the alerts inbox fields
-// (`alertsToday`, `alertsThisWeek`, `recentAlerts`) since the realtime alerts
-// module was rebuilt inside wheel-tracker on 2026-05-13. The standalone
-// Stock Alerts app was retired.
-
-export type RecentAlert = {
-  id: string;
-  message: string;
-  firedAt: string;
-  type: string;
-  tradeId: string | null;
-  watchlistTicker: string | null;
-};
 
 export type ExpiringTrade = {
   id: string;
@@ -23,22 +9,6 @@ export type ExpiringTrade = {
   expirationDate: string;
   portfolioId: string;
   dte: number;
-};
-
-// A wheel-tracker alert config whose threshold is currently satisfied per
-// the latest quote — i.e. *now* not historical. The portal's Today inbox
-// turns each one into an "act now" row.
-export type ActionableConfig = {
-  configId: string;
-  type: string;
-  message: string;
-  ticker: string | null;
-  tradeId: string | null;
-  stockLotId: string | null;
-  watchlistTicker: string | null;
-  portfolioId: string | null;
-  price: number;
-  dte: number | null;
 };
 
 // Top N open option trades with the live quote of the underlying. Portal
@@ -95,16 +65,13 @@ export type UpcomingEvent = {
   tradeType?: string;
 };
 
-// Watchlist row with current quote + count of active WATCHLIST_BREACH
-// triggers the user has set on this ticker. Powers the Dashboard's
-// Watchlist card.
+// Watchlist row with current quote. Powers the Dashboard's Watchlist card.
 export type WatchlistSnapshot = {
   id: string;
   ticker: string;
   currentPrice: number | null;
   changePct: number | null;
   previousClose: number | null;
-  alertCount: number;
 };
 
 // Top N open stock lots with current price and unrealized P&L. Portal
@@ -127,13 +94,9 @@ export type WheelSummary = {
   openLotCount: number;
   mtdRealizedPnl: number;
   ytdRealizedPnl: number;
-  alertsToday: number;
-  alertsThisWeek: number;
-  recentAlerts: RecentAlert[];
   // Optional: returned by wheel-tracker only after the Today-inbox extension
   // ships. Older deployments omit them.
   expiringTrades?: ExpiringTrade[];
-  actionableConfigs?: ActionableConfig[];
   // Optional: returned by wheel-tracker only after the Phase 2 snapshot
   // extension. Older deployments omit them.
   openTrades?: OpenTradeSnapshot[];

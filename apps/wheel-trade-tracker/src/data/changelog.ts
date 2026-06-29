@@ -6,6 +6,15 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    date: "2026-06-29",
+    version: "v2.21.0",
+    highlights: [
+      "Retired the realtime Alerts feature. The Alerts page, the per-trade and per-watchlist alert setup, and the toast pop-ups are all gone. In practice the alerts rarely got used and the background price-checking added overhead, so the app is leaner and faster without it.",
+      "The trade and stock-lot action menus no longer have an 'Add Alert' option, and watchlist rows no longer show a bell. Everything else on those pages is unchanged.",
+      "Your trades, lots, watchlist, journal, and all your numbers are completely untouched — this only removes the alerting layer that sat on top.",
+    ],
+  },
+  {
     date: "2026-06-24",
     version: "v2.20.1",
     highlights: [

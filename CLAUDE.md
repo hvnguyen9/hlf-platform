@@ -9,13 +9,13 @@ HLF suite monorepo. Consolidates all HLF apps and shared infrastructure packages
 ```
 apps/
   portal/                Signed-in landing page — cross-app KPI dashboard + profile + admin
-  wheel-strat-tracker/   Options wheel strategy tracker (hub — owns the alerts module since 2026-05-13)
+  wheel-strat-tracker/   Options wheel strategy tracker
   hlf-bookkeeping/       Finance & trading P&L bookkeeping
   hlf-budgettracker/     Monthly budget tracker + FIRE dashboard
   hlf-website/           Marketing site (static)
   hungvnguyen-site/      Personal portfolio (static)
   # mobile/              Retired 2026-05-20 — Expo app deleted; HLF apps go all-in on mobile-responsive web
-  # stock-alerts/        Retired 2026-05-13 — alerts rebuilt from scratch inside wheel-strat-tracker
+  # stock-alerts/        Retired 2026-05-13 — rebuilt inside wheel-strat-tracker, then that module was retired too 2026-06-29
 
 packages/
   auth-db/               Shared User Prisma schema + PrismaClient for auth DB
@@ -30,12 +30,12 @@ packages/
 
 | App | Port | Brand | DB |
 |---|---|---|---|
-| `wheel-strat-tracker` | 3000 | Emerald | `ballast` Railway (also hosts alerts module tables since 2026-05-13) |
+| `wheel-strat-tracker` | 3000 | Emerald | `ballast` Railway |
 | `hlf-bookkeeping` | 3001 | Indigo | `turntable:21201` Railway |
 | `hlf-budgettracker` | 3002 | Teal | `shuttle` Railway |
 | `portal` | 3003 | HLF green | no DB — reads from `@hlf/auth-db` + cross-app internal APIs |
 
-`stock-alerts` (originally on port 3003) retired 2026-05-13 — alerts now live inside wheel-strat-tracker at `/alerts/*`. Portal took over port 3003 so the apps occupy a contiguous range.
+`stock-alerts` (originally on port 3003) retired 2026-05-13 — alerts were rebuilt inside wheel-strat-tracker, then that in-app module was retired too on 2026-06-29. Portal took over port 3003 so the apps occupy a contiguous range.
 
 `mobile` (Expo + React Native) retired 2026-05-20 — `apps/mobile/` deleted, portal's mobile-JWT mint endpoint (`/api/auth/mobile/session`) and aggregated `/api/portal/summary` deleted, `@hlf/auth-db` mobile-token helpers removed. HLF apps are now mobile-responsive web only. `requireAuth` helper in wheel-tracker still exists but only supports the web session cookie path.
 
@@ -89,9 +89,8 @@ All apps' internal APIs are guarded by the same `INTERNAL_API_KEY` bearer.
 **hlf-bookkeeping** and **hlf-budgettracker** each expose
 `GET /api/internal/v1/portal-summary?email=` — consumed by the portal dashboard.
 
-The alerts inbox is now part of **wheel-strat-tracker**'s portal-summary
-response (`alertsToday`, `alertsThisWeek`, `recentAlerts`) — one fewer
-cross-app call since the 2026-05-13 alerts rebuild.
+(wheel-strat-tracker's portal-summary previously carried an alerts inbox;
+the alerts module was retired 2026-06-29 and those fields removed.)
 
 ## Auth — sign-in identifier
 
@@ -114,8 +113,8 @@ in `@hlf/auth-db` either way.
 | `WHEEL_TRACKER_URL` | bookkeeping, portal | Base URL for internal API calls |
 | `BOOKKEEPING_URL` / `BUDGET_TRACKER_URL` | portal | Server-side base URLs for `portal-summary` calls |
 | `NEXT_PUBLIC_*_URL` (wheel/bookkeeping/budget) | portal | Client-side launcher links — must be literal `process.env.NEXT_PUBLIC_*` access |
-| `ALPACA_API_KEY` / `ALPACA_SECRET_KEY` | wheel-tracker (alerts module) | Alpaca market data for the realtime scan |
-| `ALERTS_SCAN_SECRET` | wheel-tracker (alerts module) | Bearer token GitHub Actions sends to `/api/alerts/scan` |
+| `ALPACA_API_KEY` / `ALPACA_SECRET_KEY` | wheel-tracker | Alpaca market data (IEX) for `/api/quotes`, `/api/charts`, watchlist |
+| ~~`ALERTS_SCAN_SECRET`~~ | wheel-tracker | Dead since 2026-06-29 (alerts module retired) — delete from Vercel + GitHub repo secrets |
 
 ---
 
@@ -135,11 +134,11 @@ pnpm --filter @hlf/auth-db db:generate         # regenerate auth Prisma client
 
 Apps moved into the monorepo:
 
-- [x] `wheel-strat-tracker` — in monorepo, on shared auth DB. Owns the realtime alerts module since 2026-05-13: `/alerts/*` pages, `/api/alerts/*` routes, `/api/alerts/scan` cron endpoint (triggered by GitHub Actions every 2 min during market hours), **in-app toast delivery** via a polling listener mounted in AppShell + tab-title flash for backgrounded windows. Web Push was tried and dropped — see `docs/alerts-module-setup.md`. Inline AlertConfig UI on trade detail + watchlist rows; full configs management + history at `/alerts`.
+- [x] `wheel-strat-tracker` — in monorepo, on shared auth DB. Built a realtime alerts module 2026-05-13; **retired it entirely on 2026-06-29 (v2.21.0)** — little-used and the every-2-min cron scan added load without payoff. All `/alerts/*` pages, `/api/alerts/*` routes, the `.github/workflows/alerts-scan.yml` cron, the 4 alerts DB tables, and the portal alerts inbox were removed.
 - [x] `hlf-bookkeeping` — in monorepo, on shared auth DB (v1.4.0 — Tax Reserve Tracker)
 - [x] `hlf-budgettracker` — in monorepo, on shared auth DB (v1.2.0 — Month at a Glance dashboard)
 - [x] `stock-alerts` (retired) — deleted from monorepo 2026-05-13. Replaced by the new realtime alerts module inside wheel-strat-tracker. `alerts.hlfinancialstrategies.com` subdomain + its Vercel project + its standalone Railway DB to be retired.
-- [x] `portal` — in monorepo, deployed at `portal.hlfinancialstrategies.com`. Dashboard launcher + KPI strip + alerts inbox (now reads alerts data from wheel-tracker's portal-summary); profile editor + admin user manager backed by `@hlf/auth-db`.
+- [x] `portal` — in monorepo, deployed at `portal.hlfinancialstrategies.com`. Dashboard launcher + KPI strip + Today queue (expiring trades; the alerts inbox was removed 2026-06-29); profile editor + admin user manager backed by `@hlf/auth-db`.
 - [ ] `hlf-website` — not yet moved
 - [ ] `hungvnguyen-site` — not yet moved
 - [x] `packages/auth-db` — auth DB live (`nozomi.proxy.rlwy.net:14507`); all 4 HLF apps consume it

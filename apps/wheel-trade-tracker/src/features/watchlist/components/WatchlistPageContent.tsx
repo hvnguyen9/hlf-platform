@@ -15,7 +15,6 @@ import { cn } from "@/lib/utils";
 import type { WatchlistResponse, WatchlistPosition } from "@/app/api/watchlist/route";
 import type { QuoteResult } from "@/app/api/quotes/route";
 import type { ChartsResponse } from "@/app/api/charts/route";
-import { WatchlistAlertButton } from "@/features/alerts/components/WatchlistAlertButton";
 import { IntradaySparkline } from "@/components/IntradaySparkline";
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
@@ -434,7 +433,6 @@ function DraggableWatchlistRow({
       </td>
       <td className="px-4 py-3">
         <div className="flex items-center gap-1 justify-end">
-          <WatchlistAlertButton ticker={ticker} currentPrice={quote?.price ?? null} />
           <button
             onClick={() => onRemove(ticker)}
             aria-label={`Remove ${ticker} from watchlist`}

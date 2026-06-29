@@ -5,7 +5,6 @@ import { usePathname } from "next/navigation";
 import useSWR from "swr";
 import { useSession } from "next-auth/react";
 import {
-  BellPlus,
   Briefcase,
   LayersIcon,
   LineChart,
@@ -22,13 +21,6 @@ import {
   type QuickAddAction,
 } from "@hlf/ui/quick-add-fab";
 import {
-  ResponsiveModal,
-  ResponsiveModalContent,
-  ResponsiveModalDescription,
-  ResponsiveModalHeader,
-  ResponsiveModalTitle,
-} from "@hlf/ui/responsive-modal";
-import {
   Select,
   SelectContent,
   SelectItem,
@@ -37,8 +29,6 @@ import {
 } from "@/components/ui/select";
 import { AddStockModal } from "@/features/stocks/components/AddStockModal";
 import { AddTradeModal } from "@/features/trades/components/AddTradeModal";
-import { TradeAlertsManager } from "@/features/alerts/components/TradeAlertsCard";
-import { LotAlertsManager } from "@/features/alerts/components/LotAlertsCard";
 import type { Portfolio, StockLot, Trade } from "@/types";
 
 /**
@@ -49,13 +39,11 @@ import type { Portfolio, StockLot, Trade } from "@/types";
  *
  * On trade detail pages the FAB becomes a contextual "⚡" action hub:
  *   - Add to Position
- *   - Add Alert
  *   - Close Position (destructive)
  *
  * On stock-lot detail pages the FAB shows:
  *   - Add Shares
  *   - Sell Covered Call
- *   - Add Alert
  *   - Sell Shares (destructive)
  *
  * Close/add modals remain in TradeDetailPageClient / StockDetailPageClient so
@@ -95,7 +83,6 @@ export function QuickAddFab() {
 
   const [stockOpen, setStockOpen] = useState(false);
   const [tradeOpen, setTradeOpen] = useState(false);
-  const [alertOpen, setAlertOpen] = useState(false);
   const [sellCCOpen, setSellCCOpen] = useState(false);
   const [pid, setPid] = useState<string>("");
 
@@ -169,13 +156,6 @@ export function QuickAddFab() {
         onSelect: () => window.dispatchEvent(new CustomEvent("trade:open-add")),
       },
       {
-        key: "alert",
-        icon: BellPlus,
-        label: "Add Alert",
-        description: "Profit / assignment / roll triggers",
-        onSelect: () => setAlertOpen(true),
-      },
-      {
         key: "close-position",
         icon: XCircle,
         label: "Close Position",
@@ -218,13 +198,6 @@ export function QuickAddFab() {
             } satisfies QuickAddAction,
           ]
         : []),
-      {
-        key: "alert",
-        icon: BellPlus,
-        label: "Add Alert",
-        description: `Price breach on ${activeLot.ticker}`,
-        onSelect: () => setAlertOpen(true),
-      },
       {
         key: "sell-shares",
         icon: TrendingDown,
@@ -351,43 +324,6 @@ export function QuickAddFab() {
             stockLotId: activeLot.id,
           }}
         />
-      )}
-
-      {/* Alert manager modals — contextual to the page */}
-      {activeTradeId && (
-        <ResponsiveModal open={alertOpen} onOpenChange={setAlertOpen}>
-          <ResponsiveModalContent>
-            <ResponsiveModalHeader>
-              <ResponsiveModalTitle>Add Alert</ResponsiveModalTitle>
-              <ResponsiveModalDescription>
-                Profit target, assignment risk, or roll opportunity triggers on this trade.
-              </ResponsiveModalDescription>
-            </ResponsiveModalHeader>
-            <div className="mt-2">
-              <TradeAlertsManager tradeId={activeTradeId} defaultAdding />
-            </div>
-          </ResponsiveModalContent>
-        </ResponsiveModal>
-      )}
-      {activeStockId && activeLot && (
-        <ResponsiveModal open={alertOpen} onOpenChange={setAlertOpen}>
-          <ResponsiveModalContent>
-            <ResponsiveModalHeader>
-              <ResponsiveModalTitle>Add Alert</ResponsiveModalTitle>
-              <ResponsiveModalDescription>
-                Get a toast when {activeLot.ticker} crosses a price you set.
-              </ResponsiveModalDescription>
-            </ResponsiveModalHeader>
-            <div className="mt-2">
-              <LotAlertsManager
-                stockLotId={activeStockId}
-                ticker={activeLot.ticker}
-                avgCost={Number(activeLot.avgCost) || 0}
-                defaultAdding
-              />
-            </div>
-          </ResponsiveModalContent>
-        </ResponsiveModal>
       )}
     </>
   );

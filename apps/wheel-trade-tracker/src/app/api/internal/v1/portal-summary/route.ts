@@ -5,7 +5,6 @@ import {
 } from "@/server/api/internal";
 import { db } from "@/server/db";
 import { authPrisma } from "@hlf/auth-db";
-import { evaluateActionableConfigsForUser } from "@/lib/alerts/engine";
 import { getQuoteSnapshots } from "@/lib/alpaca";
 import { getCalendarEvents } from "@/lib/yahoo-finance";
 import { capitalUsedForTrade } from "@/lib/tradeMetrics";
@@ -16,9 +15,6 @@ import { loadEffectiveBasisByLot } from "@/lib/effectiveStockBasis";
 // Returns:
 //   - open trade/lot counts
 //   - MTD/YTD realized P&L (trades + stock lots)
-//   - alerts data from the alerts module (merged in 2026-05-13)
-//   - actionableConfigs: configs *currently in the act zone* per the engine's
-//     evaluator (not historical event fires). Powers the portal's Today inbox.
 //   - expiring trades with DTE <= 7
 //   - openTrades + openLots: position snapshots with current quotes for the
 //     portal Dashboard's morning briefing surface (Phase 2).
@@ -31,7 +27,6 @@ import { loadEffectiveBasisByLot } from "@/lib/effectiveStockBasis";
 
 const EXPIRING_DTE_THRESHOLD = 7;
 const EXPIRING_LIMIT = 20;
-const RECENT_ALERTS_RETURN = 10;
 // Cap snapshot tables — Dashboard shows compact previews, full list in
 // wheel-tracker. Sorted by ascending DTE (trades) / descending notional (lots)
 // so the most attention-worthy items lead.
@@ -46,8 +41,8 @@ export async function GET(request: Request) {
   const userId = searchParams.get("userId");
   const email = searchParams.get("email");
   // Optional CSV of portfolio IDs to scope realized P&L + expiring trades to.
-  // Open-position counts and alerts are NOT scoped — those reflect the full
-  // account regardless of which portfolios the user wants in their rollups.
+  // Open-position counts are NOT scoped — those reflect the full account
+  // regardless of which portfolios the user wants in their rollups.
   const portfolioIdsParam = searchParams.get("portfolioIds");
   const portfolioIds = portfolioIdsParam
     ? portfolioIdsParam.split(",").filter(Boolean)
@@ -69,11 +64,7 @@ export async function GET(request: Request) {
         openLotCount: 0,
         mtdRealizedPnl: 0,
         ytdRealizedPnl: 0,
-        alertsToday: 0,
-        alertsThisWeek: 0,
-        recentAlerts: [],
         expiringTrades: [],
-        actionableConfigs: [],
         openTrades: [],
         openLots: [],
         upcomingEvents: [],
@@ -88,8 +79,6 @@ export async function GET(request: Request) {
   const mtdStart = new Date(now.getFullYear(), now.getMonth(), 1);
   const ytdStart = new Date(now.getFullYear(), 0, 1);
   const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  const weekStart = new Date(todayStart);
-  weekStart.setDate(weekStart.getDate() - 7);
   const expiringCutoff = new Date(todayStart);
   expiringCutoff.setDate(expiringCutoff.getDate() + EXPIRING_DTE_THRESHOLD + 1);
 
@@ -97,8 +86,8 @@ export async function GET(request: Request) {
   // `tradingPortfolios = "all"` (or unset) → portfolioIds is undefined,
   // the filter degrades to `{ userId }`. Otherwise scope every wheel-side
   // query to the selected portfolio set so the Dashboard reflects only
-  // what the user wants in their trading view. Watchlist and alert event
-  // counts remain user-level (they're not portfolio-scoped concepts).
+  // what the user wants in their trading view. Watchlist counts remain
+  // user-level (they're not portfolio-scoped concepts).
   const portfolioFilter = {
     userId: resolvedUserId!,
     ...(portfolioIds && { id: { in: portfolioIds } }),
@@ -110,11 +99,7 @@ export async function GET(request: Request) {
       openLotCount,
       ytdTrades,
       ytdLots,
-      alertsToday,
-      alertsThisWeek,
-      recentAlerts,
       expiringTradeRows,
-      actionable,
       openTradeRows,
       openLotRows,
       watchlistRows,
@@ -123,7 +108,6 @@ export async function GET(request: Request) {
       allClosedTrades,
       allClosedLots,
       portfoliosForCapital,
-      watchlistAlertConfigs,
     ] = await Promise.all([
       db.trade.count({
         where: { status: "open", portfolio: portfolioFilter },
@@ -147,25 +131,6 @@ export async function GET(request: Request) {
         },
         select: { closedAt: true, realizedPnl: true },
       }),
-      db.alertEvent.count({
-        where: { userId: resolvedUserId!, firedAt: { gte: todayStart } },
-      }),
-      db.alertEvent.count({
-        where: { userId: resolvedUserId!, firedAt: { gte: weekStart } },
-      }),
-      db.alertEvent.findMany({
-        where: { userId: resolvedUserId! },
-        orderBy: { firedAt: "desc" },
-        take: RECENT_ALERTS_RETURN,
-        select: {
-          id: true,
-          message: true,
-          firedAt: true,
-          config: {
-            select: { type: true, tradeId: true, watchlistTicker: true },
-          },
-        },
-      }),
       db.trade.findMany({
         where: {
           status: "open",
@@ -184,12 +149,6 @@ export async function GET(request: Request) {
           portfolioId: true,
         },
       }),
-      // Evaluate live alert configs against current quotes — this is what
-      // powers Today's action queue. Engine reuses the same evaluators the
-      // every-2-min cron scan uses, but without dedup/event-write side
-      // effects. Honors the portfolio filter for trade/lot-bound configs;
-      // watchlist alerts always pass through (user-level concept).
-      evaluateActionableConfigsForUser(resolvedUserId!, portfolioIds),
       // Position snapshots for the Dashboard. Trades sorted by ascending DTE
       // so the most time-sensitive show first. Lots sorted by notional
       // (avgCost * shares) descending so the biggest exposures lead.
@@ -282,17 +241,6 @@ export async function GET(request: Request) {
           capitalTransactions: { select: { type: true, amount: true } },
         },
       }),
-      // Active watchlist breach configs — surfaces a small "N triggers"
-      // badge per watchlist row on the Dashboard. The user-level scope
-      // matches how watchlist itself is scoped (not portfolio-bound).
-      db.alertConfig.findMany({
-        where: {
-          userId: resolvedUserId!,
-          type: "WATCHLIST_BREACH",
-          enabled: true,
-        },
-        select: { watchlistTicker: true },
-      }),
     ]);
 
     let mtdRealizedPnl = 0;
@@ -324,27 +272,6 @@ export async function GET(request: Request) {
         dte,
       };
     });
-
-    const actionableConfigs = actionable.map((a) => ({
-      configId: a.config.id,
-      type: a.config.type,
-      message: a.message,
-      ticker:
-        a.trade?.ticker ?? a.lot?.ticker ?? a.config.watchlistTicker ?? null,
-      tradeId: a.config.tradeId,
-      stockLotId: a.config.stockLotId,
-      watchlistTicker: a.config.watchlistTicker,
-      portfolioId: a.trade?.portfolioId ?? a.lot?.portfolioId ?? null,
-      price: a.price,
-      dte: a.trade
-        ? Math.max(
-            0,
-            Math.ceil(
-              (a.trade.expirationDate.getTime() - todayStart.getTime()) / 86_400_000,
-            ),
-          )
-        : null,
-    }));
 
     // One quote-snapshot batch covers every ticker we need to enrich:
     // open trades + open lots + watchlist items. getQuoteSnapshots
@@ -440,15 +367,9 @@ export async function GET(request: Request) {
       };
     });
 
-    // Watchlist snapshot — ticker + live quote + count of active price-
-    // breach triggers per ticker. Sorted by the user's preferred order
-    // from the watchlist itself (already applied by the orderBy above).
-    const breachCountByTicker = new Map<string, number>();
-    for (const c of watchlistAlertConfigs) {
-      if (!c.watchlistTicker) continue;
-      const key = c.watchlistTicker.toUpperCase();
-      breachCountByTicker.set(key, (breachCountByTicker.get(key) ?? 0) + 1);
-    }
+    // Watchlist snapshot — ticker + live quote. Sorted by the user's
+    // preferred order from the watchlist itself (already applied by the
+    // orderBy above).
     const watchlist = watchlistRows.map((w) => {
       const snap = snapshotMap.get(w.ticker.toUpperCase());
       return {
@@ -457,7 +378,6 @@ export async function GET(request: Request) {
         currentPrice: snap?.price ?? null,
         changePct: snap?.changePct ?? null,
         previousClose: snap?.previousClose ?? null,
-        alertCount: breachCountByTicker.get(w.ticker.toUpperCase()) ?? 0,
       };
     });
 
@@ -649,18 +569,7 @@ export async function GET(request: Request) {
       openLotCount,
       mtdRealizedPnl,
       ytdRealizedPnl,
-      alertsToday,
-      alertsThisWeek,
-      recentAlerts: recentAlerts.map((a) => ({
-        id: a.id,
-        message: a.message,
-        firedAt: a.firedAt.toISOString(),
-        type: a.config.type,
-        tradeId: a.config.tradeId,
-        watchlistTicker: a.config.watchlistTicker,
-      })),
       expiringTrades,
-      actionableConfigs,
       openTrades,
       openLots,
       upcomingEvents,

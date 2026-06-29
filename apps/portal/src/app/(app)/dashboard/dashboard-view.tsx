@@ -7,7 +7,6 @@ import {
   Banknote,
   Inbox,
   Sparkles,
-  Bell,
   CalendarClock,
   CalendarDays,
   LineChart,
@@ -52,7 +51,6 @@ type Props = {
 
 
 const KIND_ICON: Record<TodayItemKind, React.ElementType> = {
-  ALERT: Bell,
   EXPIRING: CalendarClock,
 };
 
@@ -760,7 +758,7 @@ function TodayCard({ items }: { items: TodayItem[] }) {
               </div>
               <p className="text-sm font-medium">You&apos;re all clear</p>
               <p className="text-xs text-muted-foreground max-w-xs leading-snug">
-                Nothing in your alert zones right now and nothing expiring soon.
+                Nothing expiring in the next 7 days.
               </p>
             </div>
           ) : (
@@ -1092,15 +1090,6 @@ function WatchlistRow({ item: w, wheelUrl }: { item: WatchlistSnapshot; wheelUrl
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2">
           <span className="text-sm font-semibold">{w.ticker}</span>
-          {w.alertCount > 0 && (
-            <Badge
-              variant="outline"
-              className="text-[10px] px-1 py-0 border-amber-500/40 text-amber-600 dark:text-amber-400"
-            >
-              <Bell className="w-2.5 h-2.5 mr-0.5" />
-              {w.alertCount}
-            </Badge>
-          )}
         </div>
       </div>
       <div className="text-right shrink-0">

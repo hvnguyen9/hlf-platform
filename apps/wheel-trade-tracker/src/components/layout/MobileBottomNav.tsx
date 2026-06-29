@@ -10,7 +10,6 @@ import {
   Eye,
   BookOpen,
   MoreHorizontal,
-  Bell,
   Settings,
   Shield,
   LogOut,
@@ -83,10 +82,6 @@ function MoreSheetContent({ onNavigate }: { onNavigate: () => void }) {
       )}
 
       <div className="space-y-0.5 pt-2">
-        <Link href="/alerts" onClick={onNavigate} className={linkCls(pathname.startsWith("/alerts"))}>
-          <Bell className="h-4 w-4 text-muted-foreground" />
-          Alerts
-        </Link>
         <Link href="/settings" onClick={onNavigate} className={linkCls(pathname === "/settings")}>
           <Settings className="h-4 w-4 text-muted-foreground" />
           Profile &amp; Settings
@@ -150,7 +145,6 @@ export function MobileBottomNav() {
       label: "More",
       icon: MoreHorizontal,
       match: (p) =>
-        p.startsWith("/alerts") ||
         p.startsWith("/settings") ||
         p.startsWith("/admin"),
       sheet: {

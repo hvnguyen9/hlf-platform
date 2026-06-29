@@ -7,7 +7,6 @@ import { AppSidebar, MobileTopBar } from "@/components/layout/AppSidebar";
 import { MobileBottomNav } from "@/components/layout/MobileBottomNav";
 import { QuickAddFab } from "@/components/layout/QuickAdd";
 import { ImpersonationBanner } from "@/features/admin/components/ImpersonationBanner";
-import { AlertToastsListener } from "@/features/alerts/components/AlertToastsListener";
 
 function InnerShell({ children }: { children: React.ReactNode }) {
   const { data: session } = useSession();
@@ -25,7 +24,6 @@ function InnerShell({ children }: { children: React.ReactNode }) {
     >
       {showChrome ? (
         <div className="flex h-[100dvh] overflow-hidden">
-          <AlertToastsListener />
           {/* Desktop sidebar */}
           <AppSidebar />
           {/* Content column */}
