@@ -54,6 +54,26 @@ type FormState = {
   percentPL: string;
   closeReason: string;
   portfolioId: string;
+  coverageSource: "lot" | "call";
+  stockLotId: string;
+  coveringTradeId: string;
+};
+
+type StockLotLite = {
+  id: string;
+  ticker: string;
+  shares: number;
+  avgCost: string | number;
+  status: string;
+};
+
+type TradeLite = {
+  id: string;
+  ticker: string;
+  type: string;
+  strikePrice: number;
+  expirationDate: string;
+  contractsOpen: number;
 };
 
 function toForm(t: Trade): FormState {
@@ -73,6 +93,9 @@ function toForm(t: Trade): FormState {
     percentPL: t.percentPL != null ? String(t.percentPL) : "",
     closeReason: t.closeReason ?? "",
     portfolioId: t.portfolioId,
+    coverageSource: t.coveringTradeId ? "call" : "lot",
+    stockLotId: t.stockLotId ?? "",
+    coveringTradeId: t.coveringTradeId ?? "",
   };
 }
 
@@ -148,6 +171,32 @@ export function AdminEditTradeModal({ trade, open, onClose, onSaved }: Props) {
     { dedupingInterval: 60_000 },
   );
 
+  const isCC = form.type === "CoveredCall";
+
+  // Coverage candidates — only fetched while editing a covered call. Scoped to
+  // the (possibly reassigned) portfolio so the lists track a portfolio change.
+  const { data: stocksData } = useSWR<{ stockLots: StockLotLite[] }>(
+    open && isCC ? `/api/stocks?portfolioId=${form.portfolioId}&status=open` : null,
+    (url: string) => fetch(url).then((r) => r.json()),
+    { dedupingInterval: 60_000 },
+  );
+  const { data: openTradesData } = useSWR<TradeLite[]>(
+    open && isCC ? `/api/trades?portfolioId=${form.portfolioId}&status=open` : null,
+    (url: string) => fetch(url).then((r) => r.json()),
+    { dedupingInterval: 60_000 },
+  );
+
+  const tickerU = form.ticker.trim().toUpperCase();
+  const lotOptions = (stocksData?.stockLots ?? []).filter(
+    (l) => !tickerU || l.ticker.toUpperCase() === tickerU,
+  );
+  const longCallOptions = (openTradesData ?? []).filter(
+    (t) =>
+      t.type === "Call" &&
+      t.id !== trade.id &&
+      (!tickerU || t.ticker.toUpperCase() === tickerU),
+  );
+
   const portfolioChanged = form.portfolioId !== trade.portfolioId;
 
   useEffect(() => {
@@ -173,6 +222,16 @@ export function AdminEditTradeModal({ trade, open, onClose, onSaved }: Props) {
       };
       if (form.entryPrice !== "") payload.entryPrice = parseFloat(form.entryPrice);
       if (portfolioChanged) payload.portfolioId = form.portfolioId;
+      if (isCC) {
+        // Send the chosen coverage and clear the other side. "" → null (clear).
+        if (form.coverageSource === "lot") {
+          payload.stockLotId = form.stockLotId || null;
+          payload.coveringTradeId = null;
+        } else {
+          payload.coveringTradeId = form.coveringTradeId || null;
+          payload.stockLotId = null;
+        }
+      }
       if (isClosed) {
         if (form.closingPrice !== "") payload.closingPrice = parseFloat(form.closingPrice);
         if (form.premiumCaptured !== "") payload.premiumCaptured = parseFloat(form.premiumCaptured);
@@ -274,6 +333,71 @@ export function AdminEditTradeModal({ trade, open, onClose, onSaved }: Props) {
                 <Input type="text" inputMode="numeric" value={form.contractsOpen} onChange={(e) => set("contractsOpen", e.target.value)} />
               </Field>
             </div>
+
+            {isCC && (
+              <Field label="Coverage">
+                <div className="grid grid-cols-2 gap-2">
+                  <Button
+                    type="button"
+                    variant={form.coverageSource === "lot" ? "default" : "outline"}
+                    className="w-full"
+                    onClick={() =>
+                      setForm((f) => ({ ...f, coverageSource: "lot", coveringTradeId: "" }))
+                    }
+                  >
+                    Stock lot
+                  </Button>
+                  <Button
+                    type="button"
+                    variant={form.coverageSource === "call" ? "default" : "outline"}
+                    className="w-full"
+                    onClick={() =>
+                      setForm((f) => ({ ...f, coverageSource: "call", stockLotId: "" }))
+                    }
+                  >
+                    Long call (PMCC)
+                  </Button>
+                </div>
+                {form.coverageSource === "lot" ? (
+                  <>
+                    <Select value={form.stockLotId} onValueChange={(v) => set("stockLotId", v)}>
+                      <SelectTrigger><SelectValue placeholder="Select a stock lot…" /></SelectTrigger>
+                      <SelectContent>
+                        {lotOptions.map((l) => (
+                          <SelectItem key={l.id} value={l.id}>
+                            {l.ticker} — {l.shares} sh @ ${Number(l.avgCost).toFixed(2)}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    {tickerU && lotOptions.length === 0 && (
+                      <p className="text-[11px] text-muted-foreground mt-1">
+                        No open stock lots for {tickerU} in this portfolio.
+                      </p>
+                    )}
+                  </>
+                ) : (
+                  <>
+                    <Select value={form.coveringTradeId} onValueChange={(v) => set("coveringTradeId", v)}>
+                      <SelectTrigger><SelectValue placeholder="Select a long call…" /></SelectTrigger>
+                      <SelectContent>
+                        {longCallOptions.map((c) => (
+                          <SelectItem key={c.id} value={c.id}>
+                            {c.ticker} ${c.strikePrice} Call exp{" "}
+                            {format(new Date(c.expirationDate), "MMM d, yyyy")} · {c.contractsOpen} ct
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    {tickerU && longCallOptions.length === 0 && (
+                      <p className="text-[11px] text-muted-foreground mt-1">
+                        No open long calls for {tickerU} in this portfolio.
+                      </p>
+                    )}
+                  </>
+                )}
+              </Field>
+            )}
           </div>
 
           {isClosed && (

@@ -58,6 +58,10 @@ export async function PATCH(
     percentPL?: number;
     closeReason?: CloseReason | string;
     portfolioId?: string;
+    // Admin-only: covered-call coverage link. Pass a string id to set, or
+    // null to clear. A CC carries at most one of these.
+    stockLotId?: string | null;
+    coveringTradeId?: string | null;
   };
   const body = (await req.json().catch(() => ({}))) as PatchBody;
 
@@ -123,6 +127,89 @@ export async function PATCH(
           );
         }
         updates.portfolio = { connect: { id: targetId } };
+      }
+    }
+
+    // Covered-call coverage link: set to a stock lot (classic) or a long call
+    // (PMCC), or clear. Lets us fix existing CCs that are mis-linked or
+    // unlinked. A CC carries at most one of the two.
+    const wantsLot = typeof body.stockLotId === "string" && body.stockLotId.trim() !== "";
+    const wantsCall = typeof body.coveringTradeId === "string" && body.coveringTradeId.trim() !== "";
+    const clearsLot = body.stockLotId === null;
+    const clearsCall = body.coveringTradeId === null;
+
+    if (wantsLot && wantsCall) {
+      return NextResponse.json(
+        { error: "A covered call can be backed by a stock lot or a long call, not both" },
+        { status: 400 },
+      );
+    }
+
+    if (wantsLot || wantsCall || clearsLot || clearsCall) {
+      const current = await prisma.trade.findUnique({
+        where: { id },
+        select: { portfolioId: true, ticker: true },
+      });
+      if (!current) {
+        return NextResponse.json({ error: "Trade not found" }, { status: 404 });
+      }
+
+      if (wantsLot) {
+        const lotId = body.stockLotId!.trim();
+        const lot = await prisma.stockLot.findUnique({
+          where: { id: lotId },
+          select: { portfolioId: true, ticker: true },
+        });
+        if (!lot || lot.portfolioId !== current.portfolioId) {
+          return NextResponse.json(
+            { error: "Stock lot not found in this trade's portfolio" },
+            { status: 400 },
+          );
+        }
+        if (lot.ticker.toUpperCase() !== current.ticker.toUpperCase()) {
+          return NextResponse.json(
+            { error: "Stock lot ticker must match the trade ticker" },
+            { status: 400 },
+          );
+        }
+        updates.stockLot = { connect: { id: lotId } };
+        updates.coveringTrade = { disconnect: true };
+      } else if (wantsCall) {
+        const callId = body.coveringTradeId!.trim();
+        if (callId === id) {
+          return NextResponse.json(
+            { error: "A call can't cover itself" },
+            { status: 400 },
+          );
+        }
+        const call = await prisma.trade.findUnique({
+          where: { id: callId },
+          select: { portfolioId: true, ticker: true, type: true },
+        });
+        if (!call || call.portfolioId !== current.portfolioId) {
+          return NextResponse.json(
+            { error: "Long call not found in this trade's portfolio" },
+            { status: 400 },
+          );
+        }
+        if (call.type !== "Call") {
+          return NextResponse.json(
+            { error: "Coverage must be a long call" },
+            { status: 400 },
+          );
+        }
+        if (call.ticker.toUpperCase() !== current.ticker.toUpperCase()) {
+          return NextResponse.json(
+            { error: "Long call ticker must match the trade ticker" },
+            { status: 400 },
+          );
+        }
+        updates.coveringTrade = { connect: { id: callId } };
+        updates.stockLot = { disconnect: true };
+      } else {
+        // Explicit clear(s).
+        if (clearsLot) updates.stockLot = { disconnect: true };
+        if (clearsCall) updates.coveringTrade = { disconnect: true };
       }
     }
   }

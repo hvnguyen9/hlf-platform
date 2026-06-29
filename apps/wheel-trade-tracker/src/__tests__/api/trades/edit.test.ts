@@ -1,10 +1,16 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { mockSession, adminSession } from "../../helpers/mocks";
 
-const { mockGetServerSession, mockTradeFindUnique, mockTradeUpdate } = vi.hoisted(() => ({
+const {
+  mockGetServerSession,
+  mockTradeFindUnique,
+  mockTradeUpdate,
+  mockStockLotFindUnique,
+} = vi.hoisted(() => ({
   mockGetServerSession: vi.fn(),
   mockTradeFindUnique: vi.fn(),
   mockTradeUpdate: vi.fn(),
+  mockStockLotFindUnique: vi.fn(),
 }));
 
 vi.mock("next-auth", () => ({ getServerSession: mockGetServerSession }));
@@ -18,6 +24,7 @@ vi.mock("next/headers", () => ({
 vi.mock("@/server/prisma", () => ({
   prisma: {
     trade: { findUnique: mockTradeFindUnique, update: mockTradeUpdate },
+    stockLot: { findUnique: mockStockLotFindUnique },
   },
 }));
 
@@ -34,7 +41,7 @@ function makeReq(body: unknown) {
 }
 
 const baseTrade = {
-  id: "trade-1", ticker: "AAPL", type: "CashSecuredPut",
+  id: "trade-1", ticker: "AAPL", type: "CoveredCall", portfolioId: "port-1",
   strikePrice: 200, contractPrice: 3.5, status: "open",
 };
 
@@ -130,5 +137,60 @@ describe("PATCH /api/trades/[id]", () => {
     expect(res.status).toBe(200);
     const updateCall = mockTradeUpdate.mock.calls[0][0] as { data: Record<string, unknown> };
     expect(updateCall.data.ticker).toBeUndefined();
+  });
+
+  // ── Admin covered-call coverage editing ──────────────────────────────────
+  it("admin can link a CC to a stock lot", async () => {
+    mockGetServerSession.mockResolvedValue(adminSession());
+    mockStockLotFindUnique.mockResolvedValue({ portfolioId: "port-1", ticker: "AAPL" });
+    const res = await PATCH(makeReq({ stockLotId: "lot-9" }), params);
+    expect(res.status).toBe(200);
+    const data = (mockTradeUpdate.mock.calls[0][0] as { data: Record<string, unknown> }).data;
+    expect(data.stockLot).toEqual({ connect: { id: "lot-9" } });
+    expect(data.coveringTrade).toEqual({ disconnect: true });
+  });
+
+  it("admin can link a CC to a long call (PMCC)", async () => {
+    mockGetServerSession.mockResolvedValue(adminSession());
+    // 1st findUnique = current trade; 2nd = the covering long call
+    mockTradeFindUnique
+      .mockResolvedValueOnce(baseTrade)
+      .mockResolvedValueOnce({ portfolioId: "port-1", ticker: "AAPL", type: "Call" });
+    const res = await PATCH(makeReq({ coveringTradeId: "call-9" }), params);
+    expect(res.status).toBe(200);
+    const data = (mockTradeUpdate.mock.calls[0][0] as { data: Record<string, unknown> }).data;
+    expect(data.coveringTrade).toEqual({ connect: { id: "call-9" } });
+    expect(data.stockLot).toEqual({ disconnect: true });
+  });
+
+  it("rejects covering with a non-call trade", async () => {
+    mockGetServerSession.mockResolvedValue(adminSession());
+    mockTradeFindUnique
+      .mockResolvedValueOnce(baseTrade)
+      .mockResolvedValueOnce({ portfolioId: "port-1", ticker: "AAPL", type: "CashSecuredPut" });
+    const res = await PATCH(makeReq({ coveringTradeId: "csp-9" }), params);
+    expect(res.status).toBe(400);
+  });
+
+  it("rejects a covering call with a mismatched ticker", async () => {
+    mockGetServerSession.mockResolvedValue(adminSession());
+    mockTradeFindUnique
+      .mockResolvedValueOnce(baseTrade)
+      .mockResolvedValueOnce({ portfolioId: "port-1", ticker: "GOOGL", type: "Call" });
+    const res = await PATCH(makeReq({ coveringTradeId: "call-9" }), params);
+    expect(res.status).toBe(400);
+  });
+
+  it("rejects setting both a stock lot and a long call", async () => {
+    mockGetServerSession.mockResolvedValue(adminSession());
+    const res = await PATCH(makeReq({ stockLotId: "lot-9", coveringTradeId: "call-9" }), params);
+    expect(res.status).toBe(400);
+  });
+
+  it("non-admin cannot set coverage (field ignored)", async () => {
+    const res = await PATCH(makeReq({ notes: "note", coveringTradeId: "call-9" }), params);
+    expect(res.status).toBe(200);
+    const data = (mockTradeUpdate.mock.calls[0][0] as { data: Record<string, unknown> }).data;
+    expect(data.coveringTrade).toBeUndefined();
   });
 });
